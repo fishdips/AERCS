@@ -7,6 +7,7 @@ import {
   replaceEvidence,
   uploadEvidence,
 } from '../api';
+import Modal from '../../../shared/components/Modal';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
 
@@ -71,7 +72,7 @@ function hasMetadata(item) {
 export default function EvidencePanel({ activityId, canManageEvidence }) {
   const [evidence, setEvidence] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [replacement, setReplacement] = useState({ evidenceId: '', file: null });
+  const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -199,7 +200,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     }
 
     setError('');
-    setReplacement({ evidenceId: item.id, file });
+    setReplacement({ evidenceId: item.id, file, item });
   };
 
   const handleReplace = async () => {
@@ -209,7 +210,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     setError('');
     try {
       await replaceEvidence(replacement.evidenceId, replacement.file);
-      setReplacement({ evidenceId: '', file: null });
+      setReplacement({ evidenceId: '', file: null, item: null });
       await loadEvidence();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to replace evidence.');
@@ -321,9 +322,6 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                       {item.relatedOffices?.length ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}` : ''}
                     </span>
                   )}
-                  {replacement.evidenceId === item.id && replacement.file && (
-                    <span className="am-evidence-replacement">Replacement: {replacement.file.name}</span>
-                  )}
                 </td>
                 <td>{item.fileType}</td>
                 <td>{formatFileSize(item.fileSize)}</td>
@@ -352,16 +350,6 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                             onChange={(event) => handleSelectReplacement(item, event)}
                           />
                         </label>
-                        {replacement.evidenceId === item.id && replacement.file && (
-                          <>
-                            <button className="am-link-button" type="button" onClick={handleReplace} disabled={busyEvidenceId === item.id}>
-                              Save
-                            </button>
-                            <button className="am-link-button" type="button" onClick={() => setReplacement({ evidenceId: '', file: null })}>
-                              Cancel
-                            </button>
-                          </>
-                        )}
                         <button className="am-link-button am-link-danger" type="button" onClick={() => handleDelete(item)} disabled={busyEvidenceId === item.id}>
                           Delete
                         </button>
@@ -374,6 +362,53 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
           </tbody>
         </table>
       )}
+      <Modal
+        isOpen={Boolean(replacement.evidenceId && replacement.file)}
+        onClose={() => setReplacement({ evidenceId: '', file: null, item: null })}
+        title="Replace Evidence"
+      >
+        <div className="am-replace-modal">
+          <p className="am-replace-copy">
+            Save this replacement to update the selected evidence record. The current file will be replaced.
+          </p>
+          <dl className="am-replace-details">
+            <div>
+              <dt>Current File</dt>
+              <dd>{replacement.item?.originalFileName || '-'}</dd>
+            </div>
+            <div>
+              <dt>Replacement File</dt>
+              <dd>{replacement.file?.name || '-'}</dd>
+            </div>
+            <div>
+              <dt>Replacement Type</dt>
+              <dd>{replacement.file?.name?.split('.').pop()?.toUpperCase() || '-'}</dd>
+            </div>
+            <div>
+              <dt>Replacement Size</dt>
+              <dd>{formatFileSize(replacement.file?.size)}</dd>
+            </div>
+          </dl>
+          <div className="am-form-actions am-replace-actions">
+            <button
+              className="am-btn-secondary"
+              type="button"
+              onClick={() => setReplacement({ evidenceId: '', file: null, item: null })}
+              disabled={Boolean(busyEvidenceId)}
+            >
+              Cancel
+            </button>
+            <button
+              className="am-btn-primary"
+              type="button"
+              onClick={handleReplace}
+              disabled={Boolean(busyEvidenceId)}
+            >
+              {busyEvidenceId ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </Modal>
       <EvidenceMetadataModal
         evidence={metadataEvidence}
         isOpen={Boolean(metadataEvidence)}
