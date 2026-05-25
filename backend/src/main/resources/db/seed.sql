@@ -1,0 +1,8 @@
+-- AERCS Seed Data
+-- The System Administrator account is created automatically by DataInitializer.java
+-- on the first application startup. Check the startup logs for the generated credentials.
+--
+-- To manually reset the admin (e.g., lost password):
+--   1. DELETE FROM users WHERE role = 'ADMIN';
+--   2. Restart the Spring Boot application.
+--   3. DataInitializer will recreate the admin and print a new temp password to the console.
