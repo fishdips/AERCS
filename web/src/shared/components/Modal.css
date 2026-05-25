@@ -15,6 +15,10 @@
   border: 1px solid #d1d5db;
 }
 
+.modal-box-wide {
+  width: min(1040px, 96vw);
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -45,4 +49,9 @@
 
 .modal-body {
   padding: 1.25rem;
+}
+
+.modal-box-wide .modal-body {
+  max-height: 78vh;
+  overflow-y: auto;
 }

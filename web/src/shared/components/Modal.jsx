@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import './Modal.css';
 
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({ isOpen, onClose, title, children, size = 'default' }) {
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -13,7 +13,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-box ${size === 'wide' ? 'modal-box-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
