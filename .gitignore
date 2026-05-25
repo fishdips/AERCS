@@ -18,6 +18,8 @@ desktop.ini
 
 # Java / Maven (backend)
 backend/target/
+backend/storage/
+backend/uploads/
 
 # Node / React (web)
 web/node_modules/

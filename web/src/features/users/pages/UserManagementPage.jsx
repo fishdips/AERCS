@@ -186,9 +186,11 @@ export default function UserManagementPage() {
         <aside className="ump-sidebar">
           <nav className="ump-nav">
             <p className="ump-nav-section">Workspace</p>
-            {['Dashboard', 'Activities', 'Repository', 'Shared Evidence', 'Monitoring'].map((item) => (
-              <a key={item} href="/dashboard" className="ump-nav-link">{item}</a>
-            ))}
+            <a href="/dashboard" className="ump-nav-link">Dashboard</a>
+            <a href="/activities" className="ump-nav-link">Activities</a>
+            <a href="/dashboard" className="ump-nav-link">Repository</a>
+            <a href="/dashboard" className="ump-nav-link">Shared Evidence</a>
+            <a href="/dashboard" className="ump-nav-link">Monitoring</a>
             <p className="ump-nav-section">Administration</p>
             <a href="/admin/users" className="ump-nav-link ump-nav-active">Access Management</a>
             <a href="/audit-logs" className="ump-nav-link">Audit Logs</a>
