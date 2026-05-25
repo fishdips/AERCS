@@ -1,0 +1,57 @@
+package com.aercs.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException e) {
+        return error(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, String>> handleDisabled(DisabledException e) {
+        return error(HttpStatus.UNAUTHORIZED, "Account is inactive");
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(ResourceNotFoundException e) {
+        return error(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Map<String, String>> handleBadRequest(BadRequestException e) {
+        return error(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        e.getBindingResult().getFieldErrors()
+                .forEach(fe -> fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "Validation failed");
+        body.put("details", fieldErrors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleGeneric(Exception e) {
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+    }
+
+    private ResponseEntity<Map<String, String>> error(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(Map.of("error", message));
+    }
+}
