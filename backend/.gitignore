@@ -1,7 +1,6 @@
 HELP.md
 src/main/resources/application-local.properties
 target/
-!.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
@@ -30,6 +29,4 @@ target/
 .vscode/
 
 ### Maven ###
-.mvn/
-mvnw
-mvnw.cmd
+# .mvn/, mvnw, mvnw.cmd are intentionally tracked for team use
