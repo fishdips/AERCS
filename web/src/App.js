@@ -10,6 +10,7 @@ import ActivitiesListPage from './features/activities/pages/ActivitiesListPage';
 import CreateActivityPage from './features/activities/pages/CreateActivityPage';
 import ActivityDetailPage from './features/activities/pages/ActivityDetailPage';
 import EditActivityPage from './features/activities/pages/EditActivityPage';
+import RepositoryPage from './features/repository/pages/RepositoryPage';
 import SharedEvidencePage from './features/shared-evidence/pages/SharedEvidencePage';
 import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvidencePage';
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
@@ -35,6 +36,15 @@ function App() {
           />
 
           <Route path="/dashboard" element={<Navigate to="/activities" replace />} />
+
+          <Route
+            path="/repository"
+            element={
+              <ProtectedRoute>
+                <RepositoryPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/activities"

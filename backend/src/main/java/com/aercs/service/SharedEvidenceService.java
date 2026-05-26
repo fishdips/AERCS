@@ -2,6 +2,7 @@ package com.aercs.service;
 
 import com.aercs.dto.request.ReferenceRequest;
 import com.aercs.dto.response.ReferenceResponse;
+import com.aercs.dto.response.RepositoryEvidenceResponse;
 import com.aercs.dto.response.SharedEvidenceResponse;
 import com.aercs.entity.*;
 import com.aercs.exception.BadRequestException;
@@ -18,7 +19,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,15 +40,13 @@ public class SharedEvidenceService {
             String academicYear,
             String department,
             String keyword,
-            UUID currentUserId,
             Pageable pageable
     ) {
         Specification<Evidence> spec = buildSearchSpec(
                 area,
                 blankToNull(academicYear),
                 blankToNull(department),
-                blankToNull(keyword),
-                currentUserId
+                blankToNull(keyword)
         );
         Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(),
@@ -98,25 +99,14 @@ public class SharedEvidenceService {
     @Transactional(readOnly = true)
     public Page<ReferenceResponse> getReferences(
             UUID evidenceId,
-            UUID currentUserId,
-            UserRole currentUserRole,
             String department,
             AccreditationArea area,
             OffsetDateTime startDate,
             OffsetDateTime endDate,
             Pageable pageable
     ) {
-        Evidence evidence = evidenceRepository.findById(evidenceId)
+        evidenceRepository.findById(evidenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evidence file not found"));
-
-        boolean isOwner = evidence.getUploadedBy() != null
-                && evidence.getUploadedBy().getId().equals(currentUserId);
-        boolean isAdmin = currentUserRole == UserRole.ADMIN;
-
-        // TODO: expand access to ACCRED_COORDINATOR and INSTITUTIONAL_OFFICE in future phases
-        if (!isOwner && !isAdmin) {
-            throw new BadRequestException("Only the file owner or an administrator can view references");
-        }
 
         return referenceRepository.findByEvidenceIdFiltered(
                 evidenceId,
@@ -143,23 +133,117 @@ public class SharedEvidenceService {
         referenceRepository.delete(ref);
     }
 
+    @Transactional(readOnly = true)
+    public Page<RepositoryEvidenceResponse> searchRepository(
+            String keyword,
+            List<AccreditationArea> areas,
+            String department,
+            String academicYear,
+            List<ActivityType> activityTypes,
+            List<String> fileTypes,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            Pageable pageable
+    ) {
+        Specification<Evidence> spec = buildRepositorySpec(
+                blankToNull(keyword), areas, blankToNull(department),
+                blankToNull(academicYear), activityTypes, fileTypes, dateFrom, dateTo
+        );
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "uploadedAt")
+        );
+        Page<Evidence> page = evidenceRepository.findAll(spec, sorted);
+        List<UUID> ids = page.getContent().stream().map(Evidence::getId).toList();
+        Map<UUID, Long> counts = fetchCounts(ids);
+        return page.map(e -> toRepositoryResponse(e, counts.getOrDefault(e.getId(), 0L)));
+    }
+
+    private Specification<Evidence> buildRepositorySpec(
+            String keyword,
+            List<AccreditationArea> areas,
+            String department,
+            String academicYear,
+            List<ActivityType> activityTypes,
+            List<String> fileTypes,
+            LocalDate dateFrom,
+            LocalDate dateTo
+    ) {
+        return (root, query, cb) -> {
+            Join<Evidence, Activity> act = root.join("activity", JoinType.INNER);
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (areas != null && !areas.isEmpty()) {
+                predicates.add(act.get("accreditationArea").in(areas));
+            }
+            if (department != null) {
+                predicates.add(cb.or(
+                        cb.equal(act.get("department"), department),
+                        cb.equal(act.get("office"), department)
+                ));
+            }
+            if (academicYear != null) {
+                predicates.add(cb.equal(act.get("academicYear"), academicYear));
+            }
+            if (activityTypes != null && !activityTypes.isEmpty()) {
+                predicates.add(act.get("activityType").in(activityTypes));
+            }
+            if (fileTypes != null && !fileTypes.isEmpty()) {
+                List<String> upper = fileTypes.stream().map(String::toUpperCase).toList();
+                predicates.add(root.get("fileType").in(upper));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("uploadedAt"),
+                        dateFrom.atStartOfDay().atOffset(ZoneOffset.UTC)));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThan(root.get("uploadedAt"),
+                        dateTo.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC)));
+            }
+            if (keyword != null) {
+                String kw = "%" + keyword.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("originalFileName")), kw),
+                        cb.like(cb.lower(act.get("activityName")), kw),
+                        cb.and(cb.isNotNull(root.get("tags")), cb.like(cb.lower(root.get("tags")), kw)),
+                        cb.and(cb.isNotNull(root.get("notes")), cb.like(cb.lower(root.get("notes")), kw))
+                ));
+            }
+
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private RepositoryEvidenceResponse toRepositoryResponse(Evidence e, long refCount) {
+        Activity activity = e.getActivity();
+        User uploader = e.getUploadedBy();
+        return new RepositoryEvidenceResponse(
+                e.getId(),
+                activity.getId(),
+                activity.getActivityName(),
+                activity.getActivityType(),
+                e.getOriginalFileName(),
+                e.getFileType(),
+                e.getFileSize(),
+                activity.getAccreditationArea(),
+                activity.getAcademicYear(),
+                activity.getDepartment(),
+                activity.getOffice(),
+                uploader == null ? null : uploader.getName(),
+                e.getUploadedAt(),
+                refCount
+        );
+    }
+
     private Specification<Evidence> buildSearchSpec(
             AccreditationArea area,
             String academicYear,
             String department,
-            String keyword,
-            UUID currentUserId
+            String keyword
     ) {
         return (root, query, cb) -> {
             Join<Evidence, Activity> act = root.join("activity", JoinType.INNER);
-            Join<Evidence, User> uploader = root.join("uploadedBy", JoinType.LEFT);
             List<Predicate> predicates = new ArrayList<>();
-
-            // Exclude evidence uploaded by the current user
-            predicates.add(cb.or(
-                    cb.isNull(uploader.get("id")),
-                    cb.notEqual(uploader.get("id"), currentUserId)
-            ));
 
             if (area != null) {
                 predicates.add(cb.equal(act.get("accreditationArea"), area));
