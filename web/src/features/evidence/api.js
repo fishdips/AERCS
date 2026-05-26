@@ -1,5 +1,8 @@
 import api from '../../shared/api/config';
 
+export const getEvidence = (evidenceId) =>
+  api.get(`/api/evidence/${evidenceId}`);
+
 export const listEvidence = (activityId) =>
   api.get(`/api/activities/${activityId}/evidence`);
 

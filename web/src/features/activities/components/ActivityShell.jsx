@@ -1,10 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLE_LABELS } from '../../../shared/constants/roles';
+import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import '../pages/ActivityManagementPage.css';
 
 export default function ActivityShell({ children }) {
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === ROLES.ADMIN;
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,14 +40,18 @@ export default function ActivityShell({ children }) {
         <aside className="am-sidebar">
           <nav className="am-nav">
             <p className="am-nav-section">Workspace</p>
-            <NavLink to="/dashboard" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Dashboard</NavLink>
+            <span className="am-nav-link am-nav-disabled">Dashboard</span>
             <NavLink to="/activities" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Activities</NavLink>
             <span className="am-nav-link am-nav-disabled">Repository</span>
-            <span className="am-nav-link am-nav-disabled">Shared Evidence</span>
+            <NavLink to="/shared-evidence" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Shared Evidence</NavLink>
             <span className="am-nav-link am-nav-disabled">Monitoring</span>
-            <p className="am-nav-section">Administration</p>
-            <NavLink to="/admin/users" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Access Management</NavLink>
-            <span className="am-nav-link am-nav-disabled">Audit Logs</span>
+            {isAdmin && (
+              <>
+                <p className="am-nav-section">Administration</p>
+                <NavLink to="/admin/users" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Access Management</NavLink>
+                <span className="am-nav-link am-nav-disabled">Audit Logs</span>
+              </>
+            )}
           </nav>
           <div className="am-sidebar-footer">
             <div className="am-signed-as">

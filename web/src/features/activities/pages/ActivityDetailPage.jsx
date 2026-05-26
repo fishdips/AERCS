@@ -66,6 +66,11 @@ export default function ActivityDetailPage() {
       <div className="am-page-header">
         <h1 className="am-page-title">Activity Details</h1>
         <div className="am-page-actions">
+          {activity && (
+            <Link className="am-btn-secondary" to={`/activities/${activity.id}/reference-evidence`}>
+              Reference Evidence
+            </Link>
+          )}
           {activity && canManageActivity && (
             <>
               <Link className="am-btn-secondary" to={`/activities/${activity.id}/edit`}>Edit Activity</Link>

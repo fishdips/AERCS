@@ -19,7 +19,7 @@ export default function LoginPage() {
     if (!user) return;
     if (user.mustChangePw) navigate('/change-password', { replace: true });
     else if (user.role === ROLES.ADMIN) navigate('/admin/users', { replace: true });
-    else navigate('/dashboard', { replace: true });
+    else navigate('/activities', { replace: true });
   }, [user, loading, navigate]);
 
   const handleSubmit = async (e) => {
@@ -31,7 +31,7 @@ export default function LoginPage() {
       setUser(data);
       if (data.mustChangePw) navigate('/change-password');
       else if (data.role === ROLES.ADMIN) navigate('/admin/users');
-      else navigate('/dashboard');
+      else navigate('/activities');
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password');
     } finally {
