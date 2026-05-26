@@ -6,11 +6,14 @@ import { RoleProtectedRoute } from './shared/routes/RoleProtectedRoute';
 import LoginPage from './features/auth/pages/LoginPage';
 import ChangePasswordPage from './features/auth/pages/ChangePasswordPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
-import DashboardPage from './features/dashboard/pages/DashboardPage';
 import ActivitiesListPage from './features/activities/pages/ActivitiesListPage';
 import CreateActivityPage from './features/activities/pages/CreateActivityPage';
 import ActivityDetailPage from './features/activities/pages/ActivityDetailPage';
 import EditActivityPage from './features/activities/pages/EditActivityPage';
+import RepositoryPage from './features/repository/pages/RepositoryPage';
+import SharedEvidencePage from './features/shared-evidence/pages/SharedEvidencePage';
+import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvidencePage';
+import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
 import { ACTIVITY_WRITE_ROLES } from './features/activities/constants';
 
 function App() {
@@ -32,11 +35,13 @@ function App() {
             }
           />
 
+          <Route path="/dashboard" element={<Navigate to="/activities" replace />} />
+
           <Route
-            path="/dashboard"
+            path="/repository"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <RepositoryPage />
               </ProtectedRoute>
             }
           />
@@ -73,6 +78,34 @@ function App() {
             element={
               <ProtectedRoute>
                 <ActivityDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Shared Evidence */}
+          <Route
+            path="/shared-evidence"
+            element={
+              <ProtectedRoute>
+                <SharedEvidencePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/shared-evidence/:evidenceId/references"
+            element={
+              <ProtectedRoute>
+                <EvidenceReferencesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activities/:activityId/reference-evidence"
+            element={
+              <ProtectedRoute>
+                <ReferenceEvidencePage />
               </ProtectedRoute>
             }
           />

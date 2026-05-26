@@ -97,6 +97,8 @@
 
 .ump-nav-link:hover { background: #f3f4f6; }
 
+.ump-nav-disabled { color: #9ca3af; cursor: default; pointer-events: none; }
+
 .ump-nav-active {
   background: #f3f4f6;
   border-left-color: #111;

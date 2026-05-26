@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createUser, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
@@ -186,14 +186,14 @@ export default function UserManagementPage() {
         <aside className="ump-sidebar">
           <nav className="ump-nav">
             <p className="ump-nav-section">Workspace</p>
-            <a href="/dashboard" className="ump-nav-link">Dashboard</a>
-            <a href="/activities" className="ump-nav-link">Activities</a>
-            <a href="/dashboard" className="ump-nav-link">Repository</a>
-            <a href="/dashboard" className="ump-nav-link">Shared Evidence</a>
-            <a href="/dashboard" className="ump-nav-link">Monitoring</a>
+            <span className="ump-nav-link ump-nav-disabled">Dashboard</span>
+            <NavLink to="/activities" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Activities</NavLink>
+            <NavLink to="/repository" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Repository</NavLink>
+            <NavLink to="/shared-evidence" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Shared Evidence</NavLink>
+            <span className="ump-nav-link ump-nav-disabled">Monitoring</span>
             <p className="ump-nav-section">Administration</p>
-            <a href="/admin/users" className="ump-nav-link ump-nav-active">Access Management</a>
-            <a href="/audit-logs" className="ump-nav-link">Audit Logs</a>
+            <NavLink to="/admin/users" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Access Management</NavLink>
+            <span className="ump-nav-link ump-nav-disabled">Audit Logs</span>
           </nav>
           <div className="ump-sidebar-footer">
             <div className="ump-signed-as">
