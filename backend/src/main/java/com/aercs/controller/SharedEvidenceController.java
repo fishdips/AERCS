@@ -7,6 +7,7 @@ import com.aercs.dto.response.RepositoryEvidenceResponse;
 import com.aercs.dto.response.SharedEvidenceResponse;
 import com.aercs.entity.AccreditationArea;
 import com.aercs.entity.ActivityType;
+import com.aercs.entity.EvidenceType;
 import com.aercs.entity.UserRole;
 import com.aercs.repository.UserRepository;
 import com.aercs.service.SharedEvidenceService;
@@ -111,6 +112,7 @@ public class SharedEvidenceController {
             @RequestParam(required = false) String academicYear,
             @RequestParam(required = false) String activityTypes,
             @RequestParam(required = false) String fileTypes,
+            @RequestParam(required = false) String evidenceTypes,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
@@ -120,9 +122,10 @@ public class SharedEvidenceController {
         List<AccreditationArea> areaList = parseAreaList(areas);
         List<ActivityType> typeList = parseActivityTypeList(activityTypes);
         List<String> fileTypeList = parseStringList(fileTypes);
+        List<EvidenceType> evidenceTypeList = parseEvidenceTypeList(evidenceTypes);
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(sharedEvidenceService.searchRepository(
-                keyword, areaList, department, academicYear, typeList, fileTypeList, dateFrom, dateTo, pageable
+                keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList, dateFrom, dateTo, pageable
         ));
     }
 
@@ -140,6 +143,15 @@ public class SharedEvidenceController {
         return Arrays.stream(types.split(","))
                 .map(String::trim)
                 .map(s -> { try { return ActivityType.valueOf(s.toUpperCase()); } catch (IllegalArgumentException e) { return null; } })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private List<EvidenceType> parseEvidenceTypeList(String types) {
+        if (types == null || types.isBlank()) return null;
+        return Arrays.stream(types.split(","))
+                .map(String::trim)
+                .map(s -> { try { return EvidenceType.valueOf(s.toUpperCase()); } catch (IllegalArgumentException e) { return null; } })
                 .filter(Objects::nonNull)
                 .toList();
     }

@@ -196,13 +196,14 @@ public class SharedEvidenceService {
             String academicYear,
             List<ActivityType> activityTypes,
             List<String> fileTypes,
+            List<EvidenceType> evidenceTypes,
             LocalDate dateFrom,
             LocalDate dateTo,
             Pageable pageable
     ) {
         Specification<Evidence> spec = buildRepositorySpec(
                 blankToNull(keyword), areas, blankToNull(department),
-                blankToNull(academicYear), activityTypes, fileTypes, dateFrom, dateTo
+                blankToNull(academicYear), activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo
         );
         Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(),
@@ -221,6 +222,7 @@ public class SharedEvidenceService {
             String academicYear,
             List<ActivityType> activityTypes,
             List<String> fileTypes,
+            List<EvidenceType> evidenceTypes,
             LocalDate dateFrom,
             LocalDate dateTo
     ) {
@@ -246,6 +248,9 @@ public class SharedEvidenceService {
             if (fileTypes != null && !fileTypes.isEmpty()) {
                 List<String> upper = fileTypes.stream().map(String::toUpperCase).toList();
                 predicates.add(root.get("fileType").in(upper));
+            }
+            if (evidenceTypes != null && !evidenceTypes.isEmpty()) {
+                predicates.add(root.get("evidenceType").in(evidenceTypes));
             }
             if (dateFrom != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("uploadedAt"),
@@ -284,6 +289,7 @@ public class SharedEvidenceService {
                 activity.getAcademicYear(),
                 activity.getDepartment(),
                 activity.getOffice(),
+                e.getEvidenceType(),
                 uploader == null ? null : uploader.getName(),
                 e.getUploadedAt(),
                 refCount
