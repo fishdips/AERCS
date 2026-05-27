@@ -4,6 +4,7 @@ import ActivityShell from '../../activities/components/ActivityShell';
 import { searchSharedEvidence } from '../api';
 import { ACCREDITATION_AREAS, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
+import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import '../SharedEvidence.css';
 
 function ownerOffice(item) {
@@ -22,6 +23,7 @@ export default function SharedEvidencePage() {
   const [keyword, setKeyword] = useState('');
   const [area, setArea] = useState('');
   const [academicYear, setAcademicYear] = useState('');
+  const [accessEvidenceId, setAccessEvidenceId] = useState('');
 
   const runSearch = useCallback(async (page = 0) => {
     setLoading(true);
@@ -160,6 +162,9 @@ export default function SharedEvidencePage() {
                     <Link className="am-link-button" to={`/shared-evidence/${item.id}/references`}>
                       View Details
                     </Link>
+                    <button className="am-link-button" type="button" onClick={() => setAccessEvidenceId(item.id)}>
+                      Generate Access
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -189,6 +194,12 @@ export default function SharedEvidencePage() {
           )}
         </div>
       </div>
+
+      <GenerateAccreditorAccessModal
+        isOpen={Boolean(accessEvidenceId)}
+        onClose={() => setAccessEvidenceId('')}
+        evidenceIds={accessEvidenceId ? [accessEvidenceId] : []}
+      />
     </ActivityShell>
   );
 }

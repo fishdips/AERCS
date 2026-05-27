@@ -1,5 +1,6 @@
 package com.aercs.repository;
 
+import com.aercs.entity.Evidence;
 import com.aercs.entity.EvidenceReference;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,6 +21,9 @@ public interface EvidenceReferenceRepository extends JpaRepository<EvidenceRefer
     List<EvidenceReference> findByActivityIdOrderByCreatedAtDesc(UUID activityId);
 
     Optional<EvidenceReference> findByIdAndActivityId(UUID id, UUID activityId);
+
+    @Query("SELECT r.evidence FROM EvidenceReference r WHERE r.activity.id = :activityId ORDER BY r.createdAt DESC")
+    List<Evidence> findReferencedEvidenceByActivityId(@Param("activityId") UUID activityId);
 
     @Query("SELECT r.evidence.id, COUNT(r) FROM EvidenceReference r WHERE r.evidence.id IN :evidenceIds GROUP BY r.evidence.id")
     List<Object[]> countByEvidenceIdIn(@Param("evidenceIds") List<UUID> evidenceIds);

@@ -1,0 +1,153 @@
+.aa-public-shell {
+  min-height: 100vh;
+  background: #f6f7f9;
+  color: #111827;
+}
+
+.aa-public-header {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.25rem clamp(1rem, 4vw, 3rem);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.aa-logo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #6b7280;
+}
+
+.aa-public-header h1 {
+  margin: 0.25rem 0;
+  font-size: 1.35rem;
+}
+
+.aa-public-header p,
+.aa-expiry {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.aa-public-main {
+  padding: 1.25rem clamp(1rem, 4vw, 3rem);
+}
+
+.aa-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.aa-table th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.aa-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.78rem;
+  vertical-align: top;
+}
+
+.aa-table td strong,
+.aa-table td span {
+  display: block;
+}
+
+.aa-table td span {
+  margin-top: 0.18rem;
+  color: #6b7280;
+  font-size: 0.68rem;
+}
+
+.aa-row-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.aa-row-actions a,
+.aa-row-actions button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.28rem 0.55rem;
+  text-decoration: none;
+}
+
+.aa-empty,
+.aa-error,
+.aa-notes {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 0.85rem;
+  font-size: 0.82rem;
+}
+
+.aa-error {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.aa-generate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.aa-generate-summary,
+.aa-generated-link {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.76rem;
+}
+
+.aa-generate-summary span,
+.aa-generated-link span {
+  color: #6b7280;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aa-generated-link a {
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+
+.aa-actions {
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+@media (max-width: 820px) {
+  .aa-public-header {
+    flex-direction: column;
+  }
+}

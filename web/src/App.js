@@ -14,6 +14,7 @@ import RepositoryPage from './features/repository/pages/RepositoryPage';
 import SharedEvidencePage from './features/shared-evidence/pages/SharedEvidencePage';
 import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvidencePage';
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
+import AccreditorAccessPage from './features/accreditor-access/pages/AccreditorAccessPage';
 import { ACTIVITY_WRITE_ROLES } from './features/activities/constants';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
+          <Route path="/accreditor-access/:token" element={<AccreditorAccessPage />} />
 
           {/* Admin only */}
           <Route

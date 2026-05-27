@@ -11,6 +11,7 @@ import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import Modal from '../../../shared/components/Modal';
 import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
+import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import {
   downloadEvidenceBlob,
   getEvidence,
@@ -72,6 +73,7 @@ export default function RepositoryPage() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState('');
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
+  const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
   const [busyDownloadId, setBusyDownloadId] = useState('');
 
   const doSearch = useCallback(async (page = 0) => {
@@ -147,6 +149,7 @@ export default function RepositoryPage() {
     setEvidenceDetails(null);
     setTargetActivityId('');
     setReferenceModalOpen(false);
+    setAccreditorAccessOpen(false);
   };
 
   const handleDownload = async (item) => {
@@ -357,6 +360,15 @@ export default function RepositoryPage() {
                   >
                     Download Evidence
                   </button>
+                  {canReference && (
+                    <button
+                      className="am-btn-secondary"
+                      type="button"
+                      onClick={() => setAccreditorAccessOpen(true)}
+                    >
+                      Generate Accreditor Access
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -445,6 +457,14 @@ export default function RepositoryPage() {
           isOpen={referenceModalOpen}
           onClose={() => setReferenceModalOpen(false)}
           onSuccess={handleReferenceSuccess}
+        />
+      )}
+
+      {detail && (
+        <GenerateAccreditorAccessModal
+          isOpen={accreditorAccessOpen}
+          onClose={() => setAccreditorAccessOpen(false)}
+          evidenceIds={[detail.id]}
         />
       )}
     </ActivityShell>

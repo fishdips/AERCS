@@ -7,6 +7,7 @@ import { deleteActivity, getActivity } from '../api';
 import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
+import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -26,6 +27,7 @@ export default function ActivityDetailPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
 
   const loadActivity = useCallback(async () => {
     setLoading(true);
@@ -74,6 +76,9 @@ export default function ActivityDetailPage() {
           )}
           {activity && canManageActivity && (
             <>
+              <button className="am-btn-secondary" type="button" onClick={() => setAccreditorAccessOpen(true)}>
+                Generate Accreditor Access
+              </button>
               <Link className="am-btn-secondary" to={`/activities/${activity.id}/edit`}>Edit Activity</Link>
               <button className="am-btn-danger" type="button" onClick={handleDelete} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete Activity'}
@@ -143,6 +148,13 @@ export default function ActivityDetailPage() {
           <div className="am-evidence-section">
             <ReferencedEvidencePanel activityId={activity.id} canManageReferences={canManageActivity} />
           </div>
+
+          <GenerateAccreditorAccessModal
+            isOpen={accreditorAccessOpen}
+            onClose={() => setAccreditorAccessOpen(false)}
+            activityId={activity.id}
+            title="Generate Activity Evidence Access"
+          />
         </div>
       )}
     </ActivityShell>
