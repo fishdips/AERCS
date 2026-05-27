@@ -108,14 +108,36 @@ public class SharedEvidenceService {
         evidenceRepository.findById(evidenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evidence file not found"));
 
-        return referenceRepository.findByEvidenceIdFiltered(
-                evidenceId,
-                blankToNull(department),
-                area,
-                startDate,
-                endDate,
-                pageable
-        ).map(this::toReferenceResponse);
+        Specification<EvidenceReference> spec = buildRefSpec(
+                evidenceId, blankToNull(department), area, startDate, endDate);
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        return referenceRepository.findAll(spec, sorted).map(this::toReferenceResponse);
+    }
+
+    private Specification<EvidenceReference> buildRefSpec(
+            UUID evidenceId, String department, AccreditationArea area,
+            OffsetDateTime startDate, OffsetDateTime endDate) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("evidence").get("id"), evidenceId));
+            if (department != null) {
+                Join<EvidenceReference, User> user = root.join("referencedBy", JoinType.INNER);
+                predicates.add(cb.equal(user.get("department"), department));
+            }
+            if (area != null) {
+                predicates.add(cb.equal(root.get("accreditationArea"), area));
+            }
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     @Transactional

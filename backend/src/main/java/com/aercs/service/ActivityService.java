@@ -4,6 +4,7 @@ import com.aercs.dto.request.ActivityRequest;
 import com.aercs.dto.response.ActivityResponse;
 import com.aercs.entity.Activity;
 import com.aercs.entity.User;
+import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
@@ -57,15 +58,41 @@ public class ActivityService {
     }
 
     @Transactional(readOnly = true)
-    public List<ActivityResponse> listActivities() {
-        return activityRepository.findAll().stream()
-                .map(this::toResponse)
-                .toList();
+    public List<ActivityResponse> listActivities(String userId) {
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (canViewAll(user.getRole())) {
+            return activityRepository.findAll().stream().map(this::toResponse).toList();
+        }
+
+        if (user.getDepartment() == null) {
+            return List.of();
+        }
+
+        return activityRepository.findByDepartmentIgnoreCase(user.getDepartment())
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
-    public ActivityResponse getActivity(UUID id) {
-        return toResponse(findActivity(id));
+    public ActivityResponse getActivity(UUID id, String userId) {
+        Activity activity = findActivity(id);
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!canViewAll(user.getRole())) {
+            if (user.getDepartment() == null || !user.getDepartment().equalsIgnoreCase(activity.getDepartment())) {
+                throw new ResourceNotFoundException("Activity not found");
+            }
+        }
+
+        return toResponse(activity);
+    }
+
+    private boolean canViewAll(UserRole role) {
+        return role == UserRole.ADMIN
+                || role == UserRole.ACCRED_COORDINATOR
+                || role == UserRole.INSTITUTIONAL_OFFICE;
     }
 
     @Transactional

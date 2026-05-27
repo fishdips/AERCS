@@ -31,13 +31,16 @@ public class ActivityController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ActivityResponse>> listActivities() {
-        return ResponseEntity.ok(activityService.listActivities());
+    public ResponseEntity<List<ActivityResponse>> listActivities(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(activityService.listActivities(userDetails.getUsername()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ActivityResponse> getActivity(@PathVariable UUID id) {
-        return ResponseEntity.ok(activityService.getActivity(id));
+    public ResponseEntity<ActivityResponse> getActivity(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(activityService.getActivity(id, userDetails.getUsername()));
     }
 
     @PutMapping("/{id}")
