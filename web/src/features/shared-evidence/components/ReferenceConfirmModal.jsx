@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
-import { ACCREDITATION_AREAS } from '../../activities/constants';
+import { ACCREDITATION_AREAS, DEPARTMENTS, OFFICES } from '../../activities/constants';
+import { useAuth } from '../../../shared/hooks/useAuth';
 import { createReference } from '../api';
 import '../SharedEvidence.css';
 
 export default function ReferenceConfirmModal({ evidence, activity, isOpen, onClose, onSuccess }) {
+  const { user } = useAuth();
   const [area, setArea] = useState(activity?.accreditationArea ?? '');
+  const [office, setOffice] = useState(user?.department || activity?.office || activity?.department || '');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setArea(activity?.accreditationArea ?? '');
+    setOffice(user?.department || activity?.office || activity?.department || '');
+  }, [activity, isOpen, user]);
 
   const handleClose = () => {
     setNote('');
@@ -22,6 +31,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
     try {
       await createReference(evidence.id, {
         activityId: activity.id,
+        referencedByOffice: office || null,
         accreditationArea: area || null,
         note: note || null,
       });
@@ -37,7 +47,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
 
   if (!evidence || !activity) return null;
 
-  const areaLabel = ACCREDITATION_AREAS.find((a) => a.value === area)?.label ?? area ?? '-';
+  const officeOptions = [...new Set([...DEPARTMENTS, ...OFFICES, office].filter(Boolean))];
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Confirm Reference">
@@ -66,6 +76,21 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
             <dd>{activity.activityName}</dd>
           </div>
         </dl>
+
+        <div className="am-form-field">
+          <label className="am-form-label se-filter-label" htmlFor="ref-office">Referencing Office</label>
+          <select
+            id="ref-office"
+            className="am-select"
+            value={office}
+            onChange={(e) => setOffice(e.target.value)}
+          >
+            <option value="">Use my office</option>
+            {officeOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="am-form-field">
           <label className="am-form-label se-filter-label" htmlFor="ref-area">Area Used In</label>

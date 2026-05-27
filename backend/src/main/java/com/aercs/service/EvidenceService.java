@@ -124,12 +124,12 @@ public class EvidenceService {
         Evidence evidence = findEvidence(evidenceId);
         validateFile(file);
 
-        Path oldPath = Paths.get(evidence.getFilePath()).normalize();
+        Path oldPath = resolveEvidencePath(evidence);
         StoredFile storedFile = storeFile(evidence.getActivity().getId(), file);
 
         evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
         evidence.setStoredFileName(storedFile.storedFileName());
-        evidence.setFilePath(storedFile.filePath().toString());
+        evidence.setFilePath(storedFile.relativePath());
         evidence.setFileType(storedFile.fileType());
         evidence.setFileSize(file.getSize());
         evidence.setUpdatedAt(OffsetDateTime.now());
@@ -143,7 +143,7 @@ public class EvidenceService {
     @Transactional
     public void deleteEvidence(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
-        Path filePath = Paths.get(evidence.getFilePath()).normalize();
+        Path filePath = resolveEvidencePath(evidence);
         evidenceRepository.delete(evidence);
         deletePhysicalFileIfExists(filePath);
     }
@@ -156,7 +156,7 @@ public class EvidenceService {
         evidence.setActivity(activity);
         evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
         evidence.setStoredFileName(storedFile.storedFileName());
-        evidence.setFilePath(storedFile.filePath().toString());
+        evidence.setFilePath(storedFile.relativePath());
         evidence.setFileType(storedFile.fileType());
         evidence.setFileSize(file.getSize());
         evidence.setUploadedBy(uploadedBy);
@@ -190,23 +190,25 @@ public class EvidenceService {
     private StoredFile storeFile(UUID activityId, MultipartFile file) {
         String extension = getExtension(file.getOriginalFilename());
         String storedFileName = UUID.randomUUID() + "." + extension;
-        Path activityDirectory = Paths.get(evidenceStorageDir, activityId.toString()).toAbsolutePath().normalize();
+        Path storageRoot = storageRoot();
+        Path activityDirectory = storageRoot.resolve(activityId.toString()).normalize();
         Path destination = activityDirectory.resolve(storedFileName).normalize();
+        String relativePath = activityId + "/" + storedFileName;
 
         try {
             Files.createDirectories(activityDirectory);
-            if (!destination.startsWith(activityDirectory)) {
+            if (!destination.startsWith(storageRoot)) {
                 throw new BadRequestException("Invalid evidence file path");
             }
             file.transferTo(destination);
-            return new StoredFile(storedFileName, destination, extension.toUpperCase(Locale.ROOT));
+            return new StoredFile(storedFileName, relativePath, extension.toUpperCase(Locale.ROOT));
         } catch (IOException e) {
             throw new BadRequestException("Unable to store evidence file");
         }
     }
 
     private Resource loadFileResource(Evidence evidence) {
-        Path filePath = Paths.get(evidence.getFilePath()).normalize();
+        Path filePath = resolveEvidencePath(evidence);
         try {
             Resource resource = new UrlResource(filePath.toUri());
             if (!resource.exists() || !resource.isReadable()) {
@@ -216,6 +218,65 @@ public class EvidenceService {
         } catch (MalformedURLException e) {
             throw new BadRequestException("Unable to read evidence file");
         }
+    }
+
+    private Path resolveEvidencePath(Evidence evidence) {
+        Path storageRoot = storageRoot();
+        String storedPath = evidence.getFilePath();
+        if (storedPath == null || storedPath.isBlank()) {
+            throw new ResourceNotFoundException("Evidence file path is missing");
+        }
+
+        Path path = Paths.get(storedPath).normalize();
+        if (path.isAbsolute()) {
+            if (Files.exists(path)) {
+                return path;
+            }
+
+            Path legacyRelative = extractRelativeStoragePath(storedPath);
+            if (legacyRelative != null) {
+                return storageRoot.resolve(legacyRelative).normalize();
+            }
+
+            return path;
+        }
+
+        String normalized = storedPath.replace('\\', '/');
+        String storagePrefix = evidenceStorageDir.replace('\\', '/');
+        if (normalized.equals(storagePrefix) || normalized.startsWith(storagePrefix + "/")) {
+            Path relativeToWorkingDirectory = path.toAbsolutePath().normalize();
+            if (Files.exists(relativeToWorkingDirectory)) {
+                return relativeToWorkingDirectory;
+            }
+            Path legacyRelative = extractRelativeStoragePath(storedPath);
+            if (legacyRelative != null) {
+                return storageRoot.resolve(legacyRelative).normalize();
+            }
+        }
+
+        Path resolved = storageRoot.resolve(path).normalize();
+        if (!resolved.startsWith(storageRoot)) {
+            throw new BadRequestException("Invalid evidence file path");
+        }
+        return resolved;
+    }
+
+    private Path extractRelativeStoragePath(String storedPath) {
+        String normalized = storedPath.replace('\\', '/');
+        String marker = "uploads/evidence/";
+        int index = normalized.lastIndexOf(marker);
+        if (index < 0) {
+            return null;
+        }
+        String relative = normalized.substring(index + marker.length());
+        if (relative.isBlank()) {
+            return null;
+        }
+        return Paths.get(relative).normalize();
+    }
+
+    private Path storageRoot() {
+        return Paths.get(evidenceStorageDir).toAbsolutePath().normalize();
     }
 
     private MediaType previewMediaType(String fileType) {
@@ -256,18 +317,21 @@ public class EvidenceService {
         return new EvidenceResponse(
                 evidence.getId(),
                 evidence.getActivity().getId(),
+                evidence.getActivity().getActivityName(),
                 evidence.getOriginalFileName(),
                 evidence.getStoredFileName(),
                 evidence.getFileType(),
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
+                firstNonBlank(evidence.getActivity().getOffice(), evidence.getActivity().getDepartment(), uploadedBy == null ? null : uploadedBy.getDepartment()),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
                 evidence.getNotes(),
                 uploadedBy == null ? null : uploadedBy.getId(),
                 uploadedBy == null ? null : uploadedBy.getName(),
+                uploadedBy == null ? null : uploadedBy.getDepartment(),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
                 evidence.getUpdatedAt()
@@ -341,7 +405,16 @@ public class EvidenceService {
         return value.trim();
     }
 
-    private record StoredFile(String storedFileName, Path filePath, String fileType) {}
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private record StoredFile(String storedFileName, String relativePath, String fileType) {}
 
     public record EvidenceDownload(String originalFileName, String fileType, long fileSize, MediaType mediaType, Resource resource) {}
 }

@@ -34,6 +34,9 @@ public class EvidenceReference {
     @JoinColumn(name = "activity_id", nullable = false)
     private Activity activity;
 
+    @Column(name = "referenced_by_office", length = 100)
+    private String referencedByOffice;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "accreditation_area", length = 50)
     private AccreditationArea accreditationArea;
