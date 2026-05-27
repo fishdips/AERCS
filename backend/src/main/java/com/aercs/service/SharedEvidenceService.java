@@ -1,6 +1,7 @@
 package com.aercs.service;
 
 import com.aercs.dto.request.ReferenceRequest;
+import com.aercs.dto.response.ActivityReferencedEvidenceResponse;
 import com.aercs.dto.response.ReferenceResponse;
 import com.aercs.dto.response.RepositoryEvidenceResponse;
 import com.aercs.dto.response.SharedEvidenceResponse;
@@ -38,15 +39,27 @@ public class SharedEvidenceService {
     public Page<SharedEvidenceResponse> searchEvidence(
             AccreditationArea area,
             String academicYear,
-            String department,
             String keyword,
+            UUID currentUserId,
             Pageable pageable
     ) {
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        String officeScope = firstNonBlank(currentUser.getDepartment());
+        if (officeScope == null) {
+            return Page.empty(pageable);
+        }
+
+        List<UUID> referencedIds = referenceRepository.findReferencedEvidenceIds();
+        if (referencedIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
         Specification<Evidence> spec = buildSearchSpec(
                 area,
                 blankToNull(academicYear),
-                blankToNull(department),
-                blankToNull(keyword)
+                officeScope,
+                blankToNull(keyword),
+                referencedIds
         );
         Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(),
@@ -57,8 +70,10 @@ public class SharedEvidenceService {
 
         List<UUID> ids = page.getContent().stream().map(Evidence::getId).toList();
         Map<UUID, Long> counts = fetchCounts(ids);
+        Map<UUID, List<String>> offices = fetchReferencingOffices(ids);
 
-        return page.map(e -> toSharedResponse(e, counts.getOrDefault(e.getId(), 0L)));
+        return page.map(e -> toSharedResponse(e, counts.getOrDefault(e.getId(), 0L),
+                offices.getOrDefault(e.getId(), List.of())));
     }
 
     @Transactional
@@ -66,12 +81,12 @@ public class SharedEvidenceService {
         Evidence evidence = evidenceRepository.findById(evidenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evidence file not found"));
 
-        if (evidence.getUploadedBy() != null && evidence.getUploadedBy().getId().equals(currentUserId)) {
-            throw new BadRequestException("You cannot reference your own uploaded file");
-        }
-
         Activity activity = activityRepository.findById(request.activityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
+
+        if (evidence.getActivity().getId().equals(activity.getId())) {
+            throw new BadRequestException("Evidence is already uploaded under this activity");
+        }
 
         if (referenceRepository.existsByEvidenceIdAndActivityId(evidenceId, request.activityId())) {
             throw new ConflictException("This evidence file is already referenced in that activity");
@@ -88,6 +103,7 @@ public class SharedEvidenceService {
         ref.setEvidence(evidence);
         ref.setReferencedBy(referencedBy);
         ref.setActivity(activity);
+        ref.setReferencedByOffice(resolveReferenceOffice(request.referencedByOffice(), referencedBy, activity));
         ref.setAccreditationArea(area);
         ref.setNote(trimToNull(request.note()));
 
@@ -125,7 +141,10 @@ public class SharedEvidenceService {
             predicates.add(cb.equal(root.get("evidence").get("id"), evidenceId));
             if (department != null) {
                 Join<EvidenceReference, User> user = root.join("referencedBy", JoinType.INNER);
-                predicates.add(cb.equal(user.get("department"), department));
+                predicates.add(cb.or(
+                        cb.equal(root.get("referencedByOffice"), department),
+                        cb.equal(user.get("department"), department)
+                ));
             }
             if (area != null) {
                 predicates.add(cb.equal(root.get("accreditationArea"), area));
@@ -144,15 +163,29 @@ public class SharedEvidenceService {
     public void deleteReference(UUID referenceId, UUID currentUserId, UserRole currentUserRole) {
         EvidenceReference ref = referenceRepository.findById(referenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reference not found"));
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         boolean isOwner = ref.getReferencedBy().getId().equals(currentUserId);
-        boolean isAdmin = currentUserRole == UserRole.ADMIN;
+        boolean isSameOffice = currentUser.getDepartment() != null
+                && currentUser.getDepartment().equalsIgnoreCase(ref.getReferencedByOffice());
+        boolean isAdmin = currentUserRole == UserRole.ADMIN || currentUserRole == UserRole.ACCRED_COORDINATOR;
 
-        if (!isOwner && !isAdmin) {
-            throw new BadRequestException("Only the user who created this reference or an administrator can delete it");
+        if (!isOwner && !isSameOffice && !isAdmin) {
+            throw new BadRequestException("Only the referencing user, accreditation coordinator, or administrator can delete it");
         }
 
         referenceRepository.delete(ref);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActivityReferencedEvidenceResponse> getReferencedEvidenceForActivity(UUID activityId) {
+        activityRepository.findById(activityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
+
+        return referenceRepository.findByActivityIdOrderByCreatedAtDesc(activityId).stream()
+                .map(this::toActivityReferencedEvidenceResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -261,11 +294,13 @@ public class SharedEvidenceService {
             AccreditationArea area,
             String academicYear,
             String department,
-            String keyword
+            String keyword,
+            List<UUID> evidenceIds
     ) {
         return (root, query, cb) -> {
             Join<Evidence, Activity> act = root.join("activity", JoinType.INNER);
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(root.get("id").in(evidenceIds));
 
             if (area != null) {
                 predicates.add(cb.equal(act.get("accreditationArea"), area));
@@ -302,7 +337,21 @@ public class SharedEvidenceService {
                 ));
     }
 
-    private SharedEvidenceResponse toSharedResponse(Evidence e, long refCount) {
+    private Map<UUID, List<String>> fetchReferencingOffices(List<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return referenceRepository.findReferencingOfficesByEvidenceIdIn(ids).stream()
+                .collect(Collectors.groupingBy(
+                        row -> (UUID) row[0],
+                        Collectors.mapping(row -> (String) row[1],
+                                Collectors.collectingAndThen(Collectors.toList(), values -> values.stream()
+                                        .filter(Objects::nonNull)
+                                        .filter(v -> !v.isBlank())
+                                        .distinct()
+                                        .toList()))
+                ));
+    }
+
+    private SharedEvidenceResponse toSharedResponse(Evidence e, long refCount, List<String> referencingOffices) {
         Activity activity = e.getActivity();
         User uploader = e.getUploadedBy();
         List<String> tags = parseStrings(e.getTags());
@@ -324,7 +373,8 @@ public class SharedEvidenceService {
                 uploader == null ? null : uploader.getName(),
                 uploader == null ? null : uploader.getDepartment(),
                 e.getUploadedAt(),
-                refCount
+                refCount,
+                referencingOffices
         );
     }
 
@@ -336,11 +386,49 @@ public class SharedEvidenceService {
                 r.getActivity().getId(),
                 r.getActivity().getActivityName(),
                 r.getAccreditationArea(),
+                r.getReferencedByOffice(),
                 r.getReferencedBy().getName(),
                 r.getReferencedBy().getDepartment(),
                 r.getCreatedAt(),
                 r.getNote()
         );
+    }
+
+    private ActivityReferencedEvidenceResponse toActivityReferencedEvidenceResponse(EvidenceReference r) {
+        Evidence evidence = r.getEvidence();
+        Activity sourceActivity = evidence.getActivity();
+        return new ActivityReferencedEvidenceResponse(
+                r.getId(),
+                evidence.getId(),
+                evidence.getOriginalFileName(),
+                evidence.getFileType(),
+                evidence.getFileSize(),
+                evidence.getEvidenceType(),
+                sourceActivity.getId(),
+                sourceActivity.getActivityName(),
+                firstNonBlank(sourceActivity.getOffice(), sourceActivity.getDepartment()),
+                sourceActivity.getAccreditationArea(),
+                sourceActivity.getAcademicYear(),
+                r.getReferencedByOffice(),
+                r.getReferencedBy().getName(),
+                r.getCreatedAt(),
+                r.getNote()
+        );
+    }
+
+    private String resolveReferenceOffice(String requestedOffice, User user, Activity targetActivity) {
+        String requested = trimToNull(requestedOffice);
+        if (requested != null) return requested;
+        return firstNonBlank(user.getDepartment(), targetActivity.getOffice(), targetActivity.getDepartment(), "Institutional User");
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private List<String> parseStrings(String value) {

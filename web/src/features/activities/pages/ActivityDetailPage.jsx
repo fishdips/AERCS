@@ -6,6 +6,7 @@ import ActivityShell from '../components/ActivityShell';
 import { deleteActivity, getActivity } from '../api';
 import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
+import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -137,6 +138,10 @@ export default function ActivityDetailPage() {
 
           <div className="am-evidence-section">
             <EvidencePanel activityId={activity.id} canManageEvidence={canManageActivity} />
+          </div>
+
+          <div className="am-evidence-section">
+            <ReferencedEvidencePanel activityId={activity.id} canManageReferences={canManageActivity} />
           </div>
         </div>
       )}

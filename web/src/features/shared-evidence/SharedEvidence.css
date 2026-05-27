@@ -103,6 +103,34 @@
   font-size: 0.68rem;
 }
 
+.se-page-context {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.76rem;
+}
+
+.se-scope-box {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #111;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.45rem 0.55rem;
+}
+
+.se-pagination {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.se-pagination span {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
 .se-table {
   width: 100%;
   border: 1px solid #e5e7eb;

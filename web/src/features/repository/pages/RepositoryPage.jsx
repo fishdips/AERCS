@@ -8,6 +8,8 @@ import {
   formatAccreditationArea,
   formatActivityType,
 } from '../../activities/constants';
+import { listActivities } from '../../activities/api';
+import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
 import { searchRepository } from '../api';
 import '../Repository.css';
 
@@ -53,6 +55,10 @@ export default function RepositoryPage() {
   const [error, setError] = useState('');
 
   const [appliedChips, setAppliedChips] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [referenceEvidence, setReferenceEvidence] = useState(null);
+  const [targetActivityId, setTargetActivityId] = useState('');
+  const [referenceModalOpen, setReferenceModalOpen] = useState(false);
 
   const doSearch = useCallback(async (filters, page = 0) => {
     setLoading(true);
@@ -84,6 +90,12 @@ export default function RepositoryPage() {
   useEffect(() => {
     doSearch({ keyword: '', areas: new Set(), office: '', academicYear: '', activityTypes: new Set(), fileTypes: new Set(), dateFrom: '', dateTo: '' }, 0);
   }, [doSearch]);
+
+  useEffect(() => {
+    listActivities()
+      .then(({ data }) => setActivities(data))
+      .catch(() => setActivities([]));
+  }, []);
 
   const getFilters = () => ({
     keyword: keyword.trim(),
@@ -176,6 +188,18 @@ export default function RepositoryPage() {
 
   const pageStart = totalElements === 0 ? 0 : currentPage * 20 + 1;
   const pageEnd = Math.min((currentPage + 1) * 20, totalElements);
+  const targetActivity = activities.find((activity) => activity.id === targetActivityId);
+
+  const openReferenceFlow = (item) => {
+    setReferenceEvidence(item);
+    setTargetActivityId('');
+  };
+
+  const handleReferenceSuccess = () => {
+    setReferenceEvidence(null);
+    setTargetActivityId('');
+    if (appliedChips) doSearch(appliedChips, currentPage);
+  };
 
   return (
     <ActivityShell>
@@ -428,6 +452,13 @@ export default function RepositoryPage() {
                         >
                           View
                         </a>
+                        <button
+                          className="am-link-button"
+                          type="button"
+                          onClick={() => openReferenceFlow(item)}
+                        >
+                          Reference
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -460,6 +491,54 @@ export default function RepositoryPage() {
           </>
         </div>
       </div>
+
+      {referenceEvidence && (
+        <div className="repo-reference-panel">
+          <p className="am-section-label">Reference Evidence</p>
+          <div className="repo-reference-row">
+            <span className="repo-reference-file">{referenceEvidence.originalFileName}</span>
+            <select
+              className="am-select"
+              value={targetActivityId}
+              onChange={(e) => setTargetActivityId(e.target.value)}
+            >
+              <option value="">Select target activity</option>
+              {activities
+                .filter((activity) => activity.id !== referenceEvidence.activityId)
+                .map((activity) => (
+                  <option key={activity.id} value={activity.id}>
+                    {activity.activityName} - {activity.department || activity.office || 'No office'}
+                  </option>
+                ))}
+            </select>
+            <button
+              className="am-btn-primary"
+              type="button"
+              disabled={!targetActivity}
+              onClick={() => setReferenceModalOpen(true)}
+            >
+              Confirm
+            </button>
+            <button
+              className="am-btn-secondary"
+              type="button"
+              onClick={() => setReferenceEvidence(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {referenceEvidence && targetActivity && (
+        <ReferenceConfirmModal
+          evidence={referenceEvidence}
+          activity={targetActivity}
+          isOpen={referenceModalOpen}
+          onClose={() => setReferenceModalOpen(false)}
+          onSuccess={handleReferenceSuccess}
+        />
+      )}
     </ActivityShell>
   );
 }

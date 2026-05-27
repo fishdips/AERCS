@@ -256,18 +256,21 @@ public class EvidenceService {
         return new EvidenceResponse(
                 evidence.getId(),
                 evidence.getActivity().getId(),
+                evidence.getActivity().getActivityName(),
                 evidence.getOriginalFileName(),
                 evidence.getStoredFileName(),
                 evidence.getFileType(),
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
+                firstNonBlank(evidence.getActivity().getOffice(), evidence.getActivity().getDepartment(), uploadedBy == null ? null : uploadedBy.getDepartment()),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
                 evidence.getNotes(),
                 uploadedBy == null ? null : uploadedBy.getId(),
                 uploadedBy == null ? null : uploadedBy.getName(),
+                uploadedBy == null ? null : uploadedBy.getDepartment(),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
                 evidence.getUpdatedAt()
@@ -339,6 +342,15 @@ public class EvidenceService {
             return null;
         }
         return value.trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private record StoredFile(String storedFileName, Path filePath, String fileType) {}

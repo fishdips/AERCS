@@ -12,6 +12,7 @@ public record ReferenceResponse(
         UUID activityId,
         String activityName,
         AccreditationArea accreditationArea,
+        String referencedByOffice,
         String referencedByName,
         String referencedByDepartment,
         OffsetDateTime createdAt,

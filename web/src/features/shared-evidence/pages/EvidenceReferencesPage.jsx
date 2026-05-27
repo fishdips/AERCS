@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
-import { getReferences } from '../api';
+import { deleteReference, getReferences } from '../api';
 import { getEvidence } from '../../evidence/api';
-import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea } from '../../activities/constants';
+import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import '../SharedEvidence.css';
 
@@ -72,9 +72,11 @@ export default function EvidenceReferencesPage() {
   }, [loadRefs]);
 
   const isOwner = evidence && user && evidence.uploadedById === user.id;
+  const canRemoveReferences = user && ACTIVITY_WRITE_ROLES.includes(user.role);
 
-  const uniqueOffices = [...new Set(refs.map((r) => r.referencedByDepartment).filter(Boolean))].length;
+  const uniqueOffices = [...new Set(refs.map((r) => r.referencedByOffice || r.referencedByDepartment).filter(Boolean))].length;
   const uniqueAreas = [...new Set(refs.map((r) => r.accreditationArea).filter(Boolean))].length;
+  const officeOptions = [...DEPARTMENTS, ...OFFICES];
 
   return (
     <ActivityShell>
@@ -85,7 +87,7 @@ export default function EvidenceReferencesPage() {
       </p>
 
       <div className="am-page-header">
-        <h1 className="am-page-title">Evidence References</h1>
+        <h1 className="am-page-title">Shared Evidence Details</h1>
         <div className="am-page-actions">
           <Link className="am-btn-secondary" to="/shared-evidence">Back to Shared Evidence</Link>
         </div>
@@ -96,7 +98,7 @@ export default function EvidenceReferencesPage() {
 
       {accessDenied && (
         <p className="am-alert am-alert-error">
-          Only the file owner or an administrator can view references for this file.
+          Unable to load reference details for this file.
         </p>
       )}
 
@@ -106,7 +108,7 @@ export default function EvidenceReferencesPage() {
           <div className="se-ref-left">
             {evidence && (
               <div className="se-ref-file-panel">
-                <p className="am-section-label" style={{ marginBottom: '0.5rem' }}>Selected Evidence</p>
+                <p className="am-section-label" style={{ marginBottom: '0.5rem' }}>Evidence Details</p>
 
                 {isOwner && (
                   <span className="se-owner-badge">You uploaded this</span>
@@ -126,7 +128,7 @@ export default function EvidenceReferencesPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Preview
+                    View Evidence
                   </a>
                   <a
                     className="am-btn-secondary"
@@ -137,6 +139,14 @@ export default function EvidenceReferencesPage() {
                 </div>
 
                 <div className="se-meta-list" style={{ marginTop: '0.75rem' }}>
+                  <div className="se-meta-row">
+                    <span className="se-meta-key">Source</span>
+                    <span className="se-meta-val">{evidence.activityName || '-'}</span>
+                  </div>
+                  <div className="se-meta-row">
+                    <span className="se-meta-key">Office</span>
+                    <span className="se-meta-val">{evidence.ownerOffice || evidence.uploadedByDepartment || '-'}</span>
+                  </div>
                   <div className="se-meta-row">
                     <span className="se-meta-key">Area</span>
                     <span className="se-meta-val">{formatAccreditationArea(evidence.accreditationArea)}</span>
@@ -150,8 +160,16 @@ export default function EvidenceReferencesPage() {
                     <span className="se-meta-val">{formatDate(evidence.uploadedAt)}</span>
                   </div>
                   <div className="se-meta-row">
-                    <span className="se-meta-key">Owner</span>
+                    <span className="se-meta-key">Uploaded By</span>
                     <span className="se-meta-val">{evidence.uploadedByName || '-'}</span>
+                  </div>
+                  <div className="se-meta-row">
+                    <span className="se-meta-key">Evidence</span>
+                    <span className="se-meta-val">{evidence.evidenceType || '-'}</span>
+                  </div>
+                  <div className="se-meta-row">
+                    <span className="se-meta-key">References</span>
+                    <span className="se-meta-val">{totalElements}</span>
                   </div>
                   {evidence.tags?.length > 0 && (
                     <div className="se-meta-row">
@@ -202,7 +220,7 @@ export default function EvidenceReferencesPage() {
                 onChange={(e) => setFilterDept(e.target.value)}
               >
                 <option value="">All offices</option>
-                {DEPARTMENTS.map((d) => (
+                {officeOptions.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
@@ -220,7 +238,7 @@ export default function EvidenceReferencesPage() {
             </div>
 
             <p className="am-section-label" style={{ marginBottom: '0.5rem' }}>
-              Referencing Offices{' '}
+              Referenced By{' '}
               <span className="am-count">{totalElements} references</span>
             </p>
 
@@ -248,7 +266,7 @@ export default function EvidenceReferencesPage() {
                 )}
                 {refs.map((ref) => (
                   <tr key={ref.id}>
-                    <td className="se-td" style={{ fontWeight: 600 }}>{ref.referencedByDepartment || '-'}</td>
+                    <td className="se-td" style={{ fontWeight: 600 }}>{ref.referencedByOffice || ref.referencedByDepartment || '-'}</td>
                     <td className="se-td">{ref.activityName || '-'}</td>
                     <td className="se-td">
                       {ref.accreditationArea
@@ -264,6 +282,19 @@ export default function EvidenceReferencesPage() {
                       >
                         Activity
                       </Link>
+                      {canRemoveReferences && (
+                        <button
+                          className="am-link-button am-link-danger"
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm('Remove this reference? The original evidence file will remain.')) return;
+                            await deleteReference(ref.id);
+                            loadRefs(currentPage);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

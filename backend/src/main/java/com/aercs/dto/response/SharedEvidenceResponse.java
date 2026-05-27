@@ -24,5 +24,6 @@ public record SharedEvidenceResponse(
         String uploadedByName,
         String uploadedByDepartment,
         OffsetDateTime uploadedAt,
-        long referenceCount
+        long referenceCount,
+        List<String> referencingOffices
 ) {}

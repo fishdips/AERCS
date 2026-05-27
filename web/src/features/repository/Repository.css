@@ -207,6 +207,31 @@
   padding: 0 0.2rem;
 }
 
+.repo-reference-panel {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  margin-top: 1rem;
+  padding: 0.85rem;
+}
+
+.repo-reference-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.4fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.65rem;
+}
+
+.repo-reference-file {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #111;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 860px) {
-  .repo-layout { grid-template-columns: 1fr; }
+  .repo-layout,
+  .repo-reference-row {
+    grid-template-columns: 1fr;
+  }
 }
