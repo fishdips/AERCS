@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
-import { searchSharedEvidence } from '../api';
+import { searchSharedEvidence, getReferences } from '../api';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea } from '../../activities/constants';
 import '../SharedEvidence.css';
 
@@ -34,6 +34,8 @@ export default function SharedEvidencePage() {
   const [activeFileTypes, setActiveFileTypes] = useState([]);
 
   const [preview, setPreview] = useState(null);
+  const [previewRefs, setPreviewRefs] = useState([]);
+  const [previewRefsLoading, setPreviewRefsLoading] = useState(false);
 
   const runSearch = useCallback(async (page = 0) => {
     setLoading(true);
@@ -61,6 +63,15 @@ export default function SharedEvidencePage() {
       setLoading(false);
     }
   }, [keyword, area, department, academicYear, activeFileTypes]);
+
+  useEffect(() => {
+    if (!preview) { setPreviewRefs([]); return; }
+    setPreviewRefsLoading(true);
+    getReferences(preview.id, { size: 10 })
+      .then(({ data }) => setPreviewRefs(data.content))
+      .catch(() => setPreviewRefs([]))
+      .finally(() => setPreviewRefsLoading(false));
+  }, [preview]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -285,10 +296,34 @@ export default function SharedEvidencePage() {
                       </div>
                       <div className="se-meta-row">
                         <span className="se-meta-key">Refs</span>
-                        <span className="se-meta-val">{preview.referenceCount} activities</span>
+                        <span className="se-meta-val">{preview.referenceCount} {preview.referenceCount === 1 ? 'activity' : 'activities'}</span>
                       </div>
                     </div>
+
                     <div style={{ marginTop: '0.85rem' }}>
+                      <p className="am-section-label" style={{ marginBottom: '0.4rem' }}>Referenced By</p>
+                      {previewRefsLoading && (
+                        <p style={{ fontSize: '0.72rem', color: '#6b7280' }}>Loading…</p>
+                      )}
+                      {!previewRefsLoading && previewRefs.length === 0 && (
+                        <p style={{ fontSize: '0.72rem', color: '#6b7280' }}>Not yet referenced by any office.</p>
+                      )}
+                      {!previewRefsLoading && previewRefs.length > 0 && (
+                        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {previewRefs.map((ref) => (
+                            <li key={ref.id} style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                              <span style={{ fontWeight: 600, color: '#111827' }}>{ref.referencedByDepartment || ref.referencedByName || '—'}</span>
+                              <span style={{ color: '#6b7280' }}>{ref.activityName}</span>
+                            </li>
+                          ))}
+                          {preview.referenceCount > 10 && (
+                            <li style={{ fontSize: '0.72rem', color: '#6b7280' }}>+{preview.referenceCount - 10} more</li>
+                          )}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '0.75rem' }}>
                       <Link className="am-btn-secondary" to={`/shared-evidence/${preview.id}/references`}>
                         View All References →
                       </Link>
