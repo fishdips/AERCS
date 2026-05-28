@@ -13,26 +13,17 @@ import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -44,9 +35,7 @@ public class EvidenceService {
     private final EvidenceRepository evidenceRepository;
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
-
-    @Value("${app.evidence.storage-dir:uploads/evidence}")
-    private String evidenceStorageDir;
+    private final SupabaseStorageService storageService;
 
     @Transactional
     public List<EvidenceResponse> uploadEvidence(UUID activityId, List<MultipartFile> files, String userId) {
@@ -54,7 +43,6 @@ public class EvidenceService {
         if (files == null || files.isEmpty()) {
             throw new BadRequestException("Select at least one evidence file");
         }
-
         User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
         return files.stream()
                 .map(file -> saveEvidenceFile(activity, file, uploadedBy))
@@ -87,19 +75,19 @@ public class EvidenceService {
         evidence.setRelatedOffices(joinEnums(request.relatedOffices()));
         evidence.setTags(joinStrings(request.tags()));
         evidence.setNotes(trimToNull(request.notes()));
-        Evidence saved = evidenceRepository.save(evidence);
-        return toMetadataResponse(saved);
+        return toMetadataResponse(evidenceRepository.save(evidence));
     }
 
     @Transactional(readOnly = true)
     public EvidenceDownload getDownload(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
+        byte[] bytes = storageService.download(evidence.getFilePath());
         return new EvidenceDownload(
                 evidence.getOriginalFileName(),
                 evidence.getFileType(),
-                evidence.getFileSize(),
+                bytes.length,
                 MediaType.APPLICATION_OCTET_STREAM,
-                loadFileResource(evidence)
+                new ByteArrayResource(bytes)
         );
     }
 
@@ -110,12 +98,13 @@ public class EvidenceService {
         if (mediaType == null) {
             throw new BadRequestException("Preview is not available for this file type. Please download the file.");
         }
+        byte[] bytes = storageService.download(evidence.getFilePath());
         return new EvidenceDownload(
                 evidence.getOriginalFileName(),
                 evidence.getFileType(),
-                evidence.getFileSize(),
+                bytes.length,
                 mediaType,
-                loadFileResource(evidence)
+                new ByteArrayResource(bytes)
         );
     }
 
@@ -124,40 +113,56 @@ public class EvidenceService {
         Evidence evidence = findEvidence(evidenceId);
         validateFile(file);
 
-        Path oldPath = resolveEvidencePath(evidence);
-        StoredFile storedFile = storeFile(evidence.getActivity().getId(), file);
+        String oldPath = evidence.getFilePath();
+        String extension = getExtension(file.getOriginalFilename());
+        String storedFileName = UUID.randomUUID() + "." + extension;
+        String objectPath = evidence.getActivity().getId() + "/" + storedFileName;
+
+        try {
+            storageService.upload(objectPath, file.getBytes(), contentTypeFor(extension));
+        } catch (IOException e) {
+            throw new BadRequestException("Unable to store evidence file");
+        }
 
         evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
-        evidence.setStoredFileName(storedFile.storedFileName());
-        evidence.setFilePath(storedFile.relativePath());
-        evidence.setFileType(storedFile.fileType());
+        evidence.setStoredFileName(storedFileName);
+        evidence.setFilePath(objectPath);
+        evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
         evidence.setUpdatedAt(OffsetDateTime.now());
         userRepository.findById(UUID.fromString(userId)).ifPresent(evidence::setUploadedBy);
 
         Evidence saved = evidenceRepository.save(evidence);
-        deletePhysicalFileIfExists(oldPath);
+        storageService.delete(oldPath);
         return toResponse(saved);
     }
 
     @Transactional
     public void deleteEvidence(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
-        Path filePath = resolveEvidencePath(evidence);
+        String objectPath = evidence.getFilePath();
         evidenceRepository.delete(evidence);
-        deletePhysicalFileIfExists(filePath);
+        storageService.delete(objectPath);
     }
 
     private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy) {
         validateFile(file);
-        StoredFile storedFile = storeFile(activity.getId(), file);
+        String extension = getExtension(file.getOriginalFilename());
+        String storedFileName = UUID.randomUUID() + "." + extension;
+        String objectPath = activity.getId() + "/" + storedFileName;
+
+        try {
+            storageService.upload(objectPath, file.getBytes(), contentTypeFor(extension));
+        } catch (IOException e) {
+            throw new BadRequestException("Unable to store evidence file");
+        }
 
         Evidence evidence = new Evidence();
         evidence.setActivity(activity);
         evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
-        evidence.setStoredFileName(storedFile.storedFileName());
-        evidence.setFilePath(storedFile.relativePath());
-        evidence.setFileType(storedFile.fileType());
+        evidence.setStoredFileName(storedFileName);
+        evidence.setFilePath(objectPath);
+        evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
         evidence.setUploadedBy(uploadedBy);
         return evidenceRepository.save(evidence);
@@ -180,135 +185,41 @@ public class EvidenceService {
         if (file.getSize() > MAX_FILE_SIZE) {
             throw new BadRequestException("Evidence file must not exceed 10 MB");
         }
-
         String extension = getExtension(file.getOriginalFilename());
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new BadRequestException("Unsupported file type. Allowed types: PDF, DOCX, XLSX, JPG, JPEG, PNG");
         }
     }
 
-    private StoredFile storeFile(UUID activityId, MultipartFile file) {
-        String extension = getExtension(file.getOriginalFilename());
-        String storedFileName = UUID.randomUUID() + "." + extension;
-        Path storageRoot = storageRoot();
-        Path activityDirectory = storageRoot.resolve(activityId.toString()).normalize();
-        Path destination = activityDirectory.resolve(storedFileName).normalize();
-        String relativePath = activityId + "/" + storedFileName;
-
-        try {
-            Files.createDirectories(activityDirectory);
-            if (!destination.startsWith(storageRoot)) {
-                throw new BadRequestException("Invalid evidence file path");
-            }
-            file.transferTo(destination);
-            return new StoredFile(storedFileName, relativePath, extension.toUpperCase(Locale.ROOT));
-        } catch (IOException e) {
-            throw new BadRequestException("Unable to store evidence file");
-        }
-    }
-
-    private Resource loadFileResource(Evidence evidence) {
-        Path filePath = resolveEvidencePath(evidence);
-        try {
-            Resource resource = new UrlResource(filePath.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new ResourceNotFoundException("Evidence file not found");
-            }
-            return resource;
-        } catch (MalformedURLException e) {
-            throw new BadRequestException("Unable to read evidence file");
-        }
-    }
-
-    private Path resolveEvidencePath(Evidence evidence) {
-        Path storageRoot = storageRoot();
-        String storedPath = evidence.getFilePath();
-        if (storedPath == null || storedPath.isBlank()) {
-            throw new ResourceNotFoundException("Evidence file path is missing");
-        }
-
-        Path path = Paths.get(storedPath).normalize();
-        if (path.isAbsolute()) {
-            if (Files.exists(path)) {
-                return path;
-            }
-
-            Path legacyRelative = extractRelativeStoragePath(storedPath);
-            if (legacyRelative != null) {
-                return storageRoot.resolve(legacyRelative).normalize();
-            }
-
-            return path;
-        }
-
-        String normalized = storedPath.replace('\\', '/');
-        String storagePrefix = evidenceStorageDir.replace('\\', '/');
-        if (normalized.equals(storagePrefix) || normalized.startsWith(storagePrefix + "/")) {
-            Path relativeToWorkingDirectory = path.toAbsolutePath().normalize();
-            if (Files.exists(relativeToWorkingDirectory)) {
-                return relativeToWorkingDirectory;
-            }
-            Path legacyRelative = extractRelativeStoragePath(storedPath);
-            if (legacyRelative != null) {
-                return storageRoot.resolve(legacyRelative).normalize();
-            }
-        }
-
-        Path resolved = storageRoot.resolve(path).normalize();
-        if (!resolved.startsWith(storageRoot)) {
-            throw new BadRequestException("Invalid evidence file path");
-        }
-        return resolved;
-    }
-
-    private Path extractRelativeStoragePath(String storedPath) {
-        String normalized = storedPath.replace('\\', '/');
-        String marker = "uploads/evidence/";
-        int index = normalized.lastIndexOf(marker);
-        if (index < 0) {
-            return null;
-        }
-        String relative = normalized.substring(index + marker.length());
-        if (relative.isBlank()) {
-            return null;
-        }
-        return Paths.get(relative).normalize();
-    }
-
-    private Path storageRoot() {
-        return Paths.get(evidenceStorageDir).toAbsolutePath().normalize();
+    private String contentTypeFor(String extension) {
+        return switch (extension.toLowerCase(Locale.ROOT)) {
+            case "pdf"  -> "application/pdf";
+            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png"  -> "image/png";
+            default     -> "application/octet-stream";
+        };
     }
 
     private MediaType previewMediaType(String fileType) {
         return switch (fileType) {
-            case "PDF" -> MediaType.APPLICATION_PDF;
-            case "PNG" -> MediaType.IMAGE_PNG;
+            case "PDF"        -> MediaType.APPLICATION_PDF;
+            case "PNG"        -> MediaType.IMAGE_PNG;
             case "JPG", "JPEG" -> MediaType.IMAGE_JPEG;
-            default -> null;
+            default           -> null;
         };
     }
 
-    private void deletePhysicalFileIfExists(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            throw new BadRequestException("Unable to delete evidence file");
-        }
-    }
-
     private String cleanFileName(String fileName) {
-        if (fileName == null || fileName.trim().isEmpty()) {
-            return "evidence-file";
-        }
+        if (fileName == null || fileName.trim().isEmpty()) return "evidence-file";
         return Paths.get(fileName).getFileName().toString();
     }
 
     private String getExtension(String fileName) {
         String cleanName = cleanFileName(fileName);
         int dot = cleanName.lastIndexOf('.');
-        if (dot < 0 || dot == cleanName.length() - 1) {
-            return "";
-        }
+        if (dot < 0 || dot == cleanName.length() - 1) return "";
         return cleanName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
@@ -324,7 +235,8 @@ public class EvidenceService {
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
-                firstNonBlank(evidence.getActivity().getOffice(), evidence.getActivity().getDepartment(), uploadedBy == null ? null : uploadedBy.getDepartment()),
+                firstNonBlank(evidence.getActivity().getOffice(), evidence.getActivity().getDepartment(),
+                        uploadedBy == null ? null : uploadedBy.getDepartment()),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
@@ -354,67 +266,39 @@ public class EvidenceService {
     }
 
     private String joinEnums(List<? extends Enum<?>> values) {
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        return values.stream()
-                .filter(Objects::nonNull)
-                .map(value -> value.name())
-                .distinct()
-                .reduce((left, right) -> left + "," + right)
-                .orElse(null);
+        if (values == null || values.isEmpty()) return null;
+        return values.stream().filter(Objects::nonNull).map(Enum::name).distinct()
+                .reduce((a, b) -> a + "," + b).orElse(null);
     }
 
     private String joinStrings(List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        return values.stream()
-                .filter(value -> value != null && !value.trim().isEmpty())
-                .map(String::trim)
-                .distinct()
-                .reduce((left, right) -> left + "," + right)
-                .orElse(null);
+        if (values == null || values.isEmpty()) return null;
+        return values.stream().filter(v -> v != null && !v.trim().isEmpty()).map(String::trim).distinct()
+                .reduce((a, b) -> a + "," + b).orElse(null);
     }
 
     private List<RelatedOffice> parseRelatedOffices(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(token -> !token.isEmpty())
-                .map(RelatedOffice::valueOf)
-                .toList();
+        if (value == null || value.trim().isEmpty()) return List.of();
+        return Arrays.stream(value.split(",")).map(String::trim).filter(t -> !t.isEmpty())
+                .map(RelatedOffice::valueOf).toList();
     }
 
     private List<String> parseStrings(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(token -> !token.isEmpty())
-                .toList();
+        if (value == null || value.trim().isEmpty()) return List.of();
+        return Arrays.stream(value.split(",")).map(String::trim).filter(t -> !t.isEmpty()).toList();
     }
 
     private String trimToNull(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return null;
-        }
+        if (value == null || value.trim().isEmpty()) return null;
         return value.trim();
     }
 
     private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.trim();
-            }
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v.trim();
         }
         return null;
     }
-
-    private record StoredFile(String storedFileName, String relativePath, String fileType) {}
 
     public record EvidenceDownload(String originalFileName, String fileType, long fileSize, MediaType mediaType, Resource resource) {}
 }
