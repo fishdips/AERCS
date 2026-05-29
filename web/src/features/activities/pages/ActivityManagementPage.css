@@ -403,6 +403,54 @@
   min-width: 0;
 }
 
+.am-workflow-section {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.am-workflow-section-active {
+  border-color: #111827;
+  box-shadow: inset 4px 0 0 #111827;
+}
+
+.am-workflow-section-complete:not(.am-workflow-section-active) {
+  border-color: #bbf7d0;
+  box-shadow: inset 4px 0 0 #16a34a;
+}
+
+.am-workflow-section-disabled {
+  background: #f9fafb;
+}
+
+.am-section-heading-row {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.am-section-title {
+  color: #111827;
+  font-size: 1rem;
+  line-height: 1.25;
+  margin: 0.15rem 0 0;
+}
+
+.am-status-pill {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  text-transform: uppercase;
+}
+
 .am-workflow-sidebar {
   border: 1px solid #e5e7eb;
   background: #fff;
@@ -439,12 +487,27 @@
 }
 
 .am-workflow-step a,
+.am-workflow-step-button,
 .am-workflow-static {
   color: inherit;
   display: flex;
   align-items: center;
   gap: 0.55rem;
   text-decoration: none;
+}
+
+.am-workflow-step-button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.am-workflow-step-button:disabled {
+  cursor: not-allowed;
 }
 
 .am-workflow-marker {
@@ -621,6 +684,12 @@
 .am-create-form {
   max-width: none;
   min-height: 520px;
+}
+
+.am-form-embedded {
+  border: 0;
+  min-height: 0;
+  padding: 0;
 }
 
 .am-create-rail {
@@ -803,19 +872,18 @@
 }
 
 .am-ev-toggle-th {
-  width: 28px;
+  text-align: center;
+  width: 72px;
 }
 
 .am-ev-toggle-cell {
   text-align: center;
-  width: 28px;
+  width: 72px;
   padding: 0.5rem 0.3rem !important;
 }
 
 .am-ev-chevron {
-  font-size: 0.72rem;
-  color: #9ca3af;
-  user-select: none;
+  display: none;
 }
 
 .am-ev-drawer-row td {

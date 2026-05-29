@@ -12,9 +12,14 @@ const initialForm = {
   activityDate: '',
   department: '',
   office: '',
+  customOffice: '',
   accreditationArea: '',
   academicYear: '',
 };
+
+function isKnownOffice(value) {
+  return OFFICES.some((office) => office.value === value);
+}
 
 export default function EditActivityPage() {
   const { id } = useParams();
@@ -31,6 +36,7 @@ export default function EditActivityPage() {
     setLoadError('');
     try {
       const { data } = await getActivity(id);
+      const officeIsKnown = !data.office || isKnownOffice(data.office);
       setForm({
         activityName: data.activityName || '',
         description: data.description || '',
@@ -38,7 +44,8 @@ export default function EditActivityPage() {
         customActivityType: data.customActivityType || '',
         activityDate: data.activityDate || '',
         department: data.department || '',
-        office: data.office || '',
+        office: officeIsKnown ? data.office || '' : 'OTHER',
+        customOffice: officeIsKnown ? '' : data.office || '',
         accreditationArea: data.accreditationArea || '',
         academicYear: data.academicYear || '',
       });
@@ -71,6 +78,9 @@ export default function EditActivityPage() {
     }
     if (!form.department) nextErrors.department = 'Department is required';
     if (!form.office) nextErrors.office = 'Office is required';
+    if (form.office === 'OTHER' && !form.customOffice.trim()) {
+      nextErrors.customOffice = 'Custom office is required';
+    }
     if (!form.accreditationArea) nextErrors.accreditationArea = 'Accreditation area is required';
     if (!form.academicYear.trim()) nextErrors.academicYear = 'Academic year is required';
     setErrors(nextErrors);
@@ -89,7 +99,7 @@ export default function EditActivityPage() {
         activityName: form.activityName.trim(),
         description: form.description.trim(),
         customActivityType: form.customActivityType.trim() || null,
-        office: form.office || null,
+        office: form.office === 'OTHER' ? form.customOffice.trim() : form.office || null,
         academicYear: form.academicYear.trim(),
       };
       await updateActivity(id, payload);
@@ -196,7 +206,10 @@ export default function EditActivityPage() {
               <select
                 className="am-select"
                 value={form.office}
-                onChange={(e) => updateField('office', e.target.value)}
+                onChange={(e) => {
+                  updateField('office', e.target.value);
+                  if (e.target.value !== 'OTHER') updateField('customOffice', '');
+                }}
               >
                 <option value="">Select office</option>
                 {OFFICES.map((o) => (
@@ -205,6 +218,18 @@ export default function EditActivityPage() {
               </select>
               {errors.office && <span className="am-field-error">{errors.office}</span>}
             </label>
+
+            {form.office === 'OTHER' && (
+              <label className="am-form-field">
+                <span className="am-form-label">Custom Office <span className="am-required">*</span></span>
+                <input
+                  className="am-input"
+                  value={form.customOffice}
+                  onChange={(e) => updateField('customOffice', e.target.value)}
+                />
+                {errors.customOffice && <span className="am-field-error">{errors.customOffice}</span>}
+              </label>
+            )}
 
             <label className="am-form-field">
               <span className="am-form-label">Accreditation Area <span className="am-required">*</span></span>

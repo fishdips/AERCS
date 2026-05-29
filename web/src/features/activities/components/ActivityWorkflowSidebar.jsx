@@ -6,7 +6,13 @@ const steps = [
   { key: 'metadata', label: 'Assign Metadata' },
 ];
 
-export default function ActivityWorkflowSidebar({ activeStep, activityId, completedSteps = [], disabledSteps = [] }) {
+export default function ActivityWorkflowSidebar({
+  activeStep,
+  activityId,
+  completedSteps = [],
+  disabledSteps = [],
+  onStepSelect,
+}) {
   const stepHref = (key) => {
     if (key === 'create') return '/activities/new';
     if (!activityId) return '';
@@ -40,7 +46,16 @@ export default function ActivityWorkflowSidebar({ activeStep, activityId, comple
               ].filter(Boolean).join(' ')}
               key={step.key}
             >
-              {href && (activityId || step.key === 'create') && !disabled ? (
+              {onStepSelect ? (
+                <button
+                  className="am-workflow-step-button"
+                  type="button"
+                  onClick={() => onStepSelect(step.key)}
+                  disabled={disabled}
+                >
+                  {content}
+                </button>
+              ) : href && (activityId || step.key === 'create') && !disabled ? (
                 <Link to={href}>{content}</Link>
               ) : (
                 <span className="am-workflow-static">{content}</span>

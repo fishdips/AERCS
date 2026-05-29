@@ -12,6 +12,7 @@ import {
 import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import Modal from '../../../shared/components/Modal';
+import ActionMenu from '../../../shared/components/ActionMenu';
 import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import {
@@ -41,6 +42,12 @@ function ownerOffice(item) {
   if (item?.office) return formatOffice(item.office);
   if (item?.department) return formatDepartment(item.department);
   return '-';
+}
+
+function activityOwnerLabel(activity) {
+  if (activity?.office) return formatOffice(activity.office);
+  if (activity?.department) return formatDepartment(activity.department);
+  return 'No office';
 }
 
 function saveBlob(blob, fileName) {
@@ -320,11 +327,14 @@ export default function RepositoryPage() {
                       <button className="am-link-button" type="button" onClick={() => openDetails(item)}>
                         View Details
                       </button>
-                      {canReference && (
-                        <button className="am-link-button" type="button" onClick={() => openDetails(item, true)}>
-                          Reference Evidence
-                        </button>
-                      )}
+                      <ActionMenu
+                        items={[
+                          canReference && {
+                            label: 'Reference Evidence',
+                            onClick: () => openDetails(item, true),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -366,26 +376,22 @@ export default function RepositoryPage() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      View Evidence
+                      View Details
                     </a>
                   )}
-                  <button
-                    className="am-btn-secondary"
-                    type="button"
-                    onClick={() => handleDownload(detail)}
-                    disabled={busyDownloadId === detail.id}
-                  >
-                    Download Evidence
-                  </button>
-                  {canReference && (
-                    <button
-                      className="am-btn-secondary"
-                      type="button"
-                      onClick={() => setAccreditorAccessOpen(true)}
-                    >
-                      Generate Accreditor Access
-                    </button>
-                  )}
+                  <ActionMenu
+                    items={[
+                      {
+                        label: busyDownloadId === detail.id ? 'Downloading...' : 'Download',
+                        disabled: busyDownloadId === detail.id,
+                        onClick: () => handleDownload(detail),
+                      },
+                      canReference && {
+                        label: 'Generate Accreditor Access',
+                        onClick: () => setAccreditorAccessOpen(true),
+                      },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -448,7 +454,7 @@ export default function RepositoryPage() {
                       .filter((activity) => activity.id !== detail.activityId)
                       .map((activity) => (
                         <option key={activity.id} value={activity.id}>
-                          {activity.activityName} - {activity.department || activity.office || 'No office'}
+                          {activity.activityName} - {activityOwnerLabel(activity)}
                         </option>
                       ))}
                   </select>

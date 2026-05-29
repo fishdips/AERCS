@@ -108,7 +108,7 @@ public class ActivityService {
     }
 
     private void validateRequest(ActivityRequest request) {
-        if (request.office() == null) {
+        if (trimToNull(request.office()) == null) {
             throw new BadRequestException("Office is required");
         }
         if (request.activityType() == ActivityType.OTHER && trimToNull(request.customActivityType()) == null) {
@@ -124,7 +124,7 @@ public class ActivityService {
                 request.activityType() == ActivityType.OTHER ? trimToNull(request.customActivityType()) : null
         );
         activity.setActivityDate(request.activityDate());
-        activity.setOffice(request.office());
+        activity.setOffice(trimToNull(request.office()));
         activity.setAccreditationArea(request.accreditationArea());
         activity.setAcademicYear(request.academicYear().trim());
     }
@@ -139,7 +139,7 @@ public class ActivityService {
                 activity.getCustomActivityType(),
                 activity.getActivityDate(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
-                activity.getOffice() != null ? activity.getOffice().name() : null,
+                activity.getOffice(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 createdBy == null ? null : createdBy.getId(),

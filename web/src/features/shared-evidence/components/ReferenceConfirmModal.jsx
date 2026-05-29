@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
-import { ACCREDITATION_AREAS, DEPARTMENTS, OFFICES, formatDepartment, formatOffice } from '../../activities/constants';
+import {
+  ACCREDITATION_AREAS,
+  DEPARTMENTS,
+  OFFICES,
+  formatAccreditationArea,
+  formatDepartment,
+  formatOffice,
+} from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createReference } from '../api';
 import '../SharedEvidence.css';
@@ -65,7 +72,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
           </div>
           <div>
             <dt>Area</dt>
-            <dd>{ACCREDITATION_AREAS.find((a) => a.value === evidence.accreditationArea)?.label ?? evidence.accreditationArea ?? '-'}</dd>
+            <dd>{formatAccreditationArea(evidence.accreditationArea)}</dd>
           </div>
           <div>
             <dt>Refs</dt>
@@ -100,7 +107,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
             value={area}
             onChange={(e) => setArea(e.target.value)}
           >
-            <option value="">— same as activity —</option>
+            <option value="">Same as activity</option>
             {ACCREDITATION_AREAS.map((a) => (
               <option key={a.value} value={a.value}>{a.label}</option>
             ))}
@@ -125,7 +132,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
             Cancel
           </button>
           <button className="am-btn-primary" type="button" onClick={handleConfirm} disabled={saving}>
-            {saving ? 'Referencing…' : 'Confirm Reference'}
+            {saving ? 'Referencing...' : 'Confirm Reference'}
           </button>
         </div>
       </div>

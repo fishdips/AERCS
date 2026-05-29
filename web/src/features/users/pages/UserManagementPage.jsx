@@ -5,6 +5,7 @@ import { createUser, deleteUser, listUsers, updateUserRole, updateUserStatus } f
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { DEPARTMENTS, OFFICES, formatDepartment, formatOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
+import ActionMenu from '../../../shared/components/ActionMenu';
 import './UserManagementPage.css';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
@@ -389,12 +390,22 @@ export default function UserManagementPage() {
               <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving}>
                 {isSaving ? '…' : 'Update'}
               </button>
-              <button className="ump-detail-btn-danger" onClick={handleRevoke} disabled={isSaving}>
-                Revoke
-              </button>
-              <button className="ump-detail-btn-delete" onClick={handleDelete} disabled={isSaving}>
-                Delete
-              </button>
+              <ActionMenu
+                items={[
+                  {
+                    label: 'Revoke Access',
+                    danger: true,
+                    disabled: isSaving,
+                    onClick: handleRevoke,
+                  },
+                  {
+                    label: 'Delete User',
+                    danger: true,
+                    disabled: isSaving,
+                    onClick: handleDelete,
+                  },
+                ]}
+              />
             </div>
             <div className="ump-activity">
               <p className="ump-detail-section-label">Activity</p>

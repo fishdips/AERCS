@@ -9,6 +9,7 @@ import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
+import ActionMenu from '../../../shared/components/ActionMenu';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -108,16 +109,22 @@ export default function ActivityDetailPage() {
             </Link>
           )}
           {activity && canManageActivity && (
-            <>
-              <Link className="am-btn-secondary" to={`/activities/${activity.id}/evidence`}>Upload Evidence</Link>
-              <button className="am-btn-secondary" type="button" onClick={() => setAccreditorAccessOpen(true)}>
-                Generate Accreditor Access
-              </button>
-              <Link className="am-btn-secondary" to={`/activities/${activity.id}/edit`}>Edit Activity</Link>
-              <button className="am-btn-danger" type="button" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? 'Deleting...' : 'Delete Activity'}
-              </button>
-            </>
+            <ActionMenu
+              items={[
+                { label: 'Upload Evidence', to: `/activities/${activity.id}/evidence` },
+                {
+                  label: 'Generate Accreditor Access',
+                  onClick: () => setAccreditorAccessOpen(true),
+                },
+                { label: 'Edit Activity', to: `/activities/${activity.id}/edit` },
+                {
+                  label: isDeleting ? 'Deleting...' : 'Delete Activity',
+                  danger: true,
+                  disabled: isDeleting,
+                  onClick: handleDelete,
+                },
+              ]}
+            />
           )}
           <Link className="am-btn-secondary" to="/activities">Back to List</Link>
         </div>

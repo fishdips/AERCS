@@ -41,9 +41,8 @@ public class Activity {
     @Column(name = "department", length = 50)
     private Department department;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "office", length = 50)
-    private Office office;
+    @Column(name = "office", length = 100)
+    private String office;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "accreditation_area", length = 50)

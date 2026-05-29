@@ -128,7 +128,7 @@ export default function EvidenceReferencesPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View Evidence
+                    Open Preview
                   </a>
                   <a
                     className="am-btn-secondary"
