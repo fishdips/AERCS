@@ -8,6 +8,7 @@ import com.aercs.entity.Evidence;
 import com.aercs.entity.RelatedOffice;
 import com.aercs.entity.User;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
@@ -69,8 +70,9 @@ public class EvidenceService {
     }
 
     @Transactional
-    public EvidenceMetadataResponse updateMetadata(UUID evidenceId, EvidenceMetadataRequest request) {
+    public EvidenceMetadataResponse updateMetadata(UUID evidenceId, EvidenceMetadataRequest request, UUID currentUserId) {
         Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, currentUserId);
         evidence.setEvidenceType(request.evidenceType());
         evidence.setRelatedOffices(joinEnums(request.relatedOffices()));
         evidence.setTags(joinStrings(request.tags()));
@@ -111,6 +113,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String userId) {
         Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, UUID.fromString(userId));
         validateFile(file);
 
         String oldPath = evidence.getFilePath();
@@ -138,8 +141,9 @@ public class EvidenceService {
     }
 
     @Transactional
-    public void deleteEvidence(UUID evidenceId) {
+    public void deleteEvidence(UUID evidenceId, UUID currentUserId) {
         Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, currentUserId);
         String objectPath = evidence.getFilePath();
         evidenceRepository.delete(evidence);
         storageService.delete(objectPath);
@@ -235,15 +239,19 @@ public class EvidenceService {
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
-                firstNonBlank(evidence.getActivity().getOffice(), evidence.getActivity().getDepartment(),
-                        uploadedBy == null ? null : uploadedBy.getDepartment()),
+                firstNonBlank(
+                        evidence.getActivity().getOffice() != null ? evidence.getActivity().getOffice().name() : null,
+                        evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
+                        uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
+                                : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null)),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
                 evidence.getNotes(),
                 uploadedBy == null ? null : uploadedBy.getId(),
                 uploadedBy == null ? null : uploadedBy.getName(),
-                uploadedBy == null ? null : uploadedBy.getDepartment(),
+                uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
+                        : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
                 evidence.getUpdatedAt()
@@ -298,6 +306,20 @@ public class EvidenceService {
             if (v != null && !v.isBlank()) return v.trim();
         }
         return null;
+    }
+
+    private void assertCanModify(Evidence evidence, UUID currentUserId) {
+        User currentUser = userRepository.findById(currentUserId).orElse(null);
+        if (currentUser == null) throw new ForbiddenException("User not found");
+
+        boolean isAdmin = currentUser.getRole() == com.aercs.entity.UserRole.ADMIN
+                || currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR;
+        if (isAdmin) return;
+
+        User uploader = evidence.getUploadedBy();
+        if (uploader == null || !uploader.getId().equals(currentUserId)) {
+            throw new ForbiddenException("Only the uploader can modify this evidence");
+        }
     }
 
     public record EvidenceDownload(String originalFileName, String fileType, long fileSize, MediaType mediaType, Resource resource) {}

@@ -15,32 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ActivityService {
-
-    private static final Set<String> ALLOWED_DEPARTMENTS = Set.of(
-            "CEA",
-            "CMBA",
-            "CASE",
-            "CNAHS",
-            "CCS",
-            "CCJ"
-    );
-
-    private static final Set<String> ALLOWED_OFFICES = Set.of(
-            "Quality Assurance Office",
-            "Research Office",
-            "Extension Office",
-            "Registrar\u2019s Office",
-            "Library",
-            "Student Affairs Office",
-            "Facilities Management Office",
-            "Human Resource Office"
-    );
 
     private final ActivityRepository activityRepository;
     private final EvidenceRepository evidenceRepository;
@@ -48,7 +27,7 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse createActivity(ActivityRequest request, String userId) {
-        validateAllowedSelections(request);
+        validateDepartmentOrOffice(request);
 
         Activity activity = new Activity();
         applyRequest(activity, request);
@@ -70,7 +49,7 @@ public class ActivityService {
             return List.of();
         }
 
-        return activityRepository.findByDepartmentIgnoreCase(user.getDepartment())
+        return activityRepository.findByDepartment(user.getDepartment())
                 .stream().map(this::toResponse).toList();
     }
 
@@ -81,7 +60,7 @@ public class ActivityService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!canViewAll(user.getRole())) {
-            if (user.getDepartment() == null || !user.getDepartment().equalsIgnoreCase(activity.getDepartment())) {
+            if (user.getDepartment() == null || user.getDepartment() != activity.getDepartment()) {
                 throw new ResourceNotFoundException("Activity not found");
             }
         }
@@ -97,7 +76,7 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
-        validateAllowedSelections(request);
+        validateDepartmentOrOffice(request);
 
         Activity activity = findActivity(id);
         applyRequest(activity, request);
@@ -118,15 +97,9 @@ public class ActivityService {
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
     }
 
-    private void validateAllowedSelections(ActivityRequest request) {
-        if (isBlank(request.department()) && isBlank(request.office())) {
+    private void validateDepartmentOrOffice(ActivityRequest request) {
+        if (request.department() == null && request.office() == null) {
             throw new BadRequestException("Department or office is required");
-        }
-        if (!isBlank(request.department()) && !ALLOWED_DEPARTMENTS.contains(request.department().trim())) {
-            throw new BadRequestException("Invalid department selected");
-        }
-        if (!isBlank(request.office()) && !ALLOWED_OFFICES.contains(request.office().trim())) {
-            throw new BadRequestException("Invalid office selected");
         }
     }
 
@@ -135,8 +108,8 @@ public class ActivityService {
         activity.setDescription(trimToNull(request.description()));
         activity.setActivityType(request.activityType());
         activity.setActivityDate(request.activityDate());
-        activity.setDepartment(trimToNull(request.department()));
-        activity.setOffice(trimToNull(request.office()));
+        activity.setDepartment(request.department());
+        activity.setOffice(request.office());
         activity.setAccreditationArea(request.accreditationArea());
         activity.setAcademicYear(request.academicYear().trim());
     }
@@ -149,8 +122,8 @@ public class ActivityService {
                 activity.getDescription(),
                 activity.getActivityType(),
                 activity.getActivityDate(),
-                activity.getDepartment(),
-                activity.getOffice(),
+                activity.getDepartment() != null ? activity.getDepartment().name() : null,
+                activity.getOffice() != null ? activity.getOffice().name() : null,
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 createdBy == null ? null : createdBy.getId(),
@@ -162,14 +135,8 @@ public class ActivityService {
         );
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
-    }
-
     private String trimToNull(String value) {
-        if (isBlank(value)) {
-            return null;
-        }
+        if (value == null || value.isBlank()) return null;
         return value.trim();
     }
 }

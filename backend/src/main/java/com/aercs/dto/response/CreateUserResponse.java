@@ -8,7 +8,8 @@ public record CreateUserResponse(
         String email,
         String role,
         String department,
+        String office,
         boolean active,
         boolean mustChangePw,
-        String temporaryPassword  
+        String temporaryPassword
 ) {}

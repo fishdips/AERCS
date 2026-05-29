@@ -560,6 +560,61 @@
   padding: 1rem;
 }
 
+/* ── Per-row action drawer ────────────────────────────────────────── */
+.am-ev-row {
+  cursor: pointer;
+}
+
+.am-ev-row:hover {
+  background: #f9fafb;
+}
+
+.am-ev-row-open {
+  background: #f3f4f6;
+}
+
+.am-ev-toggle-th {
+  width: 28px;
+}
+
+.am-ev-toggle-cell {
+  text-align: center;
+  width: 28px;
+  padding: 0.5rem 0.3rem !important;
+}
+
+.am-ev-chevron {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  user-select: none;
+}
+
+.am-ev-drawer-row td {
+  padding: 0 !important;
+  border-bottom: 2px solid #e5e7eb !important;
+}
+
+.am-ev-drawer {
+  padding: 0.6rem 0.75rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.am-ev-drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.am-btn-sm {
+  font-size: 0.7rem !important;
+  padding: 0.25rem 0.6rem !important;
+  cursor: pointer;
+}
+
 .am-panel-main {
   min-width: 0;
 }

@@ -35,6 +35,26 @@ public class SharedEvidenceService {
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
 
+    private static final EnumMap<Department, RelatedOffice> DEPARTMENT_TO_RELATED = new EnumMap<>(Department.class);
+    private static final EnumMap<Office, RelatedOffice> OFFICE_TO_RELATED = new EnumMap<>(Office.class);
+
+    static {
+        DEPARTMENT_TO_RELATED.put(Department.CCS, RelatedOffice.COLLEGE_OF_COMPUTER_STUDIES);
+        DEPARTMENT_TO_RELATED.put(Department.CEA, RelatedOffice.COLLEGE_OF_ENGINEERING_AND_ARCHITECTURE);
+        DEPARTMENT_TO_RELATED.put(Department.CNAHS, RelatedOffice.COLLEGE_OF_NURSING);
+        DEPARTMENT_TO_RELATED.put(Department.CMBA, RelatedOffice.COLLEGE_OF_MANAGEMENT_BUSINESS_AND_ACCOUNTANCY);
+        DEPARTMENT_TO_RELATED.put(Department.CASE, RelatedOffice.COLLEGE_OF_ARTS_AND_SCIENCES);
+
+        OFFICE_TO_RELATED.put(Office.QUALITY_ASSURANCE_OFFICE, RelatedOffice.QUALITY_ASSURANCE_OFFICE);
+        OFFICE_TO_RELATED.put(Office.RESEARCH_OFFICE, RelatedOffice.RESEARCH_OFFICE);
+        OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
+        OFFICE_TO_RELATED.put(Office.REGISTRARS_OFFICE, RelatedOffice.REGISTRARS_OFFICE);
+        OFFICE_TO_RELATED.put(Office.LIBRARY, RelatedOffice.LIBRARY);
+        OFFICE_TO_RELATED.put(Office.STUDENT_AFFAIRS_OFFICE, RelatedOffice.STUDENT_AFFAIRS_OFFICE);
+        OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
+        OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
+    }
+
     @Transactional(readOnly = true)
     public Page<SharedEvidenceResponse> searchEvidence(
             AccreditationArea area,
@@ -45,8 +65,8 @@ public class SharedEvidenceService {
     ) {
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        String officeScope = firstNonBlank(currentUser.getDepartment());
-        if (officeScope == null) {
+        Department deptScope = currentUser.getDepartment();
+        if (deptScope == null) {
             return Page.empty(pageable);
         }
 
@@ -57,7 +77,7 @@ public class SharedEvidenceService {
         Specification<Evidence> spec = buildSearchSpec(
                 area,
                 blankToNull(academicYear),
-                officeScope,
+                deptScope,
                 blankToNull(keyword),
                 referencedIds
         );
@@ -107,8 +127,6 @@ public class SharedEvidenceService {
         ref.setAccreditationArea(area);
         ref.setNote(trimToNull(request.note()));
 
-        // TODO: notify the original uploader when their evidence is referenced (notifications phase)
-
         return toReferenceResponse(referenceRepository.save(ref));
     }
 
@@ -143,7 +161,7 @@ public class SharedEvidenceService {
                 Join<EvidenceReference, User> user = root.join("referencedBy", JoinType.INNER);
                 predicates.add(cb.or(
                         cb.equal(root.get("referencedByOffice"), department),
-                        cb.equal(user.get("department"), department)
+                        cb.equal(user.get("department").as(String.class), department)
                 ));
             }
             if (area != null) {
@@ -167,8 +185,10 @@ public class SharedEvidenceService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         boolean isOwner = ref.getReferencedBy().getId().equals(currentUserId);
-        boolean isSameOffice = currentUser.getDepartment() != null
-                && currentUser.getDepartment().equalsIgnoreCase(ref.getReferencedByOffice());
+        String userDeptName = currentUser.getDepartment() != null ? currentUser.getDepartment().name() : null;
+        String userOfficeName = currentUser.getOffice() != null ? currentUser.getOffice().name() : null;
+        boolean isSameOffice = (userDeptName != null && userDeptName.equalsIgnoreCase(ref.getReferencedByOffice()))
+                || (userOfficeName != null && userOfficeName.equalsIgnoreCase(ref.getReferencedByOffice()));
         boolean isAdmin = currentUserRole == UserRole.ADMIN || currentUserRole == UserRole.ACCRED_COORDINATOR;
 
         if (!isOwner && !isSameOffice && !isAdmin) {
@@ -199,11 +219,23 @@ public class SharedEvidenceService {
             List<EvidenceType> evidenceTypes,
             LocalDate dateFrom,
             LocalDate dateTo,
+            UUID currentUserId,
             Pageable pageable
     ) {
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean isDeptStaff = currentUser.getRole() == UserRole.DEPT_STAFF;
+        Department viewerDept = isDeptStaff ? currentUser.getDepartment() : null;
+        RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept) : null;
+
+        // DEPT_STAFF see only their own dept + files referenced to them; ignore the frontend dept filter
+        String effectiveDept = isDeptStaff ? null : blankToNull(department);
+
         Specification<Evidence> spec = buildRepositorySpec(
-                blankToNull(keyword), areas, blankToNull(department),
-                blankToNull(academicYear), activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo
+                blankToNull(keyword), areas, effectiveDept,
+                blankToNull(academicYear), activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo,
+                viewerDept, viewerRelatedOffice
         );
         Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(),
@@ -212,7 +244,7 @@ public class SharedEvidenceService {
         Page<Evidence> page = evidenceRepository.findAll(spec, sorted);
         List<UUID> ids = page.getContent().stream().map(Evidence::getId).toList();
         Map<UUID, Long> counts = fetchCounts(ids);
-        return page.map(e -> toRepositoryResponse(e, counts.getOrDefault(e.getId(), 0L)));
+        return page.map(e -> toRepositoryResponse(e, counts.getOrDefault(e.getId(), 0L), viewerDept));
     }
 
     private Specification<Evidence> buildRepositorySpec(
@@ -224,20 +256,40 @@ public class SharedEvidenceService {
             List<String> fileTypes,
             List<EvidenceType> evidenceTypes,
             LocalDate dateFrom,
-            LocalDate dateTo
+            LocalDate dateTo,
+            Department viewerDepartment,
+            RelatedOffice viewerRelatedOffice
     ) {
         return (root, query, cb) -> {
             Join<Evidence, Activity> act = root.join("activity", JoinType.INNER);
             List<Predicate> predicates = new ArrayList<>();
 
+            // DEPT_STAFF: restrict to own department's files OR files referenced to their dept
+            if (viewerDepartment != null) {
+                Predicate ownDept = cb.equal(act.get("department"), viewerDepartment);
+                if (viewerRelatedOffice != null) {
+                    Predicate referenced = cb.and(
+                            cb.isNotNull(root.get("relatedOffices")),
+                            cb.like(root.get("relatedOffices"), "%" + viewerRelatedOffice.name() + "%")
+                    );
+                    predicates.add(cb.or(ownDept, referenced));
+                } else {
+                    predicates.add(ownDept);
+                }
+            }
+
             if (areas != null && !areas.isEmpty()) {
                 predicates.add(act.get("accreditationArea").in(areas));
             }
             if (department != null) {
-                predicates.add(cb.or(
-                        cb.equal(act.get("department"), department),
-                        cb.equal(act.get("office"), department)
-                ));
+                // Try to parse as Department enum first, then Office enum
+                Department deptEnum = tryParseDepartment(department);
+                Office officeEnum = tryParseOffice(department);
+                if (deptEnum != null) {
+                    predicates.add(cb.equal(act.get("department"), deptEnum));
+                } else if (officeEnum != null) {
+                    predicates.add(cb.equal(act.get("office"), officeEnum));
+                }
             }
             if (academicYear != null) {
                 predicates.add(cb.equal(act.get("academicYear"), academicYear));
@@ -274,9 +326,13 @@ public class SharedEvidenceService {
         };
     }
 
-    private RepositoryEvidenceResponse toRepositoryResponse(Evidence e, long refCount) {
+    private RepositoryEvidenceResponse toRepositoryResponse(Evidence e, long refCount, Department viewerDepartment) {
         Activity activity = e.getActivity();
         User uploader = e.getUploadedBy();
+        boolean referencedToViewer = false;
+        if (viewerDepartment != null) {
+            referencedToViewer = activity.getDepartment() != viewerDepartment;
+        }
         return new RepositoryEvidenceResponse(
                 e.getId(),
                 activity.getId(),
@@ -287,19 +343,20 @@ public class SharedEvidenceService {
                 e.getFileSize(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
-                activity.getDepartment(),
-                activity.getOffice(),
+                activity.getDepartment() != null ? activity.getDepartment().name() : null,
+                activity.getOffice() != null ? activity.getOffice().name() : null,
                 e.getEvidenceType(),
                 uploader == null ? null : uploader.getName(),
                 e.getUploadedAt(),
-                refCount
+                refCount,
+                referencedToViewer
         );
     }
 
     private Specification<Evidence> buildSearchSpec(
             AccreditationArea area,
             String academicYear,
-            String department,
+            Department department,
             String keyword,
             List<UUID> evidenceIds
     ) {
@@ -315,10 +372,7 @@ public class SharedEvidenceService {
                 predicates.add(cb.equal(act.get("academicYear"), academicYear));
             }
             if (department != null) {
-                predicates.add(cb.or(
-                        cb.equal(act.get("department"), department),
-                        cb.equal(act.get("office"), department)
-                ));
+                predicates.add(cb.equal(act.get("department"), department));
             }
             if (keyword != null) {
                 String kw = "%" + keyword.toLowerCase() + "%";
@@ -361,6 +415,9 @@ public class SharedEvidenceService {
         Activity activity = e.getActivity();
         User uploader = e.getUploadedBy();
         List<String> tags = parseStrings(e.getTags());
+        String uploaderDept = uploader == null ? null
+                : uploader.getDepartment() != null ? uploader.getDepartment().name()
+                : uploader.getOffice() != null ? uploader.getOffice().name() : null;
 
         return new SharedEvidenceResponse(
                 e.getId(),
@@ -371,13 +428,13 @@ public class SharedEvidenceService {
                 e.getFileSize(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
-                activity.getDepartment(),
-                activity.getOffice(),
+                activity.getDepartment() != null ? activity.getDepartment().name() : null,
+                activity.getOffice() != null ? activity.getOffice().name() : null,
                 e.getEvidenceType(),
                 tags,
                 e.getNotes(),
                 uploader == null ? null : uploader.getName(),
-                uploader == null ? null : uploader.getDepartment(),
+                uploaderDept,
                 e.getUploadedAt(),
                 refCount,
                 referencingOffices
@@ -385,6 +442,9 @@ public class SharedEvidenceService {
     }
 
     private ReferenceResponse toReferenceResponse(EvidenceReference r) {
+        String refByDept = r.getReferencedBy().getDepartment() != null
+                ? r.getReferencedBy().getDepartment().name()
+                : r.getReferencedBy().getOffice() != null ? r.getReferencedBy().getOffice().name() : null;
         return new ReferenceResponse(
                 r.getId(),
                 r.getEvidence().getId(),
@@ -394,7 +454,7 @@ public class SharedEvidenceService {
                 r.getAccreditationArea(),
                 r.getReferencedByOffice(),
                 r.getReferencedBy().getName(),
-                r.getReferencedBy().getDepartment(),
+                refByDept,
                 r.getCreatedAt(),
                 r.getNote()
         );
@@ -403,6 +463,8 @@ public class SharedEvidenceService {
     private ActivityReferencedEvidenceResponse toActivityReferencedEvidenceResponse(EvidenceReference r) {
         Evidence evidence = r.getEvidence();
         Activity sourceActivity = evidence.getActivity();
+        String sourceOffice = sourceActivity.getOffice() != null ? sourceActivity.getOffice().name()
+                : sourceActivity.getDepartment() != null ? sourceActivity.getDepartment().name() : null;
         return new ActivityReferencedEvidenceResponse(
                 r.getId(),
                 evidence.getId(),
@@ -412,7 +474,7 @@ public class SharedEvidenceService {
                 evidence.getEvidenceType(),
                 sourceActivity.getId(),
                 sourceActivity.getActivityName(),
-                firstNonBlank(sourceActivity.getOffice(), sourceActivity.getDepartment()),
+                sourceOffice,
                 sourceActivity.getAccreditationArea(),
                 sourceActivity.getAcademicYear(),
                 r.getReferencedByOffice(),
@@ -425,7 +487,21 @@ public class SharedEvidenceService {
     private String resolveReferenceOffice(String requestedOffice, User user, Activity targetActivity) {
         String requested = trimToNull(requestedOffice);
         if (requested != null) return requested;
-        return firstNonBlank(user.getDepartment(), targetActivity.getOffice(), targetActivity.getDepartment(), "Institutional User");
+        String userDept = user.getDepartment() != null ? user.getDepartment().name() : null;
+        String userOffice = user.getOffice() != null ? user.getOffice().name() : null;
+        String actOffice = targetActivity.getOffice() != null ? targetActivity.getOffice().name() : null;
+        String actDept = targetActivity.getDepartment() != null ? targetActivity.getDepartment().name() : null;
+        return firstNonBlank(userDept, userOffice, actOffice, actDept, "Institutional User");
+    }
+
+    private Department tryParseDepartment(String value) {
+        if (value == null) return null;
+        try { return Department.valueOf(value.trim()); } catch (IllegalArgumentException e) { return null; }
+    }
+
+    private Office tryParseOffice(String value) {
+        if (value == null) return null;
+        try { return Office.valueOf(value.trim()); } catch (IllegalArgumentException e) { return null; }
     }
 
     private String firstNonBlank(String... values) {

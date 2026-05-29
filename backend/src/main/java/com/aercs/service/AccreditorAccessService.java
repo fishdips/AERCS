@@ -147,7 +147,9 @@ public class AccreditorAccessService {
                 evidence.getFileType(),
                 evidence.getFileSize(),
                 activity.getActivityName(),
-                firstNonBlank(activity.getOffice(), activity.getDepartment()),
+                firstNonBlank(
+                        activity.getOffice() != null ? activity.getOffice().name() : null,
+                        activity.getDepartment() != null ? activity.getDepartment().name() : null),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 evidence.getEvidenceType()

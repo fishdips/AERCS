@@ -2,6 +2,8 @@ package com.aercs.dto.request;
 
 import com.aercs.entity.ActivityType;
 import com.aercs.entity.AccreditationArea;
+import com.aercs.entity.Department;
+import com.aercs.entity.Office;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -23,11 +25,9 @@ public record ActivityRequest(
         @PastOrPresent(message = "Activity date cannot be in the future")
         LocalDate activityDate,
 
-        @Size(max = 100, message = "Department must be 100 characters or fewer")
-        String department,
+        Department department,
 
-        @Size(max = 100, message = "Office must be 100 characters or fewer")
-        String office,
+        Office office,
 
         @NotNull(message = "Accreditation area is required")
         AccreditationArea accreditationArea,

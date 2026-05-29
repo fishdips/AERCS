@@ -6,6 +6,8 @@ import {
   DEPARTMENTS,
   OFFICES,
   formatAccreditationArea,
+  formatDepartment,
+  formatOffice,
 } from '../../activities/constants';
 import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -36,7 +38,9 @@ function formatFileSize(size) {
 }
 
 function ownerOffice(item) {
-  return item?.office || item?.department || item?.ownerOffice || item?.uploadedByDepartment || '-';
+  if (item?.office) return formatOffice(item.office);
+  if (item?.department) return formatDepartment(item.department);
+  return '-';
 }
 
 function saveBlob(blob, fileName) {
@@ -176,13 +180,19 @@ export default function RepositoryPage() {
   const pageStart = totalElements === 0 ? 0 : currentPage * 20 + 1;
   const pageEnd = Math.min((currentPage + 1) * 20, totalElements);
 
+  const isDeptStaff = user?.role === 'DEPT_STAFF';
+
   return (
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Repository</p>
       <div className="am-page-header">
         <div>
           <h1 className="am-page-title">Repository</h1>
-          <p className="repo-page-context">Global evidence explorer for finding reusable evidence before uploading duplicates.</p>
+          <p className="repo-page-context">
+            {isDeptStaff
+              ? 'Showing your department’s uploads and files referenced to your department.'
+              : 'Global evidence explorer for finding reusable evidence before uploading duplicates.'}
+          </p>
         </div>
       </div>
 
@@ -213,15 +223,17 @@ export default function RepositoryPage() {
               </select>
             </div>
 
-            <div className="repo-filter-section">
-              <p className="repo-filter-label">Owner Office</p>
-              <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
-                <option value="">All offices</option>
-                {ALL_OFFICES.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </div>
+            {!isDeptStaff && (
+              <div className="repo-filter-section">
+                <p className="repo-filter-label">Owner Office</p>
+                <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
+                  <option value="">All offices</option>
+                  {ALL_OFFICES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="repo-filter-section">
               <p className="repo-filter-label">Academic Year</p>
@@ -290,7 +302,12 @@ export default function RepositoryPage() {
                     </div>
                   </td>
                   <td className="se-td">{item.activityName || '-'}</td>
-                  <td className="se-td">{ownerOffice(item)}</td>
+                  <td className="se-td">
+                    <span>{ownerOffice(item)}</span>
+                    {item.referencedToViewer && (
+                      <span className="repo-referenced-badge">Referenced</span>
+                    )}
+                  </td>
                   <td className="se-td">
                     <span className="am-type-badge">{formatAccreditationArea(item.accreditationArea)}</span>
                   </td>

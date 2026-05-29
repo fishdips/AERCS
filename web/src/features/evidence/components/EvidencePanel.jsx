@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
   deleteEvidence,
   downloadEvidenceBlob,
@@ -10,6 +11,7 @@ import {
 import Modal from '../../../shared/components/Modal';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
+import { useAuth } from '../../../shared/hooks/useAuth';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'];
@@ -31,8 +33,6 @@ function formatDate(value) {
 }
 
 function validateFiles(files) {
-  if (files.length === 0) return '';
-
   for (const file of files) {
     const extension = file.name.split('.').pop().toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
@@ -57,8 +57,7 @@ function saveBlob(blob, fileName) {
 }
 
 function canPreviewFile(file) {
-  const extension = file.name.split('.').pop().toUpperCase();
-  return PREVIEW_TYPES.includes(extension);
+  return PREVIEW_TYPES.includes(file.name.split('.').pop().toUpperCase());
 }
 
 function fileKey(file) {
@@ -70,7 +69,9 @@ function hasMetadata(item) {
 }
 
 export default function EvidencePanel({ activityId, canManageEvidence }) {
+  const { user } = useAuth();
   const [evidence, setEvidence] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
   const [error, setError] = useState('');
@@ -97,49 +98,45 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     if (activityId) loadEvidence();
   }, [activityId, loadEvidence]);
 
+  const canManageItem = (item) => {
+    if (!user) return false;
+    if (user.role === 'ADMIN' || user.role === 'ACCRED_COORDINATOR') return true;
+    return item.uploadedById != null && String(item.uploadedById) === String(user.id);
+  };
+
+  const toggleRow = (id) => setExpandedId((prev) => (prev === id ? null : id));
+
   const handleSelectFiles = (event) => {
     const files = Array.from(event.target.files || []);
     const validationError = validateFiles(files);
     event.target.value = '';
     setError(validationError);
     if (validationError) return;
-
     setSelectedFiles((current) => {
       const existingKeys = new Set(current.map(fileKey));
-      const newFiles = files.filter((file) => !existingKeys.has(fileKey(file)));
-      return [...current, ...newFiles];
+      return [...current, ...files.filter((f) => !existingKeys.has(fileKey(f)))];
     });
   };
 
   const handleRemoveSelectedFile = (index) => {
-    setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+    setSelectedFiles((current) => current.filter((_, i) => i !== index));
   };
 
-  const handleStartPendingReplace = (index) => {
-    setPendingReplaceIndex(index);
-  };
+  const handleStartPendingReplace = (index) => setPendingReplaceIndex(index);
 
   const handlePendingReplace = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file || pendingReplaceIndex === null) return;
-
     const validationError = validateFiles([file]);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setSelectedFiles((current) => current.map((existingFile, index) => (
-      index === pendingReplaceIndex ? file : existingFile
-    )));
+    if (validationError) { setError(validationError); return; }
+    setSelectedFiles((current) => current.map((f, i) => (i === pendingReplaceIndex ? file : f)));
     setPendingReplaceIndex(null);
     setError('');
   };
 
   const handleViewSelectedFile = (file) => {
     if (!canPreviewFile(file)) return;
-
     const url = URL.createObjectURL(file);
     window.open(url, '_blank');
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -147,15 +144,8 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
 
   const handleUpload = async () => {
     const validationError = validateFiles(selectedFiles);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    if (selectedFiles.length === 0) {
-      setError('Select at least one evidence file.');
-      return;
-    }
-
+    if (validationError) { setError(validationError); return; }
+    if (selectedFiles.length === 0) { setError('Select at least one evidence file.'); return; }
     setIsUploading(true);
     setError('');
     try {
@@ -169,10 +159,8 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     }
   };
 
-  const handleView = async (item) => {
-    if (!PREVIEW_TYPES.includes(item.fileType)) return;
-
-    window.open(getEvidenceViewUrl(item.id), '_blank');
+  const handleView = (item) => {
+    if (PREVIEW_TYPES.includes(item.fileType)) window.open(getEvidenceViewUrl(item.id), '_blank');
   };
 
   const handleDownload = async (item) => {
@@ -192,20 +180,14 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-
     const validationError = validateFiles([file]);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
+    if (validationError) { setError(validationError); return; }
     setError('');
     setReplacement({ evidenceId: item.id, file, item });
   };
 
   const handleReplace = async () => {
     if (!replacement.evidenceId || !replacement.file) return;
-
     setBusyEvidenceId(replacement.evidenceId);
     setError('');
     try {
@@ -221,11 +203,11 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
 
   const handleDelete = async (item) => {
     if (!window.confirm('Are you sure you want to remove this evidence?')) return;
-
     setBusyEvidenceId(item.id);
     setError('');
     try {
       await deleteEvidence(item.id);
+      if (expandedId === item.id) setExpandedId(null);
       await loadEvidence();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete evidence.');
@@ -304,64 +286,106 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
           <thead>
             <tr>
               <th>File Name</th>
-              <th>File Type</th>
-              <th>File Size</th>
-              <th>Uploaded Date</th>
-              <th>Actions</th>
+              <th>Type</th>
+              <th>Size</th>
+              <th>Uploaded By</th>
+              <th>Date</th>
+              <th className="am-ev-toggle-th"></th>
             </tr>
           </thead>
           <tbody>
             {evidence.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <span className="am-evidence-name">{item.originalFileName}</span>
-                  {hasMetadata(item) && (
-                    <span className="am-evidence-meta">
-                      {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata added'}
-                      {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
-                      {item.relatedOffices?.length ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}` : ''}
-                    </span>
-                  )}
-                </td>
-                <td>{item.fileType}</td>
-                <td>{formatFileSize(item.fileSize)}</td>
-                <td>{formatDate(item.uploadedAt)}</td>
-                <td>
-                  <div className="am-evidence-row-actions">
-                    {PREVIEW_TYPES.includes(item.fileType) && (
-                      <button className="am-link-button" type="button" onClick={() => handleView(item)} disabled={busyEvidenceId === item.id}>
-                        View
-                      </button>
+              <React.Fragment key={item.id}>
+                <tr
+                  className={`am-ev-row${expandedId === item.id ? ' am-ev-row-open' : ''}`}
+                  onClick={() => toggleRow(item.id)}
+                >
+                  <td>
+                    <span className="am-evidence-name">{item.originalFileName}</span>
+                    {hasMetadata(item) && (
+                      <span className="am-evidence-meta">
+                        {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata added'}
+                        {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
+                        {item.relatedOffices?.length
+                          ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
+                          : ''}
+                      </span>
                     )}
-                    <button className="am-link-button" type="button" onClick={() => handleDownload(item)} disabled={busyEvidenceId === item.id}>
-                      Download
-                    </button>
-                    {canManageEvidence && (
-                      <>
-                        <button className="am-link-button" type="button" onClick={() => setMetadataEvidence(item)}>
-                          {hasMetadata(item) ? 'Edit Metadata' : 'Add Metadata'}
-                        </button>
-                        <label className="am-link-button">
-                          Replace
-                          <input
-                            className="am-hidden-input"
-                            type="file"
-                            accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                            onChange={(event) => handleSelectReplacement(item, event)}
-                          />
-                        </label>
-                        <button className="am-link-button am-link-danger" type="button" onClick={() => handleDelete(item)} disabled={busyEvidenceId === item.id}>
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                  <td>{item.fileType}</td>
+                  <td>{formatFileSize(item.fileSize)}</td>
+                  <td>{item.uploadedByName || '-'}</td>
+                  <td>{formatDate(item.uploadedAt)}</td>
+                  <td className="am-ev-toggle-cell">
+                    <span className="am-ev-chevron">{expandedId === item.id ? '▴' : '▾'}</span>
+                  </td>
+                </tr>
+
+                {expandedId === item.id && (
+                  <tr className="am-ev-drawer-row">
+                    <td colSpan={6}>
+                      <div className="am-ev-drawer">
+                        <div className="am-ev-drawer-actions">
+                          {PREVIEW_TYPES.includes(item.fileType) && (
+                            <button
+                              className="am-btn-secondary am-btn-sm"
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleView(item); }}
+                              disabled={busyEvidenceId === item.id}
+                            >
+                              View
+                            </button>
+                          )}
+                          <button
+                            className="am-btn-secondary am-btn-sm"
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                            disabled={busyEvidenceId === item.id}
+                          >
+                            {busyEvidenceId === item.id ? 'Downloading...' : 'Download'}
+                          </button>
+                          {canManageItem(item) && (
+                            <>
+                              <button
+                                className="am-btn-secondary am-btn-sm"
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
+                              >
+                                {hasMetadata(item) ? 'Edit Metadata' : 'Add Metadata'}
+                              </button>
+                              <label
+                                className="am-btn-secondary am-btn-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Replace File
+                                <input
+                                  className="am-hidden-input"
+                                  type="file"
+                                  accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                                  onChange={(e) => { e.stopPropagation(); handleSelectReplacement(item, e); }}
+                                />
+                              </label>
+                              <button
+                                className="am-btn-danger am-btn-sm"
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+                                disabled={busyEvidenceId === item.id}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
       )}
+
       <Modal
         isOpen={Boolean(replacement.evidenceId && replacement.file)}
         onClose={() => setReplacement({ evidenceId: '', file: null, item: null })}
@@ -372,22 +396,10 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
             Save this replacement to update the selected evidence record. The current file will be replaced.
           </p>
           <dl className="am-replace-details">
-            <div>
-              <dt>Current File</dt>
-              <dd>{replacement.item?.originalFileName || '-'}</dd>
-            </div>
-            <div>
-              <dt>Replacement File</dt>
-              <dd>{replacement.file?.name || '-'}</dd>
-            </div>
-            <div>
-              <dt>Replacement Type</dt>
-              <dd>{replacement.file?.name?.split('.').pop()?.toUpperCase() || '-'}</dd>
-            </div>
-            <div>
-              <dt>Replacement Size</dt>
-              <dd>{formatFileSize(replacement.file?.size)}</dd>
-            </div>
+            <div><dt>Current File</dt><dd>{replacement.item?.originalFileName || '-'}</dd></div>
+            <div><dt>Replacement File</dt><dd>{replacement.file?.name || '-'}</dd></div>
+            <div><dt>Type</dt><dd>{replacement.file?.name?.split('.').pop()?.toUpperCase() || '-'}</dd></div>
+            <div><dt>Size</dt><dd>{formatFileSize(replacement.file?.size)}</dd></div>
           </dl>
           <div className="am-form-actions am-replace-actions">
             <button
@@ -409,6 +421,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
           </div>
         </div>
       </Modal>
+
       <EvidenceMetadataModal
         evidence={metadataEvidence}
         isOpen={Boolean(metadataEvidence)}

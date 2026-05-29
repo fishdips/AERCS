@@ -22,5 +22,6 @@ public record RepositoryEvidenceResponse(
         EvidenceType evidenceType,
         String uploadedByName,
         OffsetDateTime uploadedAt,
-        long referenceCount
+        long referenceCount,
+        boolean referencedToViewer
 ) {}

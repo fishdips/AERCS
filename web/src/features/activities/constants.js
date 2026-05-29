@@ -43,18 +43,41 @@ export function formatAccreditationArea(value) {
     .join(' ');
 }
 
-export const DEPARTMENTS = ['CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ'];
+export const DEPARTMENTS = [
+  { value: 'CEA', label: 'CEA' },
+  { value: 'CMBA', label: 'CMBA' },
+  { value: 'CASE', label: 'CASE' },
+  { value: 'CNAHS', label: 'CNAHS' },
+  { value: 'CCS', label: 'CCS' },
+  { value: 'CCJ', label: 'CCJ' },
+];
 
 export const OFFICES = [
-  'Quality Assurance Office',
-  'Research Office',
-  'Extension Office',
-  'Registrar\u2019s Office',
-  'Library',
-  'Student Affairs Office',
-  'Facilities Management Office',
-  'Human Resource Office',
+  { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
+  { value: 'RESEARCH_OFFICE', label: 'Research Office' },
+  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
+  { value: 'REGISTRARS_OFFICE', label: 'Registrar\u2019s Office' },
+  { value: 'LIBRARY', label: 'Library' },
+  { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
+  { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
+  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
 ];
+
+export function formatDepartment(value) {
+  const option = DEPARTMENTS.find((d) => d.value === value);
+  return option ? option.label : (value || '-');
+}
+
+export function formatOffice(value) {
+  const option = OFFICES.find((o) => o.value === value);
+  return option ? option.label : (value || '-');
+}
+
+export function formatDeptOrOffice(department, office) {
+  if (office) return formatOffice(office);
+  if (department) return formatDepartment(department);
+  return '-';
+}
 
 export function formatActivityType(value) {
   const option = ACTIVITY_TYPES.find((type) => type.value === value);

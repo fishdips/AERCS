@@ -4,7 +4,7 @@ import ActivityShell from '../../activities/components/ActivityShell';
 import { getActivity } from '../../activities/api';
 import { searchSharedEvidence } from '../api';
 import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
-import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea } from '../../activities/constants';
+import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import '../SharedEvidence.css';
 
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'JPG', 'PNG'];
@@ -164,7 +164,7 @@ export default function ReferenceEvidencePage() {
             <select className="am-select" value={department} onChange={(e) => setDepartment(e.target.value)}>
               <option value="">All</option>
               {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <option key={d.value} value={d.value}>{d.label}</option>
               ))}
             </select>
           </div>
@@ -213,7 +213,7 @@ export default function ReferenceEvidencePage() {
                 </div>
                 <div className="se-target-row">
                   <span className="se-target-key">Owner</span>
-                  <span className="se-target-val">{activity.department || activity.office || '-'}</span>
+                  <span className="se-target-val">{activity.department ? formatDepartment(activity.department) : activity.office ? formatOffice(activity.office) : '-'}</span>
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@ export default function ReferenceEvidencePage() {
                       <span className="se-file-name">{item.originalFileName}</span>
                     </div>
                   </td>
-                  <td className="se-td">{item.uploadedByDepartment || item.department || item.office || '-'}</td>
+                  <td className="se-td">{item.office ? formatOffice(item.office) : item.department ? formatDepartment(item.department) : '-'}</td>
                   <td className="se-td">
                     <span className="am-type-badge">{formatAccreditationArea(item.accreditationArea)}</span>
                   </td>

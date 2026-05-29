@@ -312,6 +312,20 @@
   overflow-wrap: anywhere;
 }
 
+.repo-referenced-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  vertical-align: middle;
+}
+
 @media (max-width: 860px) {
   .repo-layout,
   .repo-details-main,

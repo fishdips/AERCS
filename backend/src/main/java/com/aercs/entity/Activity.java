@@ -34,11 +34,13 @@ public class Activity {
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
 
-    @Column(name = "department", length = 100)
-    private String department;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "department", length = 50)
+    private Department department;
 
-    @Column(name = "office", length = 100)
-    private String office;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "office", length = 50)
+    private Office office;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "accreditation_area", length = 50)

@@ -117,15 +117,18 @@ public class SharedEvidenceController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
         List<AccreditationArea> areaList = parseAreaList(areas);
         List<ActivityType> typeList = parseActivityTypeList(activityTypes);
         List<String> fileTypeList = parseStringList(fileTypes);
         List<EvidenceType> evidenceTypeList = parseEvidenceTypeList(evidenceTypes);
         Pageable pageable = PageRequest.of(page, size);
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(sharedEvidenceService.searchRepository(
-                keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList, dateFrom, dateTo, pageable
+                keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList,
+                dateFrom, dateTo, currentUserId, pageable
         ));
     }
 

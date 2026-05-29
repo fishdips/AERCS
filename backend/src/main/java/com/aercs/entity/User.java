@@ -33,8 +33,13 @@ public class User {
     @Column(name = "role", nullable = false, length = 50)
     private UserRole role;
 
-    @Column(name = "department", length = 100)
-    private String department;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "department", length = 50)
+    private Department department;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "office", length = 50)
+    private Office office;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;

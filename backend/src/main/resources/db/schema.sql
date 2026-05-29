@@ -20,11 +20,16 @@ CREATE TABLE IF NOT EXISTS users (
     email           VARCHAR(150) UNIQUE NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
     role            user_role NOT NULL DEFAULT 'DEPT_STAFF',
-    department      VARCHAR(100),
+    department      VARCHAR(50),
+    office          VARCHAR(50),
     is_active       BOOLEAN NOT NULL DEFAULT true,
     must_change_pw  BOOLEAN NOT NULL DEFAULT true,
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chk_users_department
+        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
+    CONSTRAINT chk_users_office
+        CHECK (office IS NULL OR office IN ('QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE', 'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -48,7 +53,7 @@ CREATE TABLE IF NOT EXISTS activities (
     CONSTRAINT chk_activities_department
         CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
     CONSTRAINT chk_activities_office
-        CHECK (office IS NULL OR office IN ('Quality Assurance Office', 'Research Office', 'Extension Office', 'Registrar’s Office', 'Library', 'Student Affairs Office', 'Facilities Management Office', 'Human Resource Office')),
+        CHECK (office IS NULL OR office IN (‘QUALITY_ASSURANCE_OFFICE’, ‘RESEARCH_OFFICE’, ‘EXTENSION_OFFICE’, ‘REGISTRARS_OFFICE’, ‘LIBRARY’, ‘STUDENT_AFFAIRS_OFFICE’, ‘FACILITIES_MANAGEMENT_OFFICE’, ‘HUMAN_RESOURCE_OFFICE’)),
     CONSTRAINT chk_activities_department_or_office
         CHECK (NULLIF(TRIM(department), '') IS NOT NULL OR NULLIF(TRIM(office), '') IS NOT NULL),
     CONSTRAINT chk_activities_accreditation_area

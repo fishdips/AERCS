@@ -179,8 +179,8 @@ export default function CreateActivityPage() {
                 onChange={(e) => updateField('department', e.target.value)}
               >
                 <option value="">Select department</option>
-                {DEPARTMENTS.map((department) => (
-                  <option key={department} value={department}>{department}</option>
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept.value} value={dept.value}>{dept.label}</option>
                 ))}
               </select>
               {errors.department && <span className="am-field-error">{errors.department}</span>}
@@ -194,8 +194,8 @@ export default function CreateActivityPage() {
                 onChange={(e) => updateField('office', e.target.value)}
               >
                 <option value="">Select office</option>
-                {OFFICES.map((office) => (
-                  <option key={office} value={office}>{office}</option>
+                {OFFICES.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
               {errors.office && <span className="am-field-error">{errors.office}</span>}
