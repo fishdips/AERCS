@@ -8,6 +8,8 @@ import ChangePasswordPage from './features/auth/pages/ChangePasswordPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
 import ActivitiesListPage from './features/activities/pages/ActivitiesListPage';
 import CreateActivityPage from './features/activities/pages/CreateActivityPage';
+import UploadEvidencePage from './features/activities/pages/UploadEvidencePage';
+import AssignMetadataPage from './features/activities/pages/AssignMetadataPage';
 import ActivityDetailPage from './features/activities/pages/ActivityDetailPage';
 import EditActivityPage from './features/activities/pages/EditActivityPage';
 import RepositoryPage from './features/repository/pages/RepositoryPage';
@@ -62,6 +64,24 @@ function App() {
             element={
               <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
                 <CreateActivityPage />
+              </RoleProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activities/:id/evidence"
+            element={
+              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+                <UploadEvidencePage />
+              </RoleProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activities/:id/metadata"
+            element={
+              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+                <AssignMetadataPage />
               </RoleProtectedRoute>
             }
           />

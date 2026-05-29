@@ -31,6 +31,9 @@ export const getEvidenceMetadata = (evidenceId) =>
 export const updateEvidenceMetadata = (evidenceId, data) =>
   api.put(`/api/evidence/${evidenceId}/metadata`, data);
 
+export const updateEvidenceMetadataBatch = (data) =>
+  api.put('/api/evidence/metadata/batch', data);
+
 export const downloadEvidenceBlob = (evidenceId) =>
   api.get(`/api/evidence/${evidenceId}/download`, { responseType: 'blob' });
 

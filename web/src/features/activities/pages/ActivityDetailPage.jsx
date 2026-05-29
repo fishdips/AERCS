@@ -6,6 +6,7 @@ import ActivityShell from '../components/ActivityShell';
 import { deleteActivity, getActivity } from '../api';
 import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatDepartment, formatOffice } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
+import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 
@@ -18,6 +19,10 @@ function formatDate(value) {
   });
 }
 
+function hasMetadata(item) {
+  return Boolean(item.evidenceType || item.relatedOffices?.length || item.tags?.length || item.notes);
+}
+
 export default function ActivityDetailPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -28,6 +33,8 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
+  const [evidenceItems, setEvidenceItems] = useState([]);
+  const [evidenceRefreshKey, setEvidenceRefreshKey] = useState(0);
 
   const loadActivity = useCallback(async () => {
     setLoading(true);
@@ -47,6 +54,32 @@ export default function ActivityDetailPage() {
   }, [loadActivity]);
 
   const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
+  const [batchSelectedIds, setBatchSelectedIds] = useState([]);
+
+  const handleEvidenceChange = useCallback((items) => {
+    setEvidenceItems(items);
+    setBatchSelectedIds((current) => current.filter((idValue) => {
+      const item = items.find((candidate) => candidate.id === idValue);
+      return item && !hasMetadata(item);
+    }));
+  }, []);
+
+  const handleToggleBatchSelection = useCallback((item) => {
+    if (!item || hasMetadata(item)) return;
+    setBatchSelectedIds((current) => (
+      current.includes(item.id)
+        ? current.filter((idValue) => idValue !== item.id)
+        : [...current, item.id]
+    ));
+  }, []);
+
+  const handleSelectAllBatchEligible = useCallback((items) => {
+    setBatchSelectedIds((current) => {
+      const eligibleIds = items.filter((item) => !hasMetadata(item)).map((item) => item.id);
+      const allSelected = eligibleIds.length > 0 && eligibleIds.every((idValue) => current.includes(idValue));
+      return allSelected ? [] : eligibleIds;
+    });
+  }, []);
 
   const handleDelete = async () => {
     if (!activity || !window.confirm(`Delete ${activity.activityName}?`)) return;
@@ -76,6 +109,7 @@ export default function ActivityDetailPage() {
           )}
           {activity && canManageActivity && (
             <>
+              <Link className="am-btn-secondary" to={`/activities/${activity.id}/evidence`}>Upload Evidence</Link>
               <button className="am-btn-secondary" type="button" onClick={() => setAccreditorAccessOpen(true)}>
                 Generate Accreditor Access
               </button>
@@ -101,7 +135,7 @@ export default function ActivityDetailPage() {
                 <p className="am-section-label">Activity Record</p>
                 <h2 className="am-detail-title">{activity.activityName}</h2>
               </div>
-              <span className="am-type-badge">{formatActivityType(activity.activityType)}</span>
+              <span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span>
             </div>
 
             <dl className="am-detail-list">
@@ -142,8 +176,30 @@ export default function ActivityDetailPage() {
           </section>
 
           <div className="am-evidence-section">
-            <EvidencePanel activityId={activity.id} canManageEvidence={canManageActivity} />
+            <EvidencePanel
+              key={evidenceRefreshKey}
+              activityId={activity.id}
+              batchSelectionEnabled={canManageActivity}
+              batchSelectedIds={batchSelectedIds}
+              canManageEvidence={canManageActivity}
+              onEvidenceChange={handleEvidenceChange}
+              onSelectAllBatchEligible={handleSelectAllBatchEligible}
+              onToggleBatchSelection={handleToggleBatchSelection}
+            />
           </div>
+
+          {canManageActivity && (
+            <div className="am-evidence-section">
+              <BatchMetadataPanel
+                activityId={activity.id}
+                evidence={evidenceItems}
+                hideEvidenceSelection
+                selectedIds={batchSelectedIds}
+                onSelectedIdsChange={setBatchSelectedIds}
+                onSaved={() => setEvidenceRefreshKey((current) => current + 1)}
+              />
+            </div>
+          )}
 
           <div className="am-evidence-section">
             <ReferencedEvidencePanel activityId={activity.id} canManageReferences={canManageActivity} />

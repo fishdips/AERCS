@@ -31,6 +31,9 @@ public class Activity {
     @Column(name = "activity_type", nullable = false, length = 50)
     private ActivityType activityType;
 
+    @Column(name = "custom_activity_type", length = 100)
+    private String customActivityType;
+
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
 

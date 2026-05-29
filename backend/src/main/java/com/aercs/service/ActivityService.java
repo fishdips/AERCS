@@ -3,6 +3,7 @@ package com.aercs.service;
 import com.aercs.dto.request.ActivityRequest;
 import com.aercs.dto.response.ActivityResponse;
 import com.aercs.entity.Activity;
+import com.aercs.entity.ActivityType;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
@@ -27,11 +28,18 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse createActivity(ActivityRequest request, String userId) {
-        validateDepartmentOrOffice(request);
+        validateRequest(request);
+
+        User creator = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (creator.getDepartment() == null) {
+            throw new BadRequestException("Your account must have an assigned department before creating activities");
+        }
 
         Activity activity = new Activity();
         applyRequest(activity, request);
-        userRepository.findById(UUID.fromString(userId)).ifPresent(activity::setCreatedBy);
+        activity.setDepartment(creator.getDepartment());
+        activity.setCreatedBy(creator);
 
         return toResponse(activityRepository.save(activity));
     }
@@ -76,10 +84,12 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
-        validateDepartmentOrOffice(request);
+        validateRequest(request);
 
         Activity activity = findActivity(id);
+        var existingDepartment = activity.getDepartment();
         applyRequest(activity, request);
+        activity.setDepartment(existingDepartment);
         return toResponse(activityRepository.save(activity));
     }
 
@@ -97,9 +107,12 @@ public class ActivityService {
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
     }
 
-    private void validateDepartmentOrOffice(ActivityRequest request) {
-        if (request.department() == null && request.office() == null) {
-            throw new BadRequestException("Department or office is required");
+    private void validateRequest(ActivityRequest request) {
+        if (request.office() == null) {
+            throw new BadRequestException("Office is required");
+        }
+        if (request.activityType() == ActivityType.OTHER && trimToNull(request.customActivityType()) == null) {
+            throw new BadRequestException("Custom activity type is required when Other is selected");
         }
     }
 
@@ -107,8 +120,10 @@ public class ActivityService {
         activity.setActivityName(request.activityName().trim());
         activity.setDescription(trimToNull(request.description()));
         activity.setActivityType(request.activityType());
+        activity.setCustomActivityType(
+                request.activityType() == ActivityType.OTHER ? trimToNull(request.customActivityType()) : null
+        );
         activity.setActivityDate(request.activityDate());
-        activity.setDepartment(request.department());
         activity.setOffice(request.office());
         activity.setAccreditationArea(request.accreditationArea());
         activity.setAcademicYear(request.academicYear().trim());
@@ -121,6 +136,7 @@ public class ActivityService {
                 activity.getActivityName(),
                 activity.getDescription(),
                 activity.getActivityType(),
+                activity.getCustomActivityType(),
                 activity.getActivityDate(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
                 activity.getOffice() != null ? activity.getOffice().name() : null,

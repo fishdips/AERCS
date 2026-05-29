@@ -6,5 +6,7 @@ public record AuthMeResponse(
         UUID id,
         String name,
         String role,
+        String department,
+        String office,
         boolean mustChangePw
 ) {}

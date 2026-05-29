@@ -10,5 +10,6 @@ public enum ActivityType {
     MEETING,
     CONFERENCE,
     WEBINAR,
-    ADMINISTRATIVE
+    ADMINISTRATIVE,
+    OTHER
 }

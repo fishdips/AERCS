@@ -21,12 +21,16 @@ public record ActivityRequest(
         @NotNull(message = "Activity type is required")
         ActivityType activityType,
 
+        @Size(max = 100, message = "Custom activity type must be 100 characters or fewer")
+        String customActivityType,
+
         @NotNull(message = "Activity date is required")
         @PastOrPresent(message = "Activity date cannot be in the future")
         LocalDate activityDate,
 
         Department department,
 
+        @NotNull(message = "Office is required")
         Office office,
 
         @NotNull(message = "Accreditation area is required")

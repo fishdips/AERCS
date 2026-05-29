@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS activities (
     activity_name   VARCHAR(150) NOT NULL,
     description     TEXT,
     activity_type   VARCHAR(50) NOT NULL,
+    custom_activity_type VARCHAR(100),
     activity_date   DATE NOT NULL,
     department      VARCHAR(100),
     office          VARCHAR(100),
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS activities (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_activities_activity_type
-        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE')),
+        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER')),
     CONSTRAINT chk_activities_department
         CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
     CONSTRAINT chk_activities_office
