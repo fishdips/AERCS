@@ -65,6 +65,13 @@ public class AuthService {
     }
 
     private AuthMeResponse toAuthMeResponse(User user) {
-        return new AuthMeResponse(user.getId(), user.getName(), user.getRole().name(), user.isMustChangePw());
+        return new AuthMeResponse(
+                user.getId(),
+                user.getName(),
+                user.getRole().name(),
+                user.getDepartment() == null ? null : user.getDepartment().name(),
+                user.getOffice() == null ? null : user.getOffice().name(),
+                user.isMustChangePw()
+        );
     }
 }

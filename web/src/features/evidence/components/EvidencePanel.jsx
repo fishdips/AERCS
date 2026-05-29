@@ -68,7 +68,20 @@ function hasMetadata(item) {
   return Boolean(item.evidenceType || item.relatedOffices?.length || item.tags?.length || item.notes);
 }
 
-export default function EvidencePanel({ activityId, canManageEvidence }) {
+export default function EvidencePanel({
+  activityId,
+  canManageEvidence,
+  batchSelectionEnabled = false,
+  batchSelectedIds = [],
+  hideMetadataActions = false,
+  lockManagementActions = false,
+  onEvidenceChange,
+  onSelectAllBatchEligible,
+  onToggleBatchSelection,
+  onUploadStateChange,
+  onUploaded,
+  title = 'Attached Evidence',
+}) {
   const { user } = useAuth();
   const [evidence, setEvidence] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
@@ -86,23 +99,34 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     setError('');
     try {
       const { data } = await listEvidence(activityId);
-      setEvidence(data);
+      const items = data || [];
+      setEvidence(items);
+      if (onEvidenceChange) onEvidenceChange(items);
+      return items;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load evidence.');
+      if (onEvidenceChange) onEvidenceChange([]);
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [activityId]);
+  }, [activityId, onEvidenceChange]);
 
   useEffect(() => {
     if (activityId) loadEvidence();
   }, [activityId, loadEvidence]);
+
+  useEffect(() => {
+    if (onUploadStateChange) onUploadStateChange(isUploading);
+  }, [isUploading, onUploadStateChange]);
 
   const canManageItem = (item) => {
     if (!user) return false;
     if (user.role === 'ADMIN' || user.role === 'ACCRED_COORDINATOR') return true;
     return item.uploadedById != null && String(item.uploadedById) === String(user.id);
   };
+  const managementLocked = lockManagementActions || isUploading;
+  const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
 
   const toggleRow = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
@@ -149,9 +173,10 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
     setIsUploading(true);
     setError('');
     try {
-      await uploadEvidence(activityId, selectedFiles);
+      const { data } = await uploadEvidence(activityId, selectedFiles);
       setSelectedFiles([]);
       await loadEvidence();
+      if (onUploaded) onUploaded(data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload evidence.');
     } finally {
@@ -219,7 +244,17 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
   return (
     <aside className="am-panel">
       <div className="am-evidence-header">
-        <p className="am-section-label">Attached Evidence</p>
+        <p className="am-section-label">{title}</p>
+        {batchSelectionEnabled && (
+          <button
+            className="am-btn-secondary am-btn-sm"
+            type="button"
+            onClick={() => onSelectAllBatchEligible(selectableBatchEvidence)}
+            disabled={selectableBatchEvidence.length === 0}
+          >
+            Select All Selectable
+          </button>
+        )}
       </div>
 
       {error && <p className="am-alert am-alert-error">{error}</p>}
@@ -240,21 +275,32 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                   <span>{file.name}</span>
                   <div className="am-selected-file-actions">
                     {canPreviewFile(file) && (
-                      <button className="am-link-button" type="button" onClick={() => handleViewSelectedFile(file)}>
+                      <button
+                        className="am-link-button"
+                        type="button"
+                        onClick={() => handleViewSelectedFile(file)}
+                        disabled={isUploading}
+                      >
                         View
                       </button>
                     )}
-                    <label className="am-link-button">
+                    <label className={isUploading ? 'am-link-button am-link-disabled' : 'am-link-button'}>
                       Replace
                       <input
                         className="am-hidden-input"
                         type="file"
                         accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                        disabled={isUploading}
                         onClick={() => handleStartPendingReplace(index)}
                         onChange={handlePendingReplace}
                       />
                     </label>
-                    <button className="am-link-button am-link-danger" type="button" onClick={() => handleRemoveSelectedFile(index)}>
+                    <button
+                      className="am-link-button am-link-danger"
+                      type="button"
+                      onClick={() => handleRemoveSelectedFile(index)}
+                      disabled={isUploading}
+                    >
                       Remove
                     </button>
                   </div>
@@ -263,10 +309,10 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
             </div>
           )}
           <div className="am-evidence-actions">
-            <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading}>
-              {isUploading ? 'Uploading...' : 'Upload Evidence'}
+            <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
+              {isUploading ? 'Uploading...' : 'Upload Files'}
             </button>
-            <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading}>
+            <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
               Cancel
             </button>
           </div>
@@ -301,10 +347,22 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                   onClick={() => toggleRow(item.id)}
                 >
                   <td>
-                    <span className="am-evidence-name">{item.originalFileName}</span>
+                    <div className="am-evidence-title-select">
+                      {batchSelectionEnabled && (
+                        <input
+                          type="checkbox"
+                          checked={!hasMetadata(item) && batchSelectedIds.includes(item.id)}
+                          disabled={hasMetadata(item)}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => onToggleBatchSelection(item)}
+                          title={hasMetadata(item) ? 'Metadata Assigned' : 'Select for batch metadata'}
+                        />
+                      )}
+                      <span className="am-evidence-name">{item.originalFileName}</span>
+                    </div>
                     {hasMetadata(item) && (
                       <span className="am-evidence-meta">
-                        {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata added'}
+                        Metadata Assigned{item.evidenceType ? ` · ${formatEvidenceType(item.evidenceType)}` : ''}
                         {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
                         {item.relatedOffices?.length
                           ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
@@ -331,7 +389,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                               className="am-btn-secondary am-btn-sm"
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleView(item); }}
-                              disabled={busyEvidenceId === item.id}
+                              disabled={managementLocked || busyEvidenceId === item.id}
                             >
                               View
                             </button>
@@ -340,21 +398,24 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                             className="am-btn-secondary am-btn-sm"
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
-                            disabled={busyEvidenceId === item.id}
+                            disabled={managementLocked || busyEvidenceId === item.id}
                           >
                             {busyEvidenceId === item.id ? 'Downloading...' : 'Download'}
                           </button>
                           {canManageItem(item) && (
                             <>
-                              <button
-                                className="am-btn-secondary am-btn-sm"
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
-                              >
-                                {hasMetadata(item) ? 'Edit Metadata' : 'Add Metadata'}
-                              </button>
+                              {!hideMetadataActions && (
+                                <button
+                                  className="am-btn-secondary am-btn-sm"
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
+                                  disabled={managementLocked}
+                                >
+                                  {hasMetadata(item) ? 'View/Edit Metadata' : 'Add Metadata'}
+                                </button>
+                              )}
                               <label
-                                className="am-btn-secondary am-btn-sm"
+                                className={managementLocked ? 'am-btn-secondary am-btn-sm am-link-disabled' : 'am-btn-secondary am-btn-sm'}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 Replace File
@@ -362,6 +423,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                                   className="am-hidden-input"
                                   type="file"
                                   accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                                  disabled={managementLocked}
                                   onChange={(e) => { e.stopPropagation(); handleSelectReplacement(item, e); }}
                                 />
                               </label>
@@ -369,7 +431,7 @@ export default function EvidencePanel({ activityId, canManageEvidence }) {
                                 className="am-btn-danger am-btn-sm"
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-                                disabled={busyEvidenceId === item.id}
+                                disabled={managementLocked || busyEvidenceId === item.id}
                               >
                                 Delete
                               </button>

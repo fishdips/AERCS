@@ -18,6 +18,7 @@ export const ACTIVITY_TYPES = [
   { value: 'CONFERENCE', label: 'Conference' },
   { value: 'WEBINAR', label: 'Webinar' },
   { value: 'ADMINISTRATIVE', label: 'Administrative' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 export const ACCREDITATION_AREAS = [
@@ -79,7 +80,8 @@ export function formatDeptOrOffice(department, office) {
   return '-';
 }
 
-export function formatActivityType(value) {
+export function formatActivityType(value, customValue = '') {
+  if (value === 'OTHER' && customValue) return customValue;
   const option = ACTIVITY_TYPES.find((type) => type.value === value);
   if (option) return option.label;
   if (!value) return '-';

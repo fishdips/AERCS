@@ -13,6 +13,7 @@ public record ActivityResponse(
         String activityName,
         String description,
         ActivityType activityType,
+        String customActivityType,
         LocalDate activityDate,
         String department,
         String office,

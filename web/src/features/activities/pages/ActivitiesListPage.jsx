@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import { listActivities } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatActivityType } from '../constants';
+import { ACTIVITY_WRITE_ROLES, formatActivityType, formatDeptOrOffice } from '../constants';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -96,8 +96,8 @@ export default function ActivitiesListPage() {
             {filteredActivities.map((activity) => (
               <tr key={activity.id}>
                 <td className="am-td am-td-title">{activity.activityName}</td>
-                <td className="am-td"><span className="am-type-badge">{formatActivityType(activity.activityType)}</span></td>
-                <td className="am-td">{activity.department || activity.office}</td>
+                <td className="am-td"><span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span></td>
+                <td className="am-td">{formatDeptOrOffice(activity.department, activity.office)}</td>
                 <td className="am-td">{activity.academicYear}</td>
                 <td className="am-td">{formatDate(activity.activityDate)}</td>
                 <td className="am-td am-td-action">

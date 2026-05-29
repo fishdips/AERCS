@@ -1,5 +1,6 @@
 package com.aercs.service;
 
+import com.aercs.dto.request.BatchEvidenceMetadataRequest;
 import com.aercs.dto.request.EvidenceMetadataRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
@@ -73,11 +74,33 @@ public class EvidenceService {
     public EvidenceMetadataResponse updateMetadata(UUID evidenceId, EvidenceMetadataRequest request, UUID currentUserId) {
         Evidence evidence = findEvidence(evidenceId);
         assertCanModify(evidence, currentUserId);
-        evidence.setEvidenceType(request.evidenceType());
-        evidence.setRelatedOffices(joinEnums(request.relatedOffices()));
-        evidence.setTags(joinStrings(request.tags()));
-        evidence.setNotes(trimToNull(request.notes()));
+        applyMetadata(evidence, request.evidenceType(), request.relatedOffices(), request.tags(), request.notes());
         return toMetadataResponse(evidenceRepository.save(evidence));
+    }
+
+    @Transactional
+    public List<EvidenceMetadataResponse> updateMetadataBatch(BatchEvidenceMetadataRequest request, UUID currentUserId) {
+        if (request.evidenceIds() == null || request.evidenceIds().isEmpty()) {
+            throw new BadRequestException("Select at least one evidence file");
+        }
+
+        List<Evidence> selectedEvidence = request.evidenceIds().stream()
+                .distinct()
+                .map(this::findEvidence)
+                .toList();
+
+        selectedEvidence.forEach(evidence -> assertCanModify(evidence, currentUserId));
+        if (selectedEvidence.stream().anyMatch(this::hasMetadata)) {
+            throw new BadRequestException("One or more selected evidence files already have metadata");
+        }
+
+        return selectedEvidence.stream()
+                .map(evidence -> {
+                    applyMetadata(evidence, request.evidenceType(), request.relatedOffices(), request.tags(), request.notes());
+                    return evidenceRepository.save(evidence);
+                })
+                .map(this::toMetadataResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -277,6 +300,24 @@ public class EvidenceService {
         if (values == null || values.isEmpty()) return null;
         return values.stream().filter(Objects::nonNull).map(Enum::name).distinct()
                 .reduce((a, b) -> a + "," + b).orElse(null);
+    }
+
+    private void applyMetadata(Evidence evidence,
+                               com.aercs.entity.EvidenceType evidenceType,
+                               List<RelatedOffice> relatedOffices,
+                               List<String> tags,
+                               String notes) {
+        evidence.setEvidenceType(evidenceType);
+        evidence.setRelatedOffices(joinEnums(relatedOffices));
+        evidence.setTags(joinStrings(tags));
+        evidence.setNotes(trimToNull(notes));
+    }
+
+    private boolean hasMetadata(Evidence evidence) {
+        return evidence.getEvidenceType() != null
+                || (evidence.getRelatedOffices() != null && !evidence.getRelatedOffices().isBlank())
+                || (evidence.getTags() != null && !evidence.getTags().isBlank())
+                || (evidence.getNotes() != null && !evidence.getNotes().isBlank());
     }
 
     private String joinStrings(List<String> values) {

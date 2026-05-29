@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
-import { ACCREDITATION_AREAS, ACTIVITY_TYPES, DEPARTMENTS, OFFICES } from '../constants';
+import { ACCREDITATION_AREAS, ACTIVITY_TYPES, OFFICES, formatDepartment } from '../constants';
 
 const initialForm = {
   activityName: '',
   description: '',
   activityType: '',
+  customActivityType: '',
   activityDate: '',
   department: '',
   office: '',
@@ -34,6 +35,7 @@ export default function EditActivityPage() {
         activityName: data.activityName || '',
         description: data.description || '',
         activityType: data.activityType || '',
+        customActivityType: data.customActivityType || '',
         activityDate: data.activityDate || '',
         department: data.department || '',
         office: data.office || '',
@@ -60,14 +62,15 @@ export default function EditActivityPage() {
     const nextErrors = {};
     if (!form.activityName.trim()) nextErrors.activityName = 'Activity title is required';
     if (!form.activityType) nextErrors.activityType = 'Activity type is required';
+    if (form.activityType === 'OTHER' && !form.customActivityType.trim()) {
+      nextErrors.customActivityType = 'Custom activity type is required';
+    }
     if (!form.activityDate) nextErrors.activityDate = 'Activity date is required';
     if (form.activityDate && form.activityDate > new Date().toISOString().slice(0, 10)) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
-    if (!form.department && !form.office) {
-      nextErrors.department = 'Department or office is required';
-      nextErrors.office = 'Department or office is required';
-    }
+    if (!form.department) nextErrors.department = 'Department is required';
+    if (!form.office) nextErrors.office = 'Office is required';
     if (!form.accreditationArea) nextErrors.accreditationArea = 'Accreditation area is required';
     if (!form.academicYear.trim()) nextErrors.academicYear = 'Academic year is required';
     setErrors(nextErrors);
@@ -85,8 +88,8 @@ export default function EditActivityPage() {
         ...form,
         activityName: form.activityName.trim(),
         description: form.description.trim(),
-        department: form.department.trim(),
-        office: form.office.trim(),
+        customActivityType: form.customActivityType.trim() || null,
+        office: form.office || null,
         academicYear: form.academicYear.trim(),
       };
       await updateActivity(id, payload);
@@ -146,7 +149,10 @@ export default function EditActivityPage() {
               <select
                 className="am-select"
                 value={form.activityType}
-                onChange={(e) => updateField('activityType', e.target.value)}
+                onChange={(e) => {
+                  updateField('activityType', e.target.value);
+                  if (e.target.value !== 'OTHER') updateField('customActivityType', '');
+                }}
               >
                 <option value="">Select type</option>
                 {ACTIVITY_TYPES.map((type) => (
@@ -155,6 +161,18 @@ export default function EditActivityPage() {
               </select>
               {errors.activityType && <span className="am-field-error">{errors.activityType}</span>}
             </label>
+
+            {form.activityType === 'OTHER' && (
+              <label className="am-form-field">
+                <span className="am-form-label">Custom Activity Type <span className="am-required">*</span></span>
+                <input
+                  className="am-input"
+                  value={form.customActivityType}
+                  onChange={(e) => updateField('customActivityType', e.target.value)}
+                />
+                {errors.customActivityType && <span className="am-field-error">{errors.customActivityType}</span>}
+              </label>
+            )}
 
             <label className="am-form-field">
               <span className="am-form-label">Activity Date <span className="am-required">*</span></span>
@@ -169,16 +187,7 @@ export default function EditActivityPage() {
 
             <label className="am-form-field">
               <span className="am-form-label">Department <span className="am-required">*</span></span>
-              <select
-                className="am-select"
-                value={form.department}
-                onChange={(e) => updateField('department', e.target.value)}
-              >
-                <option value="">Select department</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept.value} value={dept.value}>{dept.label}</option>
-                ))}
-              </select>
+              <input className="am-input" value={formatDepartment(form.department)} readOnly disabled />
               {errors.department && <span className="am-field-error">{errors.department}</span>}
             </label>
 

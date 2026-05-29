@@ -1,5 +1,6 @@
 package com.aercs.controller;
 
+import com.aercs.dto.request.BatchEvidenceMetadataRequest;
 import com.aercs.dto.request.EvidenceMetadataRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
@@ -60,6 +61,15 @@ public class EvidenceController {
                                                                             @AuthenticationPrincipal UserDetails userDetails) {
         UUID currentUserId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(evidenceService.updateMetadata(evidenceId, request, currentUserId));
+    }
+
+    @PutMapping("/api/evidence/metadata/batch")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<List<EvidenceMetadataResponse>> updateEvidenceMetadataBatch(
+            @Valid @RequestBody BatchEvidenceMetadataRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(evidenceService.updateMetadataBatch(request, currentUserId));
     }
 
     @GetMapping("/api/evidence/{evidenceId}/download")
