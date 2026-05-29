@@ -263,7 +263,7 @@ public class EvidenceService {
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
                 firstNonBlank(
-                        evidence.getActivity().getOffice() != null ? evidence.getActivity().getOffice().name() : null,
+                        evidence.getActivity().getOffice(),
                         evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
                         uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
                                 : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null)),

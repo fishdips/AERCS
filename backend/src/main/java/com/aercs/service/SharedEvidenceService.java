@@ -288,7 +288,9 @@ public class SharedEvidenceService {
                 if (deptEnum != null) {
                     predicates.add(cb.equal(act.get("department"), deptEnum));
                 } else if (officeEnum != null) {
-                    predicates.add(cb.equal(act.get("office"), officeEnum));
+                    predicates.add(cb.equal(act.get("office"), officeEnum.name()));
+                } else {
+                    predicates.add(cb.equal(cb.lower(act.get("office")), department.toLowerCase()));
                 }
             }
             if (academicYear != null) {
@@ -344,7 +346,7 @@ public class SharedEvidenceService {
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
-                activity.getOffice() != null ? activity.getOffice().name() : null,
+                activity.getOffice(),
                 e.getEvidenceType(),
                 uploader == null ? null : uploader.getName(),
                 e.getUploadedAt(),
@@ -429,7 +431,7 @@ public class SharedEvidenceService {
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
-                activity.getOffice() != null ? activity.getOffice().name() : null,
+                activity.getOffice(),
                 e.getEvidenceType(),
                 tags,
                 e.getNotes(),
@@ -463,8 +465,10 @@ public class SharedEvidenceService {
     private ActivityReferencedEvidenceResponse toActivityReferencedEvidenceResponse(EvidenceReference r) {
         Evidence evidence = r.getEvidence();
         Activity sourceActivity = evidence.getActivity();
-        String sourceOffice = sourceActivity.getOffice() != null ? sourceActivity.getOffice().name()
-                : sourceActivity.getDepartment() != null ? sourceActivity.getDepartment().name() : null;
+        String sourceOffice = firstNonBlank(
+                sourceActivity.getOffice(),
+                sourceActivity.getDepartment() != null ? sourceActivity.getDepartment().name() : null
+        );
         return new ActivityReferencedEvidenceResponse(
                 r.getId(),
                 evidence.getId(),
@@ -489,7 +493,7 @@ public class SharedEvidenceService {
         if (requested != null) return requested;
         String userDept = user.getDepartment() != null ? user.getDepartment().name() : null;
         String userOffice = user.getOffice() != null ? user.getOffice().name() : null;
-        String actOffice = targetActivity.getOffice() != null ? targetActivity.getOffice().name() : null;
+        String actOffice = targetActivity.getOffice();
         String actDept = targetActivity.getDepartment() != null ? targetActivity.getDepartment().name() : null;
         return firstNonBlank(userDept, userOffice, actOffice, actDept, "Institutional User");
     }

@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS activities (
     CONSTRAINT chk_activities_department
         CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
     CONSTRAINT chk_activities_office
-        CHECK (office IS NULL OR office IN (‘QUALITY_ASSURANCE_OFFICE’, ‘RESEARCH_OFFICE’, ‘EXTENSION_OFFICE’, ‘REGISTRARS_OFFICE’, ‘LIBRARY’, ‘STUDENT_AFFAIRS_OFFICE’, ‘FACILITIES_MANAGEMENT_OFFICE’, ‘HUMAN_RESOURCE_OFFICE’)),
+        CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_department_or_office
         CHECK (NULLIF(TRIM(department), '') IS NOT NULL OR NULLIF(TRIM(office), '') IS NOT NULL),
     CONSTRAINT chk_activities_accreditation_area

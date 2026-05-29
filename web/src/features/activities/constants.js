@@ -62,6 +62,7 @@ export const OFFICES = [
   { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
   { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
   { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 export function formatDepartment(value) {

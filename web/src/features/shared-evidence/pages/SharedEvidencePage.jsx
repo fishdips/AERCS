@@ -5,6 +5,7 @@ import { searchSharedEvidence } from '../api';
 import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
+import ActionMenu from '../../../shared/components/ActionMenu';
 import '../SharedEvidence.css';
 
 function ownerOffice(item) {
@@ -66,7 +67,7 @@ export default function SharedEvidencePage() {
           <h1 className="am-page-title">Shared Evidence</h1>
           <p className="se-page-context">
             Office-owned evidence reused by other activities.
-            {user?.department ? ` Showing ${user.department} evidence only.` : ''}
+            {user?.department ? ` Showing ${formatDepartment(user.department)} evidence only.` : ''}
           </p>
         </div>
       </div>
@@ -77,7 +78,7 @@ export default function SharedEvidencePage() {
         <form className="se-filter-panel" onSubmit={handleSearch}>
           <div className="se-filter-group">
             <span className="se-filter-label">Owner Office</span>
-            <div className="se-scope-box">{user?.department || 'No office assigned'}</div>
+            <div className="se-scope-box">{user?.department ? formatDepartment(user.department) : 'No office assigned'}</div>
           </div>
 
           <div className="se-filter-group">
@@ -161,12 +162,19 @@ export default function SharedEvidencePage() {
                     <span className="se-refs-count">{item.referenceCount}</span>
                   </td>
                   <td className="se-td">
-                    <Link className="am-link-button" to={`/shared-evidence/${item.id}/references`}>
-                      View Details
-                    </Link>
-                    <button className="am-link-button" type="button" onClick={() => setAccessEvidenceId(item.id)}>
-                      Generate Access
-                    </button>
+                    <div className="repo-row-actions">
+                      <Link className="am-link-button" to={`/shared-evidence/${item.id}/references`}>
+                        View Details
+                      </Link>
+                      <ActionMenu
+                        items={[
+                          {
+                            label: 'Generate Accreditor Access',
+                            onClick: () => setAccessEvidenceId(item.id),
+                          },
+                        ]}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

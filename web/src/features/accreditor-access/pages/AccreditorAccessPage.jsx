@@ -5,7 +5,7 @@ import {
   getPublicAccreditorAccess,
   getPublicEvidenceViewUrl,
 } from '../api';
-import { formatAccreditationArea } from '../../activities/constants';
+import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
 import '../AccreditorAccess.css';
 
@@ -26,6 +26,13 @@ function saveBlob(blob, fileName) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+function formatOwnerOffice(value) {
+  if (!value) return '-';
+  const office = formatOffice(value);
+  if (office !== value) return office;
+  return formatDepartment(value);
 }
 
 export default function AccreditorAccessPage() {
@@ -101,7 +108,7 @@ export default function AccreditorAccessPage() {
                       <span>{item.fileType} - {formatFileSize(item.fileSize)}</span>
                     </td>
                     <td>{item.sourceActivity || '-'}</td>
-                    <td>{item.ownerOffice || '-'}</td>
+                    <td>{formatOwnerOffice(item.ownerOffice)}</td>
                     <td>{formatAccreditationArea(item.accreditationArea)}</td>
                     <td>{item.academicYear || '-'}</td>
                     <td>{formatEvidenceType(item.evidenceType)}</td>

@@ -20,11 +20,13 @@ export default function GenerateAccreditorAccessModal({
   const [expiration, setExpiration] = useState(defaultExpiration());
   const [notes, setNotes] = useState('');
   const [generated, setGenerated] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const handleClose = () => {
     setGenerated(null);
+    setCopied(false);
     setError('');
     setNotes('');
     setExpiration(defaultExpiration());
@@ -44,6 +46,7 @@ export default function GenerateAccreditorAccessModal({
 
       const { data } = await generateAccreditorAccess(payload);
       setGenerated(data);
+      setCopied(false);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate accreditor access link.');
     } finally {
@@ -54,6 +57,7 @@ export default function GenerateAccreditorAccessModal({
   const copyLink = async () => {
     if (!generated?.accessUrl) return;
     await navigator.clipboard?.writeText(generated.accessUrl);
+    setCopied(true);
   };
 
   return (
@@ -94,7 +98,12 @@ export default function GenerateAccreditorAccessModal({
           <div className="aa-generated-link">
             <span>Temporary Link</span>
             <a href={generated.accessUrl} target="_blank" rel="noreferrer">{generated.accessUrl}</a>
-            <button className="am-btn-secondary" type="button" onClick={copyLink}>Copy Link</button>
+            <small>
+              {generated.evidenceCount} file(s) · Expires {new Date(generated.expiresAt).toLocaleString()}
+            </small>
+            <button className="am-btn-secondary" type="button" onClick={copyLink}>
+              {copied ? 'Copied' : 'Copy Link'}
+            </button>
           </div>
         )}
 

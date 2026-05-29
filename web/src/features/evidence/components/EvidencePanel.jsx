@@ -12,6 +12,7 @@ import Modal from '../../../shared/components/Modal';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
+import ActionMenu from '../../../shared/components/ActionMenu';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'];
@@ -84,7 +85,7 @@ export default function EvidencePanel({
 }) {
   const { user } = useAuth();
   const [evidence, setEvidence] = useState([]);
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedId] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
   const [error, setError] = useState('');
@@ -127,8 +128,6 @@ export default function EvidencePanel({
   };
   const managementLocked = lockManagementActions || isUploading;
   const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
-
-  const toggleRow = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
   const handleSelectFiles = (event) => {
     const files = Array.from(event.target.files || []);
@@ -232,7 +231,6 @@ export default function EvidencePanel({
     setError('');
     try {
       await deleteEvidence(item.id);
-      if (expandedId === item.id) setExpandedId(null);
       await loadEvidence();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete evidence.');
@@ -336,16 +334,13 @@ export default function EvidencePanel({
               <th>Size</th>
               <th>Uploaded By</th>
               <th>Date</th>
-              <th className="am-ev-toggle-th"></th>
+              <th className="am-ev-toggle-th">Actions</th>
             </tr>
           </thead>
           <tbody>
             {evidence.map((item) => (
               <React.Fragment key={item.id}>
-                <tr
-                  className={`am-ev-row${expandedId === item.id ? ' am-ev-row-open' : ''}`}
-                  onClick={() => toggleRow(item.id)}
-                >
+                <tr className="am-ev-row">
                   <td>
                     <div className="am-evidence-title-select">
                       {batchSelectionEnabled && (
@@ -375,6 +370,49 @@ export default function EvidencePanel({
                   <td>{item.uploadedByName || '-'}</td>
                   <td>{formatDate(item.uploadedAt)}</td>
                   <td className="am-ev-toggle-cell">
+                    <ActionMenu
+                      items={[
+                        canManageItem(item) && !hideMetadataActions && {
+                          label: 'View Details',
+                          disabled: managementLocked,
+                          onClick: () => setMetadataEvidence(item),
+                        },
+                        PREVIEW_TYPES.includes(item.fileType) && {
+                          label: 'Open Preview',
+                          disabled: managementLocked || busyEvidenceId === item.id,
+                          onClick: () => handleView(item),
+                        },
+                        {
+                          label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
+                          disabled: managementLocked || busyEvidenceId === item.id,
+                          onClick: () => handleDownload(item),
+                        },
+                        canManageItem(item) && {
+                          key: 'replace',
+                          render: ({ className, close }) => (
+                            <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
+                              Replace File
+                              <input
+                                className="am-hidden-input"
+                                type="file"
+                                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                                disabled={managementLocked}
+                                onChange={(e) => {
+                                  handleSelectReplacement(item, e);
+                                  close();
+                                }}
+                              />
+                            </label>
+                          ),
+                        },
+                        canManageItem(item) && {
+                          label: 'Delete',
+                          danger: true,
+                          disabled: managementLocked || busyEvidenceId === item.id,
+                          onClick: () => handleDelete(item),
+                        },
+                      ]}
+                    />
                     <span className="am-ev-chevron">{expandedId === item.id ? '▴' : '▾'}</span>
                   </td>
                 </tr>
@@ -384,59 +422,54 @@ export default function EvidencePanel({
                     <td colSpan={6}>
                       <div className="am-ev-drawer">
                         <div className="am-ev-drawer-actions">
-                          {PREVIEW_TYPES.includes(item.fileType) && (
+                          {canManageItem(item) && !hideMetadataActions && (
                             <button
                               className="am-btn-secondary am-btn-sm"
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); handleView(item); }}
-                              disabled={managementLocked || busyEvidenceId === item.id}
+                              onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
+                              disabled={managementLocked}
                             >
-                              View
+                              View Details
                             </button>
                           )}
-                          <button
-                            className="am-btn-secondary am-btn-sm"
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
-                            disabled={managementLocked || busyEvidenceId === item.id}
-                          >
-                            {busyEvidenceId === item.id ? 'Downloading...' : 'Download'}
-                          </button>
-                          {canManageItem(item) && (
-                            <>
-                              {!hideMetadataActions && (
-                                <button
-                                  className="am-btn-secondary am-btn-sm"
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
-                                  disabled={managementLocked}
-                                >
-                                  {hasMetadata(item) ? 'View/Edit Metadata' : 'Add Metadata'}
-                                </button>
-                              )}
-                              <label
-                                className={managementLocked ? 'am-btn-secondary am-btn-sm am-link-disabled' : 'am-btn-secondary am-btn-sm'}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                Replace File
-                                <input
-                                  className="am-hidden-input"
-                                  type="file"
-                                  accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                                  disabled={managementLocked}
-                                  onChange={(e) => { e.stopPropagation(); handleSelectReplacement(item, e); }}
-                                />
-                              </label>
-                              <button
-                                className="am-btn-danger am-btn-sm"
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-                                disabled={managementLocked || busyEvidenceId === item.id}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
+                          <ActionMenu
+                            items={[
+                              PREVIEW_TYPES.includes(item.fileType) && {
+                                label: 'Open Preview',
+                                disabled: managementLocked || busyEvidenceId === item.id,
+                                onClick: () => handleView(item),
+                              },
+                              {
+                                label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
+                                disabled: managementLocked || busyEvidenceId === item.id,
+                                onClick: () => handleDownload(item),
+                              },
+                              canManageItem(item) && {
+                                key: 'replace',
+                                render: ({ className, close }) => (
+                                  <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
+                                    Replace File
+                                    <input
+                                      className="am-hidden-input"
+                                      type="file"
+                                      accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                                      disabled={managementLocked}
+                                      onChange={(e) => {
+                                        handleSelectReplacement(item, e);
+                                        close();
+                                      }}
+                                    />
+                                  </label>
+                                ),
+                              },
+                              canManageItem(item) && {
+                                label: 'Delete',
+                                danger: true,
+                                disabled: managementLocked || busyEvidenceId === item.id,
+                                onClick: () => handleDelete(item),
+                              },
+                            ]}
+                          />
                         </div>
                       </div>
                     </td>

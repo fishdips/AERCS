@@ -3,7 +3,6 @@ package com.aercs.dto.request;
 import com.aercs.entity.ActivityType;
 import com.aercs.entity.AccreditationArea;
 import com.aercs.entity.Department;
-import com.aercs.entity.Office;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -30,8 +29,9 @@ public record ActivityRequest(
 
         Department department,
 
-        @NotNull(message = "Office is required")
-        Office office,
+        @NotBlank(message = "Office is required")
+        @Size(max = 100, message = "Office must be 100 characters or fewer")
+        String office,
 
         @NotNull(message = "Accreditation area is required")
         AccreditationArea accreditationArea,

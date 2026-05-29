@@ -138,6 +138,11 @@
   overflow-wrap: anywhere;
 }
 
+.aa-generated-link small {
+  color: #6b7280;
+  font-size: 0.7rem;
+}
+
 .aa-actions {
   border-top: 1px solid #f3f4f6;
   display: flex;
