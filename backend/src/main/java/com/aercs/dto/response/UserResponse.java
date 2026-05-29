@@ -9,6 +9,7 @@ public record UserResponse(
         String email,
         String role,
         String department,
+        String office,
         boolean active,
         boolean mustChangePw,
         OffsetDateTime createdAt

@@ -221,7 +221,7 @@ export default function EvidenceReferencesPage() {
               >
                 <option value="">All offices</option>
                 {officeOptions.map((d) => (
-                  <option key={d} value={d}>{d}</option>
+                  <option key={d.value} value={d.value}>{d.label}</option>
                 ))}
               </select>
               <select

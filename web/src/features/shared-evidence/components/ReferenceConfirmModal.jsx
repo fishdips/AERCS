@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
-import { ACCREDITATION_AREAS, DEPARTMENTS, OFFICES } from '../../activities/constants';
+import { ACCREDITATION_AREAS, DEPARTMENTS, OFFICES, formatDepartment, formatOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createReference } from '../api';
 import '../SharedEvidence.css';
@@ -47,7 +47,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
 
   if (!evidence || !activity) return null;
 
-  const officeOptions = [...new Set([...DEPARTMENTS, ...OFFICES, office].filter(Boolean))];
+  const officeOptions = [...DEPARTMENTS, ...OFFICES];
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Confirm Reference">
@@ -61,7 +61,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
           </div>
           <div>
             <dt>Office</dt>
-            <dd>{evidence.uploadedByDepartment || evidence.department || evidence.office || '-'}</dd>
+            <dd>{evidence.office ? formatOffice(evidence.office) : evidence.department ? formatDepartment(evidence.department) : '-'}</dd>
           </div>
           <div>
             <dt>Area</dt>
@@ -87,7 +87,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
           >
             <option value="">Use my office</option>
             {officeOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </div>

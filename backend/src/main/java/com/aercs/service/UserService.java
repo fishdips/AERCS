@@ -43,14 +43,13 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         user.setDepartment(request.department());
+        user.setOffice(request.office());
         user.setRole(role);
         user.setPasswordHash(passwordEncoder.encode(tempPassword));
         user.setActive(true);
         user.setMustChangePw(true);
 
         userRepository.findById(UUID.fromString(adminId)).ifPresent(user::setCreatedBy);
-
-        // TODO: Plug in email service here to send welcome email with tempPassword / Or we dont send email(?)
 
         User saved = userRepository.save(user);
         return toCreateUserResponse(saved, tempPassword);
@@ -114,7 +113,8 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                user.getDepartment(),
+                user.getDepartment() != null ? user.getDepartment().name() : null,
+                user.getOffice() != null ? user.getOffice().name() : null,
                 user.isActive(),
                 user.isMustChangePw(),
                 user.getCreatedAt()
@@ -127,7 +127,8 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                user.getDepartment(),
+                user.getDepartment() != null ? user.getDepartment().name() : null,
+                user.getOffice() != null ? user.getOffice().name() : null,
                 user.isActive(),
                 user.isMustChangePw(),
                 tempPassword

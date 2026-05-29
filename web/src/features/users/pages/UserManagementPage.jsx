@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createUser, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
+import { DEPARTMENTS, OFFICES, formatDepartment, formatOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
 import './UserManagementPage.css';
 
@@ -43,7 +44,7 @@ export default function UserManagementPage() {
   const [showTempPwModal, setShowTempPwModal]     = useState(false);
   const [newUserResult, setNewUserResult]         = useState(null);
 
-  const [createForm, setCreateForm] = useState({ name: '', email: '', department: '', role: ROLES.DEPT_STAFF });
+  const [createForm, setCreateForm] = useState({ name: '', email: '', department: '', office: '', role: ROLES.DEPT_STAFF });
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating]   = useState(false);
 
@@ -111,7 +112,7 @@ export default function UserManagementPage() {
       setNewUserResult(data);
       setShowCreateModal(false);
       setShowTempPwModal(true);
-      setCreateForm({ name: '', email: '', department: '', role: ROLES.DEPT_STAFF });
+      setCreateForm({ name: '', email: '', department: '', office: '', role: ROLES.DEPT_STAFF });
       loadUsers();
     } catch (err) {
       setCreateError(err.response?.data?.error || 'Failed to create user');
@@ -279,7 +280,9 @@ export default function UserManagementPage() {
                       </td>
                       <td className="ump-td ump-td-name">{u.name}</td>
                       <td className="ump-td ump-td-email">{u.email}</td>
-                      <td className="ump-td">{u.department || '—'}</td>
+                      <td className="ump-td">
+                        {u.department ? formatDepartment(u.department) : u.office ? formatOffice(u.office) : '—'}
+                      </td>
                       <td className="ump-td">
                         <span className="ump-role-badge">{ROLE_LABELS[u.role] ?? u.role}</span>
                       </td>
@@ -343,7 +346,13 @@ export default function UserManagementPage() {
             </div>
             <div className="ump-detail-field">
               <label className="ump-detail-label">Department / Office</label>
-              <input className="ump-detail-input" value={selectedUser.department || ''} readOnly placeholder="—" />
+              <input
+                className="ump-detail-input"
+                value={selectedUser.department ? formatDepartment(selectedUser.department)
+                  : selectedUser.office ? formatOffice(selectedUser.office) : ''}
+                readOnly
+                placeholder="—"
+              />
             </div>
             <div className="ump-detail-field">
               <label className="ump-detail-label">Role</label>
@@ -410,9 +419,20 @@ export default function UserManagementPage() {
               onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} required placeholder="firstname.lastname@inst.edu" />
           </div>
           <div className="ump-modal-field">
-            <label className="ump-modal-label">Department / Office</label>
-            <input className="ump-modal-input" value={createForm.department}
-              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))} placeholder="e.g. HR Office" />
+            <label className="ump-modal-label">Department</label>
+            <select className="ump-modal-select" value={createForm.department}
+              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value, office: '' }))}>
+              <option value="">None</option>
+              {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          </div>
+          <div className="ump-modal-field">
+            <label className="ump-modal-label">Office</label>
+            <select className="ump-modal-select" value={createForm.office}
+              onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value, department: '' }))}>
+              <option value="">None</option>
+              {OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
           <div className="ump-modal-field">
             <label className="ump-modal-label">Role</label>

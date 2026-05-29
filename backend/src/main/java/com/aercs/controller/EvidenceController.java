@@ -56,8 +56,10 @@ public class EvidenceController {
     @PutMapping("/api/evidence/{evidenceId}/metadata")
     @PreAuthorize(WRITE_ROLES)
     public ResponseEntity<EvidenceMetadataResponse> updateEvidenceMetadata(@PathVariable UUID evidenceId,
-                                                                            @Valid @RequestBody EvidenceMetadataRequest request) {
-        return ResponseEntity.ok(evidenceService.updateMetadata(evidenceId, request));
+                                                                            @Valid @RequestBody EvidenceMetadataRequest request,
+                                                                            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(evidenceService.updateMetadata(evidenceId, request, currentUserId));
     }
 
     @GetMapping("/api/evidence/{evidenceId}/download")
@@ -96,8 +98,10 @@ public class EvidenceController {
 
     @DeleteMapping("/api/evidence/{evidenceId}")
     @PreAuthorize(WRITE_ROLES)
-    public ResponseEntity<Map<String, String>> deleteEvidence(@PathVariable UUID evidenceId) {
-        evidenceService.deleteEvidence(evidenceId);
+    public ResponseEntity<Map<String, String>> deleteEvidence(@PathVariable UUID evidenceId,
+                                                               @AuthenticationPrincipal UserDetails userDetails) {
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        evidenceService.deleteEvidence(evidenceId, currentUserId);
         return ResponseEntity.ok(Map.of("message", "Evidence removed"));
     }
 }

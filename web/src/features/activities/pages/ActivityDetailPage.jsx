@@ -4,7 +4,7 @@ import { ROLE_LABELS } from '../../../shared/constants/roles';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import { deleteActivity, getActivity } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType } from '../constants';
+import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatDepartment, formatOffice } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
@@ -119,11 +119,11 @@ export default function ActivityDetailPage() {
               </div>
               <div>
                 <dt>Department</dt>
-                <dd>{activity.department || '-'}</dd>
+                <dd>{activity.department ? formatDepartment(activity.department) : '-'}</dd>
               </div>
               <div>
                 <dt>Office</dt>
-                <dd>{activity.office || '-'}</dd>
+                <dd>{activity.office ? formatOffice(activity.office) : '-'}</dd>
               </div>
               <div>
                 <dt>Created By</dt>

@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { searchSharedEvidence } from '../api';
-import { ACCREDITATION_AREAS, formatAccreditationArea } from '../../activities/constants';
+import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import '../SharedEvidence.css';
 
 function ownerOffice(item) {
-  return item.office || item.department || item.uploadedByDepartment || '-';
+  if (item.office) return formatOffice(item.office);
+  if (item.department) return formatDepartment(item.department);
+  return '-';
 }
 
 export default function SharedEvidencePage() {
