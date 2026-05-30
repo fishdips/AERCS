@@ -10,6 +10,7 @@ import './UserManagementPage.css';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
+const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
 
 // Static permissions reference table (display-only in MVP)
 const PERMISSIONS_TABLE = [
@@ -432,7 +433,7 @@ export default function UserManagementPage() {
           <div className="ump-modal-field">
             <label className="ump-modal-label">Department</label>
             <select className="ump-modal-select" value={createForm.department}
-              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value, office: '' }))}>
+              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))}>
               <option value="">None</option>
               {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
@@ -440,9 +441,9 @@ export default function UserManagementPage() {
           <div className="ump-modal-field">
             <label className="ump-modal-label">Office</label>
             <select className="ump-modal-select" value={createForm.office}
-              onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value, department: '' }))}>
+              onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value }))}>
               <option value="">None</option>
-              {OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="ump-modal-field">
