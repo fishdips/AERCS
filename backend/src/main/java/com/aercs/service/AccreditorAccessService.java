@@ -47,27 +47,33 @@ public class AccreditorAccessService {
             UUID currentUserId,
             String frontendOrigin
     ) {
-        Set<Evidence> selectedEvidence = new LinkedHashSet<>();
+        Set<UUID> selectedEvidenceIds = new LinkedHashSet<>();
         Activity activity = null;
 
         if (request.activityId() != null) {
             activity = activityRepository.findById(request.activityId())
                     .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
-            selectedEvidence.addAll(evidenceRepository.findByActivityIdOrderByUploadedAtDesc(request.activityId()));
-            selectedEvidence.addAll(evidenceReferenceRepository.findReferencedEvidenceByActivityId(request.activityId()));
+            evidenceRepository.findByActivityIdOrderByUploadedAtDesc(request.activityId()).stream()
+                    .map(Evidence::getId)
+                    .forEach(selectedEvidenceIds::add);
+            evidenceReferenceRepository.findReferencedEvidenceByActivityId(request.activityId()).stream()
+                    .map(Evidence::getId)
+                    .forEach(selectedEvidenceIds::add);
         }
 
         if (request.evidenceIds() != null && !request.evidenceIds().isEmpty()) {
-            List<Evidence> evidence = evidenceRepository.findAllById(request.evidenceIds());
-            if (evidence.size() != request.evidenceIds().stream().distinct().count()) {
-                throw new ResourceNotFoundException("One or more evidence files were not found");
-            }
-            selectedEvidence.addAll(evidence);
+            selectedEvidenceIds.addAll(request.evidenceIds());
         }
 
-        if (selectedEvidence.isEmpty()) {
+        if (selectedEvidenceIds.isEmpty()) {
             throw new BadRequestException("Select at least one evidence file for accreditor access");
         }
+
+        List<Evidence> evidence = evidenceRepository.findAllById(selectedEvidenceIds);
+        if (evidence.size() != selectedEvidenceIds.size()) {
+            throw new ResourceNotFoundException("One or more evidence files were not found");
+        }
+        Set<Evidence> selectedEvidence = new LinkedHashSet<>(evidence);
 
         OffsetDateTime expiresAt = request.expirationDateTime() == null
                 ? OffsetDateTime.now().plusDays(7)
