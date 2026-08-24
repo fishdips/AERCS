@@ -10,6 +10,5 @@ public record CreateUserResponse(
         String department,
         String office,
         boolean active,
-        boolean mustChangePw,
-        String temporaryPassword
+        boolean mustChangePw
 ) {}

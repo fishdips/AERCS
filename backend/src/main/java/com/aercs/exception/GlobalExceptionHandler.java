@@ -43,6 +43,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, e.getMessage());
     }
 
+    @ExceptionHandler(InvitationEmailException.class)
+    public ResponseEntity<Map<String, String>> handleInvitationEmail(InvitationEmailException e) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<Map<String, String>> handleForbidden(ForbiddenException e) {
         return error(HttpStatus.FORBIDDEN, e.getMessage());
@@ -62,7 +67,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleUnreadableMessage(HttpMessageNotReadableException e) {
-        return error(HttpStatus.BAD_REQUEST, "Invalid request format. Please check activity type, date format, and request fields.");
+        return error(HttpStatus.BAD_REQUEST, "Invalid request format. Please check the submitted fields and their values.");
     }
 
     @ExceptionHandler(DataAccessException.class)

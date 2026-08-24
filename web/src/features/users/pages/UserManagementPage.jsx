@@ -110,7 +110,12 @@ export default function UserManagementPage() {
     setCreateError('');
     setIsCreating(true);
     try {
-      const { data } = await createUser(createForm);
+      const request = {
+        ...createForm,
+        department: createForm.department || null,
+        office: createForm.office || null,
+      };
+      const { data } = await createUser(request);
       setNewUserResult(data);
       setShowCreateModal(false);
       setShowTempPwModal(true);
@@ -467,20 +472,17 @@ export default function UserManagementPage() {
       <Modal isOpen={showTempPwModal} onClose={() => setShowTempPwModal(false)} title="Account Created">
         {newUserResult && (
           <div className="ump-temppw">
-            <p className="ump-tempw-intro">
+            <p className="ump-tempw-intro" hidden>
               Account for <strong>{newUserResult.name}</strong> has been created.
               Share this temporary password with them — it will not be shown again.
             </p>
-            <div className="ump-tempw-box">
-              <span className="ump-tempw-value">{newUserResult.temporaryPassword}</span>
-            </div>
             <p className="ump-tempw-note">
-              The user must change this password on first login.
-              {/* TODO: When email service is added, this will be sent automatically */}
+              A temporary password has been sent to <strong>{newUserResult.email}</strong>.
+              The user will be required to change it on first login.
             </p>
             <button className="ump-modal-submit"
-              onClick={() => { navigator.clipboard?.writeText(newUserResult.temporaryPassword); setShowTempPwModal(false); }}>
-              Copy &amp; Close
+              onClick={() => setShowTempPwModal(false)}>
+              Close
             </button>
           </div>
         )}

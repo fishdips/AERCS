@@ -23,6 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final InvitationEmailService invitationEmailService;
 
     @Transactional
     public CreateUserResponse createUser(CreateUserRequest request, String adminId) {
@@ -52,7 +53,8 @@ public class UserService {
         userRepository.findById(UUID.fromString(adminId)).ifPresent(user::setCreatedBy);
 
         User saved = userRepository.save(user);
-        return toCreateUserResponse(saved, tempPassword);
+        invitationEmailService.sendInvitation(saved, tempPassword);
+        return toCreateUserResponse(saved);
     }
 
     public List<UserResponse> listUsers() {
@@ -121,7 +123,7 @@ public class UserService {
         );
     }
 
-    private CreateUserResponse toCreateUserResponse(User user, String tempPassword) {
+    private CreateUserResponse toCreateUserResponse(User user) {
         return new CreateUserResponse(
                 user.getId(),
                 user.getName(),
@@ -130,8 +132,7 @@ public class UserService {
                 user.getDepartment() != null ? user.getDepartment().name() : null,
                 user.getOffice() != null ? user.getOffice().name() : null,
                 user.isActive(),
-                user.isMustChangePw(),
-                tempPassword
+                user.isMustChangePw()
         );
     }
 }
