@@ -41,7 +41,7 @@ export default function ActivityShell({ children }) {
           <nav className="am-nav">
             <p className="am-nav-section">Workspace</p>
             <span className="am-nav-link am-nav-disabled">Dashboard</span>
-            <NavLink to="/activities" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Activities</NavLink>
+            <NavLink to="/activities" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Documentation</NavLink>
             <NavLink to="/repository" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Repository</NavLink>
             <NavLink to="/shared-evidence" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Shared Evidence</NavLink>
             <span className="am-nav-link am-nav-disabled">Monitoring</span>

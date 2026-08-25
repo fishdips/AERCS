@@ -92,3 +92,14 @@ export function formatActivityType(value, customValue = '') {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
+
+export const EVIDENCE_TYPES = [
+  'Report',
+  'Certificate',
+  'Attendance Sheet',
+  'Photo',
+  'Memorandum',
+  'Presentation',
+  'Evaluation',
+  'Other'
+];

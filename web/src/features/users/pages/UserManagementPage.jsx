@@ -190,7 +190,7 @@ export default function UserManagementPage() {
           <nav className="ump-nav">
             <p className="ump-nav-section">Workspace</p>
             <span className="ump-nav-link ump-nav-disabled">Dashboard</span>
-            <NavLink to="/activities" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Activities</NavLink>
+            <NavLink to="/activities" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Documentation</NavLink>
             <NavLink to="/repository" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Repository</NavLink>
             <NavLink to="/shared-evidence" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Shared Evidence</NavLink>
             <span className="ump-nav-link ump-nav-disabled">Monitoring</span>
