@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
+import Modal from '../../../shared/components/Modal';
 import { listActivities } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatActivityType, formatDeptOrOffice } from '../constants';
+import { ACTIVITY_WRITE_ROLES, formatActivityType, formatDeptOrOffice, EVIDENCE_TYPES } from '../constants';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -20,6 +21,8 @@ export default function ActivitiesListPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const loadActivities = useCallback(async () => {
     setLoading(true);
@@ -61,7 +64,17 @@ export default function ActivitiesListPage() {
       <p className="am-breadcrumb">Workspace / Activities</p>
       <div className="am-page-header">
         <h1 className="am-page-title">Activities</h1>
-        {canManageActivity && <Link className="am-btn-primary" to="/activities/new">Create Activity</Link>}
+        {canManageActivity && (
+          <div style={{ position: 'relative' }}>
+            <button className="am-btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
+              Documentation Type ▾
+            </button>
+              <div className={`am-dropdown-menu ${showDropdown ? 'open' : ''}`}>
+                <Link to="/activities/new" className="am-dropdown-item" onClick={() => setShowDropdown(false)}>Create Activity</Link>
+                <button className="am-dropdown-item" style={{ textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => { setShowDropdown(false); setShowUploadModal(true); }}>Upload Document</button>
+              </div>
+          </div>
+        )}
       </div>
 
       <div className="am-filters">
@@ -114,6 +127,39 @@ export default function ActivitiesListPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} title="Upload Document">
+        <div className="am-upload-dropzone">
+          <svg style={{ width: '32px', height: '32px', color: '#9ca3af', marginBottom: '0.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+          <p>Drag and drop your file here, or click to browse</p>
+        </div>
+        
+        <div className="am-form-field" style={{ marginBottom: '1rem' }}>
+          <label className="am-form-label">Target Activity <span className="am-required">*</span></label>
+          <select className="am-select">
+            <option value="">Select an activity...</option>
+            {activities.map(a => <option key={a.id} value={a.id}>{a.activityName}</option>)}
+          </select>
+        </div>
+
+        <div className="am-form-field" style={{ marginBottom: '1rem' }}>
+          <label className="am-form-label">Evidence Type <span className="am-required">*</span></label>
+          <select className="am-select">
+            <option value="">Select type...</option>
+            {EVIDENCE_TYPES?.map(type => <option key={type} value={type}>{type}</option>)}
+          </select>
+        </div>
+
+        <div className="am-form-field">
+          <label className="am-form-label">Tags</label>
+          <input className="am-input" placeholder="e.g. research, attendance (comma separated)" />
+        </div>
+
+        <div className="am-upload-modal-actions">
+          <button className="am-btn-secondary" onClick={() => setShowUploadModal(false)}>Cancel</button>
+          <button className="am-btn-primary" disabled>Upload & Save</button>
+        </div>
+      </Modal>
     </ActivityShell>
   );
 }
