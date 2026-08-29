@@ -10,6 +10,7 @@ public record ActivityReferencedEvidenceResponse(
         UUID referenceId,
         UUID evidenceId,
         String originalFileName,
+        String linkUrl,
         String fileType,
         long fileSize,
         EvidenceType evidenceType,

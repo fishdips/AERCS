@@ -12,6 +12,7 @@ public record SharedEvidenceResponse(
         UUID activityId,
         String activityName,
         String originalFileName,
+        String linkUrl,
         String fileType,
         long fileSize,
         AccreditationArea accreditationArea,

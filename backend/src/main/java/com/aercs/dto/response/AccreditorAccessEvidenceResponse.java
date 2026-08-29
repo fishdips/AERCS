@@ -8,6 +8,7 @@ import java.util.UUID;
 public record AccreditorAccessEvidenceResponse(
         UUID id,
         String originalFileName,
+        String linkUrl,
         String fileType,
         long fileSize,
         String sourceActivity,

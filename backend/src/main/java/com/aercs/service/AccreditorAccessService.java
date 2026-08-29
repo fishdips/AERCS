@@ -150,6 +150,7 @@ public class AccreditorAccessService {
         return new AccreditorAccessEvidenceResponse(
                 evidence.getId(),
                 evidence.getOriginalFileName(),
+                evidence.getLinkUrl(),
                 evidence.getFileType(),
                 evidence.getFileSize(),
                 activity.getActivityName(),

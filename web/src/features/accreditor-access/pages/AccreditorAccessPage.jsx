@@ -114,6 +114,15 @@ export default function AccreditorAccessPage() {
                     <td>{formatEvidenceType(item.evidenceType)}</td>
                     <td>
                       <div className="aa-row-actions">
+                        {(item.fileType === 'LINK' || item.linkUrl) && (
+                          <a
+                            href={item.linkUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            🔗 Open Link
+                          </a>
+                        )}
                         {PREVIEW_TYPES.includes(item.fileType) && (
                           <a
                             href={getPublicEvidenceViewUrl(token, item.id)}
@@ -123,9 +132,11 @@ export default function AccreditorAccessPage() {
                             View
                           </a>
                         )}
-                        <button type="button" onClick={() => handleDownload(item)} disabled={busyId === item.id}>
-                          Download
-                        </button>
+                        {item.fileType !== 'LINK' && !item.linkUrl && (
+                          <button type="button" onClick={() => handleDownload(item)} disabled={busyId === item.id}>
+                            Download
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

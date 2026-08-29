@@ -1,7 +1,9 @@
 package com.aercs.controller;
 
 import com.aercs.dto.request.BatchEvidenceMetadataRequest;
+import com.aercs.dto.request.CreateLinkEvidenceRequest;
 import com.aercs.dto.request.EvidenceMetadataRequest;
+import com.aercs.dto.request.UpdateLinkEvidenceRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
 import jakarta.validation.Valid;
@@ -37,6 +39,22 @@ public class EvidenceController {
                                                                   @RequestParam("files") List<MultipartFile> files,
                                                                   @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(evidenceService.uploadEvidence(activityId, files, userDetails.getUsername()));
+    }
+
+    @PostMapping("/api/activities/{activityId}/evidence/link")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<EvidenceResponse> createLinkEvidence(@PathVariable UUID activityId,
+                                                                @Valid @RequestBody CreateLinkEvidenceRequest request,
+                                                                @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.createLinkEvidence(activityId, request, userDetails.getUsername()));
+    }
+
+    @PutMapping("/api/evidence/{evidenceId}/link")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<EvidenceResponse> updateLinkEvidence(@PathVariable UUID evidenceId,
+                                                                @Valid @RequestBody UpdateLinkEvidenceRequest request,
+                                                                @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.updateLinkEvidence(evidenceId, request, userDetails.getUsername()));
     }
 
     @GetMapping("/api/activities/{activityId}/evidence")

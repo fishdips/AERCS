@@ -32,7 +32,8 @@ const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '202
 const ALL_OFFICES = [...DEPARTMENTS, ...OFFICES];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
-function formatFileSize(size) {
+function formatFileSize(size, fileType) {
+  if (fileType === 'LINK') return 'Link';
   if (!size) return '-';
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -164,6 +165,10 @@ export default function RepositoryPage() {
   };
 
   const handleDownload = async (item) => {
+    if (item.fileType === 'LINK' || item.linkUrl) {
+      window.open(item.linkUrl, '_blank');
+      return;
+    }
     setBusyDownloadId(item.id);
     setError('');
     try {
@@ -365,10 +370,20 @@ export default function RepositoryPage() {
                 <p className="am-section-label">File</p>
                 <h2 className="repo-details-title">{detail.originalFileName}</h2>
                 <p className="repo-details-sub">
-                  {detail.fileType} - {formatFileSize(detail.fileSize)}
+                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
                 </p>
 
                 <div className="repo-details-actions">
+                  {(detail.fileType === 'LINK' || detail.linkUrl) && (
+                    <a
+                      className="am-btn-primary"
+                      href={detail.linkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      🔗 Open Link
+                    </a>
+                  )}
                   {PREVIEW_TYPES.includes(detail.fileType) && (
                     <a
                       className="am-btn-secondary"
@@ -381,7 +396,11 @@ export default function RepositoryPage() {
                   )}
                   <ActionMenu
                     items={[
-                      {
+                      (detail.fileType === 'LINK' || detail.linkUrl) && {
+                        label: 'Open Link',
+                        onClick: () => window.open(detail.linkUrl, '_blank'),
+                      },
+                      detail.fileType !== 'LINK' && !detail.linkUrl && {
                         label: busyDownloadId === detail.id ? 'Downloading...' : 'Download',
                         disabled: busyDownloadId === detail.id,
                         onClick: () => handleDownload(detail),

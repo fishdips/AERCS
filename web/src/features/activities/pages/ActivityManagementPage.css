@@ -1059,6 +1059,42 @@
   padding-bottom: 1rem;
 }
 
+.am-upload-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.am-upload-tab {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #4b5563;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.am-upload-tab-active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.am-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
 .am-selected-files {
   display: flex;
   flex-direction: column;
@@ -1161,6 +1197,17 @@
   font-size: 0.78rem;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.am-evidence-link-title {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+
+.am-evidence-link-title:hover {
+  color: #1d4ed8 !important;
+  text-decoration: underline !important;
 }
 
 .am-evidence-replacement {

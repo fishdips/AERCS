@@ -145,6 +145,17 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                           {item.referencedByName ? ` · Referenced by ${item.referencedByName}` : ''}
                         </p>
                         <div className="am-ev-drawer-actions">
+                          {(item.fileType === 'LINK' || item.linkUrl) && (
+                            <a
+                              className="am-btn-primary am-btn-sm"
+                              href={item.linkUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              🔗 Open Link
+                            </a>
+                          )}
                           {PREVIEW_TYPES.includes(item.fileType) && (
                             <a
                               className="am-btn-secondary am-btn-sm"
@@ -156,14 +167,16 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               View
                             </a>
                           )}
-                          <button
-                            className="am-btn-secondary am-btn-sm"
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
-                            disabled={busyId === item.referenceId}
-                          >
-                            {busyId === item.referenceId ? 'Downloading...' : 'Download'}
-                          </button>
+                          {item.fileType !== 'LINK' && !item.linkUrl && (
+                            <button
+                              className="am-btn-secondary am-btn-sm"
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                              disabled={busyId === item.referenceId}
+                            >
+                              {busyId === item.referenceId ? 'Downloading...' : 'Download'}
+                            </button>
+                          )}
                           {canManageReferences && (
                             <button
                               className="am-btn-danger am-btn-sm"

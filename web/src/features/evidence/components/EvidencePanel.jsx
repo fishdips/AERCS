@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import React from 'react';
 import {
+  createLinkEvidence,
   deleteEvidence,
   downloadEvidenceBlob,
   getEvidenceViewUrl,
   listEvidence,
   replaceEvidence,
+  updateLinkEvidence,
   uploadEvidence,
 } from '../api';
 import Modal from '../../../shared/components/Modal';
@@ -18,7 +20,8 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
-function formatFileSize(size) {
+function formatFileSize(size, fileType) {
+  if (fileType === 'LINK') return 'Link';
   if (!size) return '-';
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -69,6 +72,15 @@ function hasMetadata(item) {
   return Boolean(item.evidenceType || item.relatedOffices?.length || item.tags?.length || item.notes);
 }
 
+function isValidUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export default function EvidencePanel({
   activityId,
   canManageEvidence,
@@ -86,8 +98,12 @@ export default function EvidencePanel({
   const { user } = useAuth();
   const [evidence, setEvidence] = useState([]);
   const [expandedId] = useState(null);
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' | 'link'
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [linkTitle, setLinkTitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
+  const [editLinkModal, setEditLinkModal] = useState({ isOpen: false, item: null, title: '', linkUrl: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -183,11 +199,72 @@ export default function EvidencePanel({
     }
   };
 
+  const handleAddLink = async () => {
+    if (!linkUrl.trim()) {
+      setError('Google Drive / Link URL is required.');
+      return;
+    }
+    if (!isValidUrl(linkUrl.trim())) {
+      setError('Please enter a valid HTTP or HTTPS URL (e.g. https://drive.google.com/...)');
+      return;
+    }
+    setIsUploading(true);
+    setError('');
+    try {
+      const payload = {
+        title: linkTitle.trim() || 'Google Drive Link',
+        linkUrl: linkUrl.trim(),
+      };
+      const { data } = await createLinkEvidence(activityId, payload);
+      setLinkTitle('');
+      setLinkUrl('');
+      await loadEvidence();
+      if (onUploaded) onUploaded(data ? [data] : []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add link evidence.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveEditLink = async () => {
+    if (!editLinkModal.linkUrl.trim()) {
+      setError('Link URL is required.');
+      return;
+    }
+    if (!isValidUrl(editLinkModal.linkUrl.trim())) {
+      setError('Please enter a valid HTTP or HTTPS URL.');
+      return;
+    }
+    setBusyEvidenceId(editLinkModal.item.id);
+    setError('');
+    try {
+      await updateLinkEvidence(editLinkModal.item.id, {
+        title: editLinkModal.title.trim() || 'Google Drive Link',
+        linkUrl: editLinkModal.linkUrl.trim(),
+      });
+      setEditLinkModal({ isOpen: false, item: null, title: '', linkUrl: '' });
+      await loadEvidence();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update link evidence.');
+    } finally {
+      setBusyEvidenceId('');
+    }
+  };
+
   const handleView = (item) => {
-    if (PREVIEW_TYPES.includes(item.fileType)) window.open(getEvidenceViewUrl(item.id), '_blank');
+    if (item.fileType === 'LINK' || item.linkUrl) {
+      window.open(item.linkUrl, '_blank');
+    } else if (PREVIEW_TYPES.includes(item.fileType)) {
+      window.open(getEvidenceViewUrl(item.id), '_blank');
+    }
   };
 
   const handleDownload = async (item) => {
+    if (item.fileType === 'LINK' || item.linkUrl) {
+      window.open(item.linkUrl, '_blank');
+      return;
+    }
     setBusyEvidenceId(item.id);
     setError('');
     try {
@@ -259,61 +336,116 @@ export default function EvidencePanel({
 
       {canManageEvidence && (
         <div className="am-evidence-upload">
-          <input
-            className="am-input"
-            type="file"
-            multiple
-            accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-            onChange={handleSelectFiles}
-          />
-          {selectedFiles.length > 0 && (
-            <div className="am-selected-files">
-              {selectedFiles.map((file, index) => (
-                <div className="am-selected-file" key={`${fileKey(file)}-${index}`}>
-                  <span>{file.name}</span>
-                  <div className="am-selected-file-actions">
-                    {canPreviewFile(file) && (
-                      <button
-                        className="am-link-button"
-                        type="button"
-                        onClick={() => handleViewSelectedFile(file)}
-                        disabled={isUploading}
-                      >
-                        View
-                      </button>
-                    )}
-                    <label className={isUploading ? 'am-link-button am-link-disabled' : 'am-link-button'}>
-                      Replace
-                      <input
-                        className="am-hidden-input"
-                        type="file"
-                        accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                        disabled={isUploading}
-                        onClick={() => handleStartPendingReplace(index)}
-                        onChange={handlePendingReplace}
-                      />
-                    </label>
-                    <button
-                      className="am-link-button am-link-danger"
-                      type="button"
-                      onClick={() => handleRemoveSelectedFile(index)}
-                      disabled={isUploading}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="am-evidence-actions">
-            <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
-              {isUploading ? 'Uploading...' : 'Upload Files'}
+          <div className="am-upload-tabs">
+            <button
+              className={uploadMode === 'file' ? 'am-upload-tab am-upload-tab-active' : 'am-upload-tab'}
+              type="button"
+              onClick={() => { setUploadMode('file'); setError(''); }}
+              disabled={isUploading}
+            >
+              Upload Files
             </button>
-            <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
-              Cancel
+            <button
+              className={uploadMode === 'link' ? 'am-upload-tab am-upload-tab-active' : 'am-upload-tab'}
+              type="button"
+              onClick={() => { setUploadMode('link'); setError(''); }}
+              disabled={isUploading}
+            >
+              Add Google Drive Link
             </button>
           </div>
+
+          {uploadMode === 'file' ? (
+            <>
+              <input
+                className="am-input"
+                type="file"
+                multiple
+                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                onChange={handleSelectFiles}
+              />
+              {selectedFiles.length > 0 && (
+                <div className="am-selected-files">
+                  {selectedFiles.map((file, index) => (
+                    <div className="am-selected-file" key={`${fileKey(file)}-${index}`}>
+                      <span>{file.name}</span>
+                      <div className="am-selected-file-actions">
+                        {canPreviewFile(file) && (
+                          <button
+                            className="am-link-button"
+                            type="button"
+                            onClick={() => handleViewSelectedFile(file)}
+                            disabled={isUploading}
+                          >
+                            View
+                          </button>
+                        )}
+                        <label className={isUploading ? 'am-link-button am-link-disabled' : 'am-link-button'}>
+                          Replace
+                          <input
+                            className="am-hidden-input"
+                            type="file"
+                            accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                            disabled={isUploading}
+                            onClick={() => handleStartPendingReplace(index)}
+                            onChange={handlePendingReplace}
+                          />
+                        </label>
+                        <button
+                          className="am-link-button am-link-danger"
+                          type="button"
+                          onClick={() => handleRemoveSelectedFile(index)}
+                          disabled={isUploading}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="am-evidence-actions">
+                <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
+                  {isUploading ? 'Uploading...' : 'Upload Files'}
+                </button>
+                <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="am-form-grid" style={{ gridTemplateColumns: '1fr', gap: '0.6rem' }}>
+              <label className="am-form-field">
+                <span className="am-form-label">Link Title / Description</span>
+                <input
+                  className="am-input"
+                  placeholder="e.g. 2025 Department Accreditation Drive Folder"
+                  value={linkTitle}
+                  onChange={(e) => setLinkTitle(e.target.value)}
+                  disabled={isUploading}
+                />
+              </label>
+              <label className="am-form-field">
+                <span className="am-form-label">Google Drive / Web URL <span className="am-required">*</span></span>
+                <input
+                  className="am-input"
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  disabled={isUploading}
+                />
+              </label>
+              <div className="am-evidence-actions">
+                <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
+                  {isUploading ? 'Saving Link...' : 'Add Drive Link'}
+                </button>
+                <button className="am-btn-secondary" type="button" onClick={() => { setLinkTitle(''); setLinkUrl(''); }} disabled={isUploading}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -329,7 +461,7 @@ export default function EvidencePanel({
         <table className="am-evidence-table">
           <thead>
             <tr>
-              <th>File Name</th>
+              <th>File / Title</th>
               <th>Type</th>
               <th>Size</th>
               <th>Uploaded By</th>
@@ -353,7 +485,9 @@ export default function EvidencePanel({
                           title={hasMetadata(item) ? 'Metadata Assigned' : 'Select for batch metadata'}
                         />
                       )}
-                      <span className="am-evidence-name">{item.originalFileName}</span>
+                      <div>
+                        <span className="am-evidence-name">{item.originalFileName}</span>
+                      </div>
                     </div>
                     {hasMetadata(item) && (
                       <span className="am-evidence-meta">
@@ -365,8 +499,8 @@ export default function EvidencePanel({
                       </span>
                     )}
                   </td>
-                  <td>{item.fileType}</td>
-                  <td>{formatFileSize(item.fileSize)}</td>
+                  <td>{item.fileType === 'LINK' ? 'LINK' : item.fileType}</td>
+                  <td>{formatFileSize(item.fileSize, item.fileType)}</td>
                   <td>{item.uploadedByName || '-'}</td>
                   <td>{formatDate(item.uploadedAt)}</td>
                   <td className="am-ev-toggle-cell">
@@ -377,17 +511,32 @@ export default function EvidencePanel({
                           disabled: managementLocked,
                           onClick: () => setMetadataEvidence(item),
                         },
+                        (item.fileType === 'LINK' || item.linkUrl) && {
+                          label: 'Open Link',
+                          disabled: managementLocked,
+                          onClick: () => handleView(item),
+                        },
+                        canManageItem(item) && (item.fileType === 'LINK' || item.linkUrl) && {
+                          label: 'Edit Link',
+                          disabled: managementLocked,
+                          onClick: () => setEditLinkModal({
+                            isOpen: true,
+                            item,
+                            title: item.originalFileName || '',
+                            linkUrl: item.linkUrl || '',
+                          }),
+                        },
                         PREVIEW_TYPES.includes(item.fileType) && {
                           label: 'Open Preview',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleView(item),
                         },
-                        {
+                        item.fileType !== 'LINK' && !item.linkUrl && {
                           label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDownload(item),
                         },
-                        canManageItem(item) && {
+                        canManageItem(item) && item.fileType !== 'LINK' && {
                           key: 'replace',
                           render: ({ className, close }) => (
                             <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
@@ -416,71 +565,13 @@ export default function EvidencePanel({
                     <span className="am-ev-chevron">{expandedId === item.id ? '▴' : '▾'}</span>
                   </td>
                 </tr>
-
-                {expandedId === item.id && (
-                  <tr className="am-ev-drawer-row">
-                    <td colSpan={6}>
-                      <div className="am-ev-drawer">
-                        <div className="am-ev-drawer-actions">
-                          {canManageItem(item) && !hideMetadataActions && (
-                            <button
-                              className="am-btn-secondary am-btn-sm"
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setMetadataEvidence(item); }}
-                              disabled={managementLocked}
-                            >
-                              View Details
-                            </button>
-                          )}
-                          <ActionMenu
-                            items={[
-                              PREVIEW_TYPES.includes(item.fileType) && {
-                                label: 'Open Preview',
-                                disabled: managementLocked || busyEvidenceId === item.id,
-                                onClick: () => handleView(item),
-                              },
-                              {
-                                label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
-                                disabled: managementLocked || busyEvidenceId === item.id,
-                                onClick: () => handleDownload(item),
-                              },
-                              canManageItem(item) && {
-                                key: 'replace',
-                                render: ({ className, close }) => (
-                                  <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
-                                    Replace File
-                                    <input
-                                      className="am-hidden-input"
-                                      type="file"
-                                      accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                                      disabled={managementLocked}
-                                      onChange={(e) => {
-                                        handleSelectReplacement(item, e);
-                                        close();
-                                      }}
-                                    />
-                                  </label>
-                                ),
-                              },
-                              canManageItem(item) && {
-                                label: 'Delete',
-                                danger: true,
-                                disabled: managementLocked || busyEvidenceId === item.id,
-                                onClick: () => handleDelete(item),
-                              },
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
               </React.Fragment>
             ))}
           </tbody>
         </table>
       )}
 
+      {/* Replace File Modal */}
       <Modal
         isOpen={Boolean(replacement.evidenceId && replacement.file)}
         onClose={() => setReplacement({ evidenceId: '', file: null, item: null })}
@@ -494,7 +585,7 @@ export default function EvidencePanel({
             <div><dt>Current File</dt><dd>{replacement.item?.originalFileName || '-'}</dd></div>
             <div><dt>Replacement File</dt><dd>{replacement.file?.name || '-'}</dd></div>
             <div><dt>Type</dt><dd>{replacement.file?.name?.split('.').pop()?.toUpperCase() || '-'}</dd></div>
-            <div><dt>Size</dt><dd>{formatFileSize(replacement.file?.size)}</dd></div>
+            <div><dt>Size</dt><dd>{formatFileSize(replacement.file?.size, 'FILE')}</dd></div>
           </dl>
           <div className="am-form-actions am-replace-actions">
             <button
@@ -512,6 +603,51 @@ export default function EvidencePanel({
               disabled={Boolean(busyEvidenceId)}
             >
               {busyEvidenceId ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Link Modal */}
+      <Modal
+        isOpen={editLinkModal.isOpen}
+        onClose={() => setEditLinkModal({ isOpen: false, item: null, title: '', linkUrl: '' })}
+        title="Edit Evidence Link"
+      >
+        <div className="am-replace-modal">
+          <label className="am-form-field">
+            <span className="am-form-label">Link Title / Description</span>
+            <input
+              className="am-input"
+              value={editLinkModal.title}
+              onChange={(e) => setEditLinkModal((prev) => ({ ...prev, title: e.target.value }))}
+            />
+          </label>
+          <label className="am-form-field">
+            <span className="am-form-label">Google Drive / Web URL <span className="am-required">*</span></span>
+            <input
+              className="am-input"
+              type="url"
+              value={editLinkModal.linkUrl}
+              onChange={(e) => setEditLinkModal((prev) => ({ ...prev, linkUrl: e.target.value }))}
+            />
+          </label>
+          <div className="am-form-actions am-replace-actions">
+            <button
+              className="am-btn-secondary"
+              type="button"
+              onClick={() => setEditLinkModal({ isOpen: false, item: null, title: '', linkUrl: '' })}
+              disabled={Boolean(busyEvidenceId)}
+            >
+              Cancel
+            </button>
+            <button
+              className="am-btn-primary"
+              type="button"
+              onClick={handleSaveEditLink}
+              disabled={Boolean(busyEvidenceId) || !editLinkModal.linkUrl.trim()}
+            >
+              {busyEvidenceId ? 'Saving...' : 'Save Link'}
             </button>
           </div>
         </div>

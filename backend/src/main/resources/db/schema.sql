@@ -69,10 +69,11 @@ CREATE TABLE IF NOT EXISTS evidence (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     activity_id         UUID NOT NULL REFERENCES activities(id) ON DELETE RESTRICT,
     original_file_name  VARCHAR(255) NOT NULL,
-    stored_file_name    VARCHAR(255) NOT NULL,
-    file_path           VARCHAR(500) NOT NULL,
+    stored_file_name    VARCHAR(255),
+    file_path           VARCHAR(500),
+    link_url            VARCHAR(1000),
     file_type           VARCHAR(20) NOT NULL,
-    file_size           BIGINT NOT NULL,
+    file_size           BIGINT NOT NULL DEFAULT 0,
     evidence_type       VARCHAR(50),
     related_offices     TEXT,
     tags                TEXT,
@@ -81,9 +82,9 @@ CREATE TABLE IF NOT EXISTS evidence (
     uploaded_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_evidence_file_type
-        CHECK (file_type IN ('PDF', 'DOCX', 'XLSX', 'JPG', 'JPEG', 'PNG')),
+        CHECK (file_type IN ('PDF', 'DOCX', 'XLSX', 'JPG', 'JPEG', 'PNG', 'LINK')),
     CONSTRAINT chk_evidence_file_size
-        CHECK (file_size > 0 AND file_size <= 10485760),
+        CHECK ((file_type = 'LINK' AND file_size >= 0) OR (file_size > 0 AND file_size <= 10485760)),
     CONSTRAINT chk_evidence_type
         CHECK (evidence_type IS NULL OR evidence_type IN ('REPORT', 'CERTIFICATE', 'ATTENDANCE_SHEET', 'PHOTO', 'MEMORANDUM', 'PRESENTATION', 'EVALUATION', 'OTHER'))
 );

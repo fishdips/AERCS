@@ -1,7 +1,9 @@
 package com.aercs.service;
 
 import com.aercs.dto.request.BatchEvidenceMetadataRequest;
+import com.aercs.dto.request.CreateLinkEvidenceRequest;
 import com.aercs.dto.request.EvidenceMetadataRequest;
+import com.aercs.dto.request.UpdateLinkEvidenceRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
 import com.aercs.entity.Activity;
@@ -50,6 +52,36 @@ public class EvidenceService {
                 .map(file -> saveEvidenceFile(activity, file, uploadedBy))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public EvidenceResponse createLinkEvidence(UUID activityId, CreateLinkEvidenceRequest request, String userId) {
+        Activity activity = findActivity(activityId);
+        User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
+
+        Evidence evidence = new Evidence();
+        evidence.setActivity(activity);
+        evidence.setOriginalFileName(trimToNull(request.title()) != null ? request.title().trim() : "Google Drive Link");
+        evidence.setStoredFileName(null);
+        evidence.setFilePath(null);
+        evidence.setLinkUrl(request.linkUrl().trim());
+        evidence.setFileType("LINK");
+        evidence.setFileSize(0);
+        evidence.setUploadedBy(uploadedBy);
+
+        return toResponse(evidenceRepository.save(evidence));
+    }
+
+    @Transactional
+    public EvidenceResponse updateLinkEvidence(UUID evidenceId, UpdateLinkEvidenceRequest request, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, UUID.fromString(userId));
+
+        evidence.setOriginalFileName(trimToNull(request.title()) != null ? request.title().trim() : "Google Drive Link");
+        evidence.setLinkUrl(request.linkUrl().trim());
+        evidence.setUpdatedAt(OffsetDateTime.now());
+
+        return toResponse(evidenceRepository.save(evidence));
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +138,9 @@ public class EvidenceService {
     @Transactional(readOnly = true)
     public EvidenceDownload getDownload(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            throw new BadRequestException("Download is not applicable for link evidence. Please open the link directly.");
+        }
         byte[] bytes = storageService.download(evidence.getFilePath());
         return new EvidenceDownload(
                 evidence.getOriginalFileName(),
@@ -119,6 +154,9 @@ public class EvidenceService {
     @Transactional(readOnly = true)
     public EvidenceDownload getView(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            throw new BadRequestException("Preview is not applicable for link evidence. Please open the link directly.");
+        }
         MediaType mediaType = previewMediaType(evidence.getFileType());
         if (mediaType == null) {
             throw new BadRequestException("Preview is not available for this file type. Please download the file.");
@@ -153,13 +191,16 @@ public class EvidenceService {
         evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
         evidence.setStoredFileName(storedFileName);
         evidence.setFilePath(objectPath);
+        evidence.setLinkUrl(null);
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
         evidence.setUpdatedAt(OffsetDateTime.now());
         userRepository.findById(UUID.fromString(userId)).ifPresent(evidence::setUploadedBy);
 
         Evidence saved = evidenceRepository.save(evidence);
-        storageService.delete(oldPath);
+        if (oldPath != null && !oldPath.isBlank()) {
+            storageService.delete(oldPath);
+        }
         return toResponse(saved);
     }
 
@@ -169,7 +210,9 @@ public class EvidenceService {
         assertCanModify(evidence, currentUserId);
         String objectPath = evidence.getFilePath();
         evidenceRepository.delete(evidence);
-        storageService.delete(objectPath);
+        if (objectPath != null && !objectPath.isBlank()) {
+            storageService.delete(objectPath);
+        }
     }
 
     private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy) {
@@ -258,6 +301,7 @@ public class EvidenceService {
                 evidence.getActivity().getActivityName(),
                 evidence.getOriginalFileName(),
                 evidence.getStoredFileName(),
+                evidence.getLinkUrl(),
                 evidence.getFileType(),
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),

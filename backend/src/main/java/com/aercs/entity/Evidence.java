@@ -27,11 +27,14 @@ public class Evidence {
     @Column(name = "original_file_name", nullable = false, length = 255)
     private String originalFileName;
 
-    @Column(name = "stored_file_name", nullable = false, length = 255)
+    @Column(name = "stored_file_name", length = 255)
     private String storedFileName;
 
-    @Column(name = "file_path", nullable = false, length = 500)
+    @Column(name = "file_path", length = 500)
     private String filePath;
+
+    @Column(name = "link_url", length = 1000)
+    private String linkUrl;
 
     @Column(name = "file_type", nullable = false, length = 20)
     private String fileType;

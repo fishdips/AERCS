@@ -13,6 +13,7 @@ public record RepositoryEvidenceResponse(
         String activityName,
         ActivityType activityType,
         String originalFileName,
+        String linkUrl,
         String fileType,
         long fileSize,
         AccreditationArea accreditationArea,

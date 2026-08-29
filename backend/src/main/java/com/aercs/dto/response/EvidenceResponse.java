@@ -14,6 +14,7 @@ public record EvidenceResponse(
         String activityName,
         String originalFileName,
         String storedFileName,
+        String linkUrl,
         String fileType,
         long fileSize,
         AccreditationArea accreditationArea,

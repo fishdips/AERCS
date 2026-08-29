@@ -14,6 +14,12 @@ export const uploadEvidence = (activityId, files) => {
   });
 };
 
+export const createLinkEvidence = (activityId, data) =>
+  api.post(`/api/activities/${activityId}/evidence/link`, data);
+
+export const updateLinkEvidence = (evidenceId, data) =>
+  api.put(`/api/evidence/${evidenceId}/link`, data);
+
 export const replaceEvidence = (evidenceId, file) => {
   const formData = new FormData();
   formData.append('file', file);
