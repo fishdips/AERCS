@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
     office          VARCHAR(50),
     is_active       BOOLEAN NOT NULL DEFAULT true,
     must_change_pw  BOOLEAN NOT NULL DEFAULT true,
+    reset_token             VARCHAR(64) UNIQUE,
+    reset_token_expires_at  TIMESTAMPTZ,
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_users_office

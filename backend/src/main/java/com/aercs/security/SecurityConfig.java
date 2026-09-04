@@ -42,7 +42,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .cors(c -> c.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout",
+                        "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/accreditor-access/**").permitAll()
                 .anyRequest().authenticated()
             )

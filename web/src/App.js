@@ -4,6 +4,8 @@ import { AdminRoute } from './shared/routes/AdminRoute';
 import { ProtectedRoute } from './shared/routes/ProtectedRoute';
 import { RoleProtectedRoute } from './shared/routes/RoleProtectedRoute';
 import LoginPage from './features/auth/pages/LoginPage';
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage';
+import ResetPasswordPage from './features/auth/pages/ResetPasswordPage';
 import ChangePasswordPage from './features/auth/pages/ChangePasswordPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
@@ -27,6 +29,8 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/accreditor-access/:token" element={<AccreditorAccessPage />} />
 

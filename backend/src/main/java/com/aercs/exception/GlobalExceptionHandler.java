@@ -28,6 +28,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.UNAUTHORIZED, "Account is inactive");
     }
 
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<Map<String, String>> handleAccountLocked(AccountLockedException e) {
+        return error(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(ResourceNotFoundException e) {
         return error(HttpStatus.NOT_FOUND, e.getMessage());

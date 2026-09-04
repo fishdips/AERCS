@@ -133,6 +133,19 @@
   letter-spacing: 0.02em;
 }
 
+.login-subheading {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.login-success-note {
+  font-size: 0.78rem;
+  color: #374151;
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+
 .login-divider {
   border: none;
   border-top: 1px solid #e5e7eb;
@@ -196,14 +209,9 @@
 }
 
 .login-forgot {
-  background: none;
-  border: none;
   font-size: 0.75rem;
   color: #555;
-  cursor: not-allowed;
   text-decoration: underline;
-  padding: 0;
-  opacity: 0.5;
 }
 
 .login-btn {
@@ -227,6 +235,13 @@
 .login-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.login-btn-link {
+  display: block;
+  box-sizing: border-box;
+  text-align: center;
+  text-decoration: none;
 }
 
 .login-external-note {

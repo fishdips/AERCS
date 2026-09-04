@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../api';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { ROLES } from '../../../shared/constants/roles';
@@ -103,9 +103,9 @@ export default function LoginPage() {
               <label className="login-remember">
                 <input type="checkbox" /> Remember device
               </label>
-              <button type="button" className="login-forgot" tabIndex={-1} disabled>
+              <Link className="login-forgot" to="/forgot-password">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             <button type="submit" className="login-btn" disabled={submitting}>

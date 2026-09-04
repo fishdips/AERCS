@@ -47,6 +47,12 @@ public class User {
     @Column(name = "must_change_pw", nullable = false)
     private boolean mustChangePw = true;
 
+    @Column(name = "reset_token", length = 64, unique = true)
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private OffsetDateTime resetTokenExpiresAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     @OnDelete(action = OnDeleteAction.SET_NULL)
