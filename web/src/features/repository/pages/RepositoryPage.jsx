@@ -8,6 +8,7 @@ import {
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
+  formatUserOffice,
 } from '../../activities/constants';
 import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -40,9 +41,7 @@ function formatFileSize(size, fileType) {
 }
 
 function ownerOffice(item) {
-  if (item?.office) return formatOffice(item.office);
-  if (item?.department) return formatDepartment(item.department);
-  return '-';
+  return formatUserOffice(item?.uploadedByOffice);
 }
 
 function activityOwnerLabel(activity) {
@@ -135,7 +134,7 @@ export default function RepositoryPage() {
     setEvidenceType('');
   };
 
-  const openDetails = async (item, openReference = false) => {
+  const openDetails = async (item) => {
     setSelectedEvidence(item);
     setEvidenceDetails(null);
     setTargetActivityId('');
@@ -147,12 +146,6 @@ export default function RepositoryPage() {
       setEvidenceDetails(null);
     } finally {
       setDetailsLoading(false);
-    }
-    if (openReference) {
-      window.setTimeout(() => {
-        const el = document.getElementById('repo-reference-target');
-        el?.focus();
-      }, 0);
     }
   };
 
@@ -332,14 +325,6 @@ export default function RepositoryPage() {
                       <button className="am-link-button" type="button" onClick={() => openDetails(item)}>
                         View Details
                       </button>
-                      <ActionMenu
-                        items={[
-                          canReference && {
-                            label: 'Reference Evidence',
-                            onClick: () => openDetails(item, true),
-                          },
-                        ]}
-                      />
                     </div>
                   </td>
                 </tr>
@@ -366,34 +351,9 @@ export default function RepositoryPage() {
             {detailsLoading && <p className="am-empty am-empty-plain">Loading details...</p>}
 
             <div className="repo-details-main">
-              <div>
-                <p className="am-section-label">File</p>
-                <h2 className="repo-details-title">{detail.originalFileName}</h2>
-                <p className="repo-details-sub">
-                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
-                </p>
-
-                <div className="repo-details-actions">
-                  {(detail.fileType === 'LINK' || detail.linkUrl) && (
-                    <a
-                      className="am-btn-primary"
-                      href={detail.linkUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      🔗 Open Link
-                    </a>
-                  )}
-                  {PREVIEW_TYPES.includes(detail.fileType) && (
-                    <a
-                      className="am-btn-secondary"
-                      href={getEvidenceViewUrl(detail.id)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View Details
-                    </a>
-                  )}
+              <div className="repo-preview-panel">
+                <div className="repo-preview-header">
+                  <p className="am-section-label">File</p>
                   <ActionMenu
                     items={[
                       (detail.fileType === 'LINK' || detail.linkUrl) && {
@@ -412,6 +372,50 @@ export default function RepositoryPage() {
                     ]}
                   />
                 </div>
+
+                <div className="repo-preview-body">
+                  {detail.fileType === 'PDF' ? (
+                    <iframe
+                      className="repo-preview-frame"
+                      src={getEvidenceViewUrl(detail.id)}
+                      title={detail.originalFileName}
+                    />
+                  ) : PREVIEW_TYPES.includes(detail.fileType) ? (
+                    <img
+                      className="repo-preview-img"
+                      src={getEvidenceViewUrl(detail.id)}
+                      alt={detail.originalFileName}
+                    />
+                  ) : detail.fileType === 'LINK' || detail.linkUrl ? (
+                    <div className="repo-preview-placeholder">
+                      <span className="repo-preview-icon">🔗</span>
+                      <p>External link — use Open Link to view</p>
+                    </div>
+                  ) : (
+                    <div className="repo-preview-placeholder">
+                      <span className="repo-preview-icon">📄</span>
+                      <p>No preview available for this file type</p>
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="repo-details-title">{detail.originalFileName}</h2>
+                <p className="repo-details-sub">
+                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
+                </p>
+
+                {(detail.fileType === 'LINK' || detail.linkUrl) && (
+                  <div className="repo-details-actions">
+                    <a
+                      className="am-btn-primary"
+                      href={detail.linkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      🔗 Open Link
+                    </a>
+                  </div>
+                )}
               </div>
 
               <dl className="repo-details-list">
@@ -506,7 +510,7 @@ export default function RepositoryPage() {
         <GenerateAccreditorAccessModal
           isOpen={accreditorAccessOpen}
           onClose={() => setAccreditorAccessOpen(false)}
-          evidenceIds={[detail.id]}
+          activityId={detail.activityId}
         />
       )}
     </ActivityShell>

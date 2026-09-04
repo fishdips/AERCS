@@ -65,7 +65,7 @@ public class SharedEvidenceService {
     ) {
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        Department deptScope = currentUser.getDepartment();
+        Department deptScope = currentUser.resolveDepartment();
         if (deptScope == null) {
             return Page.empty(pageable);
         }
@@ -161,7 +161,7 @@ public class SharedEvidenceService {
                 Join<EvidenceReference, User> user = root.join("referencedBy", JoinType.INNER);
                 predicates.add(cb.or(
                         cb.equal(root.get("referencedByOffice"), department),
-                        cb.equal(user.get("department").as(String.class), department)
+                        cb.equal(user.get("office"), department)
                 ));
             }
             if (area != null) {
@@ -184,11 +184,9 @@ public class SharedEvidenceService {
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        boolean isOwner = ref.getReferencedBy().getId().equals(currentUserId);
-        String userDeptName = currentUser.getDepartment() != null ? currentUser.getDepartment().name() : null;
-        String userOfficeName = currentUser.getOffice() != null ? currentUser.getOffice().name() : null;
-        boolean isSameOffice = (userDeptName != null && userDeptName.equalsIgnoreCase(ref.getReferencedByOffice()))
-                || (userOfficeName != null && userOfficeName.equalsIgnoreCase(ref.getReferencedByOffice()));
+        boolean isOwner = ref.getReferencedBy() != null && ref.getReferencedBy().getId().equals(currentUserId);
+        String userOrgUnit = currentUser.getOffice();
+        boolean isSameOffice = userOrgUnit != null && userOrgUnit.equalsIgnoreCase(ref.getReferencedByOffice());
         boolean isAdmin = currentUserRole == UserRole.ADMIN || currentUserRole == UserRole.ACCRED_COORDINATOR;
 
         if (!isOwner && !isSameOffice && !isAdmin) {
@@ -226,7 +224,7 @@ public class SharedEvidenceService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         boolean isDeptStaff = currentUser.getRole() == UserRole.DEPT_STAFF;
-        Department viewerDept = isDeptStaff ? currentUser.getDepartment() : null;
+        Department viewerDept = isDeptStaff ? currentUser.resolveDepartment() : null;
         RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept) : null;
 
         // DEPT_STAFF see only their own dept + files referenced to them; ignore the frontend dept filter
@@ -350,6 +348,7 @@ public class SharedEvidenceService {
                 activity.getOffice(),
                 e.getEvidenceType(),
                 uploader == null ? null : uploader.getName(),
+                uploader == null ? null : uploader.getOffice(),
                 e.getUploadedAt(),
                 refCount,
                 referencedToViewer
@@ -418,9 +417,7 @@ public class SharedEvidenceService {
         Activity activity = e.getActivity();
         User uploader = e.getUploadedBy();
         List<String> tags = parseStrings(e.getTags());
-        String uploaderDept = uploader == null ? null
-                : uploader.getDepartment() != null ? uploader.getDepartment().name()
-                : uploader.getOffice() != null ? uploader.getOffice().name() : null;
+        String uploaderDept = uploader == null ? null : uploader.getOffice();
 
         return new SharedEvidenceResponse(
                 e.getId(),
@@ -446,9 +443,8 @@ public class SharedEvidenceService {
     }
 
     private ReferenceResponse toReferenceResponse(EvidenceReference r) {
-        String refByDept = r.getReferencedBy().getDepartment() != null
-                ? r.getReferencedBy().getDepartment().name()
-                : r.getReferencedBy().getOffice() != null ? r.getReferencedBy().getOffice().name() : null;
+        User referencedBy = r.getReferencedBy();
+        String refByDept = referencedBy == null ? null : referencedBy.getOffice();
         return new ReferenceResponse(
                 r.getId(),
                 r.getEvidence().getId(),
@@ -457,7 +453,7 @@ public class SharedEvidenceService {
                 r.getActivity().getActivityName(),
                 r.getAccreditationArea(),
                 r.getReferencedByOffice(),
-                r.getReferencedBy().getName(),
+                referencedBy == null ? null : referencedBy.getName(),
                 refByDept,
                 r.getCreatedAt(),
                 r.getNote()
@@ -485,7 +481,7 @@ public class SharedEvidenceService {
                 sourceActivity.getAccreditationArea(),
                 sourceActivity.getAcademicYear(),
                 r.getReferencedByOffice(),
-                r.getReferencedBy().getName(),
+                r.getReferencedBy() == null ? null : r.getReferencedBy().getName(),
                 r.getCreatedAt(),
                 r.getNote()
         );
@@ -494,11 +490,9 @@ public class SharedEvidenceService {
     private String resolveReferenceOffice(String requestedOffice, User user, Activity targetActivity) {
         String requested = trimToNull(requestedOffice);
         if (requested != null) return requested;
-        String userDept = user.getDepartment() != null ? user.getDepartment().name() : null;
-        String userOffice = user.getOffice() != null ? user.getOffice().name() : null;
         String actOffice = targetActivity.getOffice();
         String actDept = targetActivity.getDepartment() != null ? targetActivity.getDepartment().name() : null;
-        return firstNonBlank(userDept, userOffice, actOffice, actDept, "Institutional User");
+        return firstNonBlank(user.getOffice(), actOffice, actDept, "Institutional User");
     }
 
     private Department tryParseDepartment(String value) {

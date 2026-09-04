@@ -1,5 +1,17 @@
 import { ROLES } from '../../shared/constants/roles';
 
+// Date.toISOString() reports the UTC date, which lags behind the local date for
+// any timezone ahead of UTC (e.g. PHT, UTC+8) during the first hours of the day —
+// so comparing a <input type="date"> value (always local) against it would wrongly
+// flag "today" as being in the future. Build today's date from local fields instead.
+export function todayLocalISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export const ACTIVITY_WRITE_ROLES = [
   ROLES.DEPT_STAFF,
   ROLES.INSTITUTIONAL_OFFICE,
@@ -79,6 +91,25 @@ export function formatDeptOrOffice(department, office) {
   if (office) return formatOffice(office);
   if (department) return formatDepartment(department);
   return '-';
+}
+
+// A user's org unit (users.office on the backend) holds either a Department or
+// an Office value — never both. These helpers work with that single merged field.
+export function isDepartmentValue(value) {
+  return DEPARTMENTS.some((d) => d.value === value);
+}
+
+export function resolveUserDepartment(user) {
+  return user?.office && isDepartmentValue(user.office) ? user.office : null;
+}
+
+export function formatUserOffice(value) {
+  if (!value) return '-';
+  const dept = DEPARTMENTS.find((d) => d.value === value);
+  if (dept) return dept.label;
+  const office = OFFICES.find((o) => o.value === value);
+  if (office) return office.label;
+  return value;
 }
 
 export function formatActivityType(value, customValue = '') {

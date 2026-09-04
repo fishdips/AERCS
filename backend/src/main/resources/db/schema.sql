@@ -20,16 +20,19 @@ CREATE TABLE IF NOT EXISTS users (
     email           VARCHAR(150) UNIQUE NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
     role            user_role NOT NULL DEFAULT 'DEPT_STAFF',
-    department      VARCHAR(50),
+    -- Holds either a department (college) name or an office name — a user belongs
+    -- to exactly one org unit, never both. See User.resolveDepartment()/resolveOffice().
     office          VARCHAR(50),
     is_active       BOOLEAN NOT NULL DEFAULT true,
     must_change_pw  BOOLEAN NOT NULL DEFAULT true,
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT chk_users_department
-        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
     CONSTRAINT chk_users_office
-        CHECK (office IS NULL OR office IN ('QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE', 'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'))
+        CHECK (office IS NULL OR office IN (
+            'CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ',
+            'QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE',
+            'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'
+        ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -96,7 +99,7 @@ CREATE TABLE IF NOT EXISTS evidence_references (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     evidence_id          UUID NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
     activity_id          UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-    referenced_by_id     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    referenced_by_id     UUID REFERENCES users(id) ON DELETE SET NULL,
     referenced_by_office VARCHAR(100) NOT NULL,
     accreditation_area   VARCHAR(50),
     note                 TEXT,

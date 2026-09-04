@@ -4,6 +4,7 @@ import com.aercs.dto.request.ActivityRequest;
 import com.aercs.dto.response.ActivityResponse;
 import com.aercs.entity.Activity;
 import com.aercs.entity.ActivityType;
+import com.aercs.entity.Department;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
@@ -32,13 +33,14 @@ public class ActivityService {
 
         User creator = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (creator.getDepartment() == null) {
+        Department creatorDepartment = creator.resolveDepartment();
+        if (creatorDepartment == null) {
             throw new BadRequestException("Your account must have an assigned department before creating activities");
         }
 
         Activity activity = new Activity();
         applyRequest(activity, request);
-        activity.setDepartment(creator.getDepartment());
+        activity.setDepartment(creatorDepartment);
         activity.setCreatedBy(creator);
 
         return toResponse(activityRepository.save(activity));
@@ -53,11 +55,12 @@ public class ActivityService {
             return activityRepository.findAll().stream().map(this::toResponse).toList();
         }
 
-        if (user.getDepartment() == null) {
+        Department userDepartment = user.resolveDepartment();
+        if (userDepartment == null) {
             return List.of();
         }
 
-        return activityRepository.findByDepartment(user.getDepartment())
+        return activityRepository.findByDepartment(userDepartment)
                 .stream().map(this::toResponse).toList();
     }
 
@@ -68,7 +71,8 @@ public class ActivityService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!canViewAll(user.getRole())) {
-            if (user.getDepartment() == null || user.getDepartment() != activity.getDepartment()) {
+            Department userDepartment = user.resolveDepartment();
+            if (userDepartment == null || userDepartment != activity.getDepartment()) {
                 throw new ResourceNotFoundException("Activity not found");
             }
         }
@@ -108,9 +112,6 @@ public class ActivityService {
     }
 
     private void validateRequest(ActivityRequest request) {
-        if (trimToNull(request.office()) == null) {
-            throw new BadRequestException("Office is required");
-        }
         if (request.activityType() == ActivityType.OTHER && trimToNull(request.customActivityType()) == null) {
             throw new BadRequestException("Custom activity type is required when Other is selected");
         }
@@ -145,6 +146,7 @@ public class ActivityService {
                 createdBy == null ? null : createdBy.getId(),
                 createdBy == null ? null : createdBy.getName(),
                 createdBy == null ? null : createdBy.getRole().name(),
+                createdBy == null ? null : createdBy.getOffice(),
                 activity.getCreatedAt(),
                 activity.getUpdatedAt(),
                 List.of()

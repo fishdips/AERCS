@@ -1,6 +1,7 @@
 package com.aercs.service;
 
 import com.aercs.dto.request.GenerateAccreditorAccessRequest;
+import com.aercs.dto.request.UpdateAccreditorAccessRequest;
 import com.aercs.dto.response.AccreditorAccessEvidenceResponse;
 import com.aercs.dto.response.GenerateAccreditorAccessResponse;
 import com.aercs.dto.response.PublicAccreditorAccessResponse;
@@ -8,7 +9,9 @@ import com.aercs.entity.AccreditorAccess;
 import com.aercs.entity.Activity;
 import com.aercs.entity.Evidence;
 import com.aercs.entity.User;
+import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.AccreditorAccessRepository;
 import com.aercs.repository.ActivityRepository;
@@ -101,6 +104,56 @@ public class AccreditorAccessService {
                 saved.getExpiresAt(),
                 saved.getEvidence().size()
         );
+    }
+
+    @Transactional
+    public GenerateAccreditorAccessResponse extendExpiry(
+            UUID id,
+            UpdateAccreditorAccessRequest request,
+            UUID currentUserId,
+            String frontendOrigin
+    ) {
+        AccreditorAccess access = findAccess(id);
+        assertCanModify(access, currentUserId);
+
+        if (!request.expiresAt().isAfter(OffsetDateTime.now())) {
+            throw new BadRequestException("Expiration date must be in the future");
+        }
+        access.setExpiresAt(request.expiresAt());
+        AccreditorAccess saved = accessRepository.save(access);
+
+        return new GenerateAccreditorAccessResponse(
+                saved.getId(),
+                saved.getToken(),
+                normalizeFrontendOrigin(frontendOrigin) + "/accreditor-access/" + saved.getToken(),
+                saved.getExpiresAt(),
+                saved.getEvidence().size()
+        );
+    }
+
+    @Transactional
+    public void deleteAccess(UUID id, UUID currentUserId) {
+        AccreditorAccess access = findAccess(id);
+        assertCanModify(access, currentUserId);
+        accessRepository.delete(access);
+    }
+
+    private AccreditorAccess findAccess(UUID id) {
+        return accessRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Access link not found"));
+    }
+
+    private void assertCanModify(AccreditorAccess access, UUID currentUserId) {
+        User currentUser = userRepository.findById(currentUserId).orElse(null);
+        if (currentUser == null) throw new ForbiddenException("User not found");
+
+        boolean isAdmin = currentUser.getRole() == UserRole.ADMIN || currentUser.getRole() == UserRole.ACCRED_COORDINATOR;
+        if (isAdmin) return;
+
+        User createdBy = access.getCreatedBy();
+        if (createdBy == null || !createdBy.getId().equals(currentUserId)) {
+            throw new ForbiddenException("Only the creator can modify this access link");
+        }
     }
 
     @Transactional(readOnly = true)

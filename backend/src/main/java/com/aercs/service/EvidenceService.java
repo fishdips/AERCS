@@ -122,9 +122,6 @@ public class EvidenceService {
                 .toList();
 
         selectedEvidence.forEach(evidence -> assertCanModify(evidence, currentUserId));
-        if (selectedEvidence.stream().anyMatch(this::hasMetadata)) {
-            throw new BadRequestException("One or more selected evidence files already have metadata");
-        }
 
         return selectedEvidence.stream()
                 .map(evidence -> {
@@ -309,16 +306,14 @@ public class EvidenceService {
                 firstNonBlank(
                         evidence.getActivity().getOffice(),
                         evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
-                        uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
-                                : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null)),
+                        uploadedBy == null ? null : uploadedBy.getOffice()),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
                 evidence.getNotes(),
                 uploadedBy == null ? null : uploadedBy.getId(),
                 uploadedBy == null ? null : uploadedBy.getName(),
-                uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
-                        : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null),
+                uploadedBy == null ? null : uploadedBy.getOffice(),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
                 evidence.getUpdatedAt()
@@ -355,13 +350,6 @@ public class EvidenceService {
         evidence.setRelatedOffices(joinEnums(relatedOffices));
         evidence.setTags(joinStrings(tags));
         evidence.setNotes(trimToNull(notes));
-    }
-
-    private boolean hasMetadata(Evidence evidence) {
-        return evidence.getEvidenceType() != null
-                || (evidence.getRelatedOffices() != null && !evidence.getRelatedOffices().isBlank())
-                || (evidence.getTags() != null && !evidence.getTags().isBlank())
-                || (evidence.getNotes() != null && !evidence.getNotes().isBlank());
     }
 
     private String joinStrings(List<String> values) {

@@ -22,6 +22,7 @@ public record ActivityResponse(
         UUID createdById,
         String createdByName,
         String createdByRole,
+        String createdByOffice,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         List<String> attachedEvidence

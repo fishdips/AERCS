@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -57,6 +59,7 @@ public class Evidence {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User uploadedBy;
 
     @Column(name = "uploaded_at", nullable = false)

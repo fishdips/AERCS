@@ -1,8 +1,10 @@
 package com.aercs.controller;
 
+import com.aercs.dto.request.BatchCreateUserRequest;
 import com.aercs.dto.request.CreateUserRequest;
 import com.aercs.dto.request.UpdateRoleRequest;
 import com.aercs.dto.request.UpdateStatusRequest;
+import com.aercs.dto.response.BatchCreateUserResult;
 import com.aercs.dto.response.CreateUserResponse;
 import com.aercs.dto.response.UserResponse;
 import com.aercs.service.UserService;
@@ -31,6 +33,13 @@ public class AdminUserController {
                                                           @AuthenticationPrincipal UserDetails userDetails) {
         CreateUserResponse response = userService.createUser(request, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<BatchCreateUserResult>> createUsers(@Valid @RequestBody BatchCreateUserRequest request,
+                                                                    @AuthenticationPrincipal UserDetails userDetails) {
+        List<BatchCreateUserResult> results = userService.createUsers(request, userDetails.getUsername());
+        return ResponseEntity.status(HttpStatus.CREATED).body(results);
     }
 
     @GetMapping

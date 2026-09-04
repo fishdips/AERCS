@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { createUser, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
+import { createUser, createUsersBatch, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
-import { DEPARTMENTS, OFFICES, formatDepartment, formatOffice } from '../../activities/constants';
+import { DEPARTMENTS, OFFICES, formatUserOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import './UserManagementPage.css';
@@ -11,6 +11,20 @@ import './UserManagementPage.css';
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
 const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
+
+function DeptOfficeOptions() {
+  return (
+    <>
+      <option value="">None</option>
+      <optgroup label="Department">
+        {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+      </optgroup>
+      <optgroup label="Office">
+        {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </optgroup>
+    </>
+  );
+}
 
 // Static permissions reference table (display-only in MVP)
 const PERMISSIONS_TABLE = [
@@ -46,9 +60,16 @@ export default function UserManagementPage() {
   const [showTempPwModal, setShowTempPwModal]     = useState(false);
   const [newUserResult, setNewUserResult]         = useState(null);
 
-  const [createForm, setCreateForm] = useState({ name: '', email: '', department: '', office: '', role: ROLES.DEPT_STAFF });
+  const [createForm, setCreateForm] = useState({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating]   = useState(false);
+
+  const [showBulkModal, setShowBulkModal]   = useState(false);
+  const [bulkRows, setBulkRows]             = useState([{ name: '', email: '' }]);
+  const [bulkShared, setBulkShared]         = useState({ office: '', role: ROLES.DEPT_STAFF });
+  const [bulkError, setBulkError]           = useState('');
+  const [isBulkCreating, setIsBulkCreating] = useState(false);
+  const [bulkResults, setBulkResults]       = useState(null);
 
   const [searchQuery, setSearchQuery]   = useState('');
   const [roleFilter, setRoleFilter]     = useState('ALL');
@@ -110,21 +131,56 @@ export default function UserManagementPage() {
     setCreateError('');
     setIsCreating(true);
     try {
-      const request = {
-        ...createForm,
-        department: createForm.department || null,
-        office: createForm.office || null,
-      };
+      const request = { name: createForm.name, email: createForm.email, office: createForm.office || null, role: createForm.role };
       const { data } = await createUser(request);
       setNewUserResult(data);
       setShowCreateModal(false);
       setShowTempPwModal(true);
-      setCreateForm({ name: '', email: '', department: '', office: '', role: ROLES.DEPT_STAFF });
+      setCreateForm({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
       loadUsers();
     } catch (err) {
       setCreateError(err.response?.data?.error || 'Failed to create user');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const addBulkRow = () => setBulkRows((rows) => [...rows, { name: '', email: '' }]);
+  const removeBulkRow = (index) => setBulkRows((rows) => rows.filter((_, i) => i !== index));
+  const updateBulkRow = (index, field, value) =>
+    setBulkRows((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const handleBulkCreate = async (e) => {
+    e.preventDefault();
+    setBulkError('');
+
+    const rows = bulkRows.filter((r) => r.name.trim() || r.email.trim());
+    if (rows.length === 0) {
+      setBulkError('Add at least one user.');
+      return;
+    }
+    if (rows.some((r) => !r.name.trim() || !r.email.trim())) {
+      setBulkError('Each row needs both a full name and an email.');
+      return;
+    }
+
+    setIsBulkCreating(true);
+    try {
+      const request = {
+        users: rows.map((r) => ({ name: r.name.trim(), email: r.email.trim() })),
+        office: bulkShared.office || null,
+        role: bulkShared.role,
+      };
+      const { data } = await createUsersBatch(request);
+      setBulkResults(data);
+      setShowBulkModal(false);
+      setBulkRows([{ name: '', email: '' }]);
+      setBulkShared({ office: '', role: ROLES.DEPT_STAFF });
+      loadUsers();
+    } catch (err) {
+      setBulkError(err.response?.data?.error || 'Failed to create users');
+    } finally {
+      setIsBulkCreating(false);
     }
   };
 
@@ -175,11 +231,8 @@ export default function UserManagementPage() {
             <span className="ump-logo-sub">EVIDENCE REPOSITORY</span>
           </div>
         </div>
-        <div className="ump-header-search">
-          <input className="ump-search-global" placeholder="Search activities, evidence, offices…" readOnly />
-        </div>
         <div className="ump-header-right">
-          <span className="ump-badge">AY 2025–2026</span>
+          <span className="ump-badge">AY 2026–2027</span>
           <div className="ump-avatar">{currentUser?.name?.charAt(0) ?? 'A'}</div>
           <div className="ump-user-info">
             <span className="ump-user-name">{currentUser?.name}</span>
@@ -194,14 +247,12 @@ export default function UserManagementPage() {
         <aside className="ump-sidebar">
           <nav className="ump-nav">
             <p className="ump-nav-section">Workspace</p>
-            <span className="ump-nav-link ump-nav-disabled">Dashboard</span>
+            <NavLink to="/dashboard" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Dashboard</NavLink>
             <NavLink to="/activities" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Documentation</NavLink>
             <NavLink to="/repository" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Repository</NavLink>
             <NavLink to="/shared-evidence" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Shared Evidence</NavLink>
-            <span className="ump-nav-link ump-nav-disabled">Monitoring</span>
             <p className="ump-nav-section">Administration</p>
             <NavLink to="/admin/users" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Access Management</NavLink>
-            <span className="ump-nav-link ump-nav-disabled">Audit Logs</span>
           </nav>
           <div className="ump-sidebar-footer">
             <div className="ump-signed-as">
@@ -217,11 +268,44 @@ export default function UserManagementPage() {
           <div className="ump-main-inner">
             <p className="ump-breadcrumb">Access Management › Users</p>
 
+            <div className="ump-perms-section">
+              <p className="ump-section-label">Permissions by Role</p>
+              <table className="ump-perms-table">
+                <thead>
+                  <tr>
+                    <th className="ump-pth">Role</th>
+                    <th className="ump-pth">Create</th>
+                    <th className="ump-pth">Upload</th>
+                    <th className="ump-pth">Metadata</th>
+                    <th className="ump-pth">Reference</th>
+                    <th className="ump-pth">Monitor</th>
+                    <th className="ump-pth">Admin</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PERMISSIONS_TABLE.map((row) => (
+                    <tr key={row.role}>
+                      <td className="ump-ptd ump-ptd-role">{row.role}</td>
+                      <td className="ump-ptd">{row.create    ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd">{row.upload    ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd">{row.metadata  ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd">{row.reference ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd">{row.monitor   ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd">{row.admin     ? <Check /> : <Dash />}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             <div className="ump-page-header">
               <h1 className="ump-page-title">Users &amp; Roles</h1>
               <div className="ump-page-actions">
                 <button className="ump-btn-primary" onClick={() => setShowCreateModal(true)}>
                   + Invite User
+                </button>
+                <button className="ump-btn-secondary" onClick={() => setShowBulkModal(true)}>
+                  + Bulk Invite
                 </button>
                 <button
                   className="ump-btn-secondary"
@@ -288,7 +372,7 @@ export default function UserManagementPage() {
                       <td className="ump-td ump-td-name">{u.name}</td>
                       <td className="ump-td ump-td-email">{u.email}</td>
                       <td className="ump-td">
-                        {u.department ? formatDepartment(u.department) : u.office ? formatOffice(u.office) : '—'}
+                        {formatUserOffice(u.office)}
                       </td>
                       <td className="ump-td">
                         <span className="ump-role-badge">{ROLE_LABELS[u.role] ?? u.role}</span>
@@ -304,36 +388,6 @@ export default function UserManagementPage() {
                   {filteredUsers.length === 0 && (
                     <tr><td colSpan={7} className="ump-empty">No users found</td></tr>
                   )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="ump-perms-section">
-              <p className="ump-section-label">Permissions by Role</p>
-              <table className="ump-perms-table">
-                <thead>
-                  <tr>
-                    <th className="ump-pth">Role</th>
-                    <th className="ump-pth">Create</th>
-                    <th className="ump-pth">Upload</th>
-                    <th className="ump-pth">Metadata</th>
-                    <th className="ump-pth">Reference</th>
-                    <th className="ump-pth">Monitor</th>
-                    <th className="ump-pth">Admin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PERMISSIONS_TABLE.map((row) => (
-                    <tr key={row.role}>
-                      <td className="ump-ptd ump-ptd-role">{row.role}</td>
-                      <td className="ump-ptd">{row.create    ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.upload    ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.metadata  ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.reference ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.monitor   ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.admin     ? <Check /> : <Dash />}</td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
@@ -355,8 +409,7 @@ export default function UserManagementPage() {
               <label className="ump-detail-label">Department / Office</label>
               <input
                 className="ump-detail-input"
-                value={selectedUser.department ? formatDepartment(selectedUser.department)
-                  : selectedUser.office ? formatOffice(selectedUser.office) : ''}
+                value={selectedUser.office ? formatUserOffice(selectedUser.office) : ''}
                 readOnly
                 placeholder="—"
               />
@@ -436,19 +489,10 @@ export default function UserManagementPage() {
               onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} required placeholder="firstname.lastname@inst.edu" />
           </div>
           <div className="ump-modal-field">
-            <label className="ump-modal-label">Department</label>
-            <select className="ump-modal-select" value={createForm.department}
-              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))}>
-              <option value="">None</option>
-              {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
-          </div>
-          <div className="ump-modal-field">
-            <label className="ump-modal-label">Office</label>
+            <label className="ump-modal-label">Department / Office</label>
             <select className="ump-modal-select" value={createForm.office}
               onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value }))}>
-              <option value="">None</option>
-              {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <DeptOfficeOptions />
             </select>
           </div>
           <div className="ump-modal-field">
@@ -482,6 +526,73 @@ export default function UserManagementPage() {
             </p>
             <button className="ump-modal-submit"
               onClick={() => setShowTempPwModal(false)}>
+              Close
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      <Modal isOpen={showBulkModal} onClose={() => { setShowBulkModal(false); setBulkError(''); }} title="Bulk Invite Users" size="wide">
+        <form onSubmit={handleBulkCreate} noValidate>
+          {bulkError && <p className="ump-modal-error">{bulkError}</p>}
+
+          <div className="ump-bulk-shared">
+            <div className="ump-modal-field">
+              <label className="ump-modal-label">Department / Office</label>
+              <select className="ump-modal-select" value={bulkShared.office}
+                onChange={(e) => setBulkShared((f) => ({ ...f, office: e.target.value }))}>
+                <DeptOfficeOptions />
+              </select>
+            </div>
+            <div className="ump-modal-field">
+              <label className="ump-modal-label">Role</label>
+              <select className="ump-modal-select" value={bulkShared.role}
+                onChange={(e) => setBulkShared((f) => ({ ...f, role: e.target.value }))}>
+                <option value={ROLES.DEPT_STAFF}>{ROLE_LABELS[ROLES.DEPT_STAFF]}</option>
+                <option value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</option>
+                <option value={ROLES.ACCRED_COORDINATOR}>{ROLE_LABELS[ROLES.ACCRED_COORDINATOR]}</option>
+                <option value={ROLES.INSTITUTIONAL_OFFICE}>{ROLE_LABELS[ROLES.INSTITUTIONAL_OFFICE]}</option>
+                <option value={ROLES.ACCREDITOR_LINK}>{ROLE_LABELS[ROLES.ACCREDITOR_LINK]}</option>
+              </select>
+            </div>
+            <p className="ump-bulk-shared-note">Applied to every user added below.</p>
+          </div>
+
+          <div className="ump-bulk-rows">
+            {bulkRows.map((row, i) => (
+              <div className="ump-bulk-row" key={i}>
+                <input className="ump-modal-input" placeholder="Full name" value={row.name}
+                  onChange={(e) => updateBulkRow(i, 'name', e.target.value)} />
+                <input type="email" className="ump-modal-input" placeholder="Email"
+                  value={row.email} onChange={(e) => updateBulkRow(i, 'email', e.target.value)} />
+                <button type="button" className="ump-bulk-row-remove"
+                  onClick={() => removeBulkRow(i)} disabled={bulkRows.length === 1}
+                  aria-label="Remove row">
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="ump-bulk-add-row" onClick={addBulkRow}>
+            + Add another
+          </button>
+
+          <button type="submit" className="ump-modal-submit" disabled={isBulkCreating}>
+            {isBulkCreating ? 'Creating…' : `Create ${bulkRows.length} Account${bulkRows.length === 1 ? '' : 's'}`}
+          </button>
+        </form>
+      </Modal>
+
+      <Modal isOpen={!!bulkResults} onClose={() => setBulkResults(null)} title="Bulk Invite Results">
+        {bulkResults && (
+          <div className="ump-bulk-results">
+            {bulkResults.map((r) => (
+              <div className={`ump-bulk-result-row ${r.success ? 'ump-bulk-result-ok' : 'ump-bulk-result-fail'}`} key={r.email}>
+                <span className="ump-bulk-result-email">{r.email}</span>
+                <span className="ump-bulk-result-status">{r.success ? 'Invited' : (r.error || 'Failed')}</span>
+              </div>
+            ))}
+            <button className="ump-modal-submit" onClick={() => setBulkResults(null)}>
               Close
             </button>
           </div>

@@ -118,7 +118,6 @@ export default function UploadEvidencePage() {
           <ActivityWorkflowSidebar
             activeStep="upload"
             activityId={activity.id}
-            completedSteps={['create']}
             disabledSteps={[
               ...(!canProceedToMetadata ? ['metadata'] : []),
               ...(uploadInProgress ? ['create'] : []),

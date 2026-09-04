@@ -24,7 +24,8 @@
 .login-logo-box {
   width: 36px;
   height: 36px;
-  border: 1.5px solid #111;
+  border: 1.5px solid var(--brand-600);
+  color: var(--brand-600);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,7 +176,7 @@
 }
 
 .login-input:focus {
-  border-color: #111;
+  border-color: var(--brand-600);
 }
 
 .login-options {
@@ -208,7 +209,7 @@
 .login-btn {
   width: 100%;
   padding: 0.65rem;
-  background: #111;
+  background: var(--brand-600);
   color: #fff;
   border: none;
   font-size: 0.78rem;
@@ -220,7 +221,7 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: #333;
+  background: var(--brand-700);
 }
 
 .login-btn:disabled {

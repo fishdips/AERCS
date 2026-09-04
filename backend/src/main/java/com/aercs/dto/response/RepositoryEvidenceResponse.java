@@ -22,6 +22,7 @@ public record RepositoryEvidenceResponse(
         String office,
         EvidenceType evidenceType,
         String uploadedByName,
+        String uploadedByOffice,
         OffsetDateTime uploadedAt,
         long referenceCount,
         boolean referencedToViewer

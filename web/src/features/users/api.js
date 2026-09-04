@@ -3,6 +3,9 @@ import api from '../../shared/api/config';
 export const createUser = (data) =>
   api.post('/api/admin/users', data);
 
+export const createUsersBatch = (data) =>
+  api.post('/api/admin/users/batch', data);
+
 export const listUsers = () =>
   api.get('/api/admin/users');
 

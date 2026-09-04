@@ -4,6 +4,7 @@ import ActivityShell from '../../activities/components/ActivityShell';
 import { getActivity } from '../../activities/api';
 import { searchSharedEvidence } from '../api';
 import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
+import api from '../../../shared/api/config';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import '../SharedEvidence.css';
 
@@ -328,7 +329,7 @@ export default function ReferenceEvidencePage() {
                 <div className="se-preview-actions">
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${preview.id}/view`}
+                    href={`${api.defaults.baseURL}/api/evidence/${preview.id}/view`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -336,7 +337,7 @@ export default function ReferenceEvidencePage() {
                   </a>
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${preview.id}/download`}
+                    href={`${api.defaults.baseURL}/api/evidence/${preview.id}/download`}
                   >
                     Download
                   </a>

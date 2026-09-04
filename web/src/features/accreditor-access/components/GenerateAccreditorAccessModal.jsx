@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Modal from '../../../shared/components/Modal';
 import { generateAccreditorAccess } from '../api';
+import { copyToClipboard } from '../../../shared/utils/clipboard';
 import '../AccreditorAccess.css';
 
 function defaultExpiration() {
@@ -56,8 +57,12 @@ export default function GenerateAccreditorAccessModal({
 
   const copyLink = async () => {
     if (!generated?.accessUrl) return;
-    await navigator.clipboard?.writeText(generated.accessUrl);
-    setCopied(true);
+    const succeeded = await copyToClipboard(generated.accessUrl);
+    if (succeeded) {
+      setCopied(true);
+    } else {
+      setError('Could not copy automatically — please select and copy the link manually.');
+    }
   };
 
   return (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
-import { ACCREDITATION_AREAS, ACTIVITY_TYPES, OFFICES, formatDepartment } from '../constants';
+import { ACCREDITATION_AREAS, ACTIVITY_TYPES, OFFICES, formatDepartment, todayLocalISO } from '../constants';
 
 const initialForm = {
   activityName: '',
@@ -73,7 +73,7 @@ export default function EditActivityPage() {
       nextErrors.customActivityType = 'Custom activity type is required';
     }
     if (!form.activityDate) nextErrors.activityDate = 'Activity date is required';
-    if (form.activityDate && form.activityDate > new Date().toISOString().slice(0, 10)) {
+    if (form.activityDate && form.activityDate > todayLocalISO()) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
     if (!form.department) nextErrors.department = 'Department is required';

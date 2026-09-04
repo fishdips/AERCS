@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
 
@@ -32,6 +32,29 @@ export default function BatchMetadataPanel({
   const effectiveEvidence = externalEvidence || evidence;
   const selectedIds = controlledSelectedIds || internalSelectedIds;
   const setSelectedIds = onSelectedIdsChange || setInternalSelectedIds;
+
+  const prefilledForId = useRef(null);
+
+  // Re-selecting a single evidence file that already has metadata loads its
+  // current values into the form instead of leaving it blank, so saving adds
+  // to what's there rather than silently wiping it out.
+  useEffect(() => {
+    if (selectedIds.length !== 1) {
+      prefilledForId.current = null;
+      return;
+    }
+    const id = selectedIds[0];
+    if (prefilledForId.current === id) return;
+    const item = effectiveEvidence.find((candidate) => candidate.id === id);
+    if (!item || !hasMetadata(item)) return;
+    setForm({
+      evidenceType: item.evidenceType || '',
+      relatedOffices: item.relatedOffices || [],
+      tags: (item.tags || []).join(', '),
+      notes: item.notes || '',
+    });
+    prefilledForId.current = id;
+  }, [selectedIds, effectiveEvidence]);
 
   const loadEvidence = useCallback(async () => {
     if (externalEvidence) {
@@ -78,7 +101,7 @@ export default function BatchMetadataPanel({
 
   const toggleEvidence = (evidenceId) => {
     const item = effectiveEvidence.find((candidate) => candidate.id === evidenceId);
-    if (!item || hasMetadata(item)) return;
+    if (!item) return;
 
     const nextIds = selectedIds.includes(evidenceId)
       ? selectedIds.filter((idValue) => idValue !== evidenceId)
@@ -152,15 +175,14 @@ export default function BatchMetadataPanel({
                   {effectiveEvidence.map((item) => {
                     const assigned = hasMetadata(item);
                     return (
-                      <label className={assigned ? 'am-batch-file am-batch-file-disabled' : 'am-batch-file'} key={item.id}>
+                      <label className="am-batch-file" key={item.id}>
                         <input
                           type="checkbox"
-                          checked={!assigned && selectedIds.includes(item.id)}
-                          disabled={assigned}
+                          checked={selectedIds.includes(item.id)}
                           onChange={() => toggleEvidence(item.id)}
                         />
                         <span>{item.originalFileName}</span>
-                        <small>{assigned ? 'Metadata Assigned' : item.fileType}</small>
+                        <small>{assigned ? 'Metadata Assigned — select to edit' : item.fileType}</small>
                       </label>
                     );
                   })}

@@ -1,3 +1,19 @@
+:root {
+  /* Brand ramp anchored on #99C2FF (--brand-300) — used for primary actions,
+     active states, focus rings, and logo marks. Body text/neutral UI stays
+     black/gray; this is reserved for the app's own interactive/brand accents. */
+  --brand-50:  #eff5ff;
+  --brand-100: #dceaff;
+  --brand-200: #bfdaff;
+  --brand-300: #99c2ff;
+  --brand-400: #6fa0f0;
+  --brand-500: #4c82e0;
+  --brand-600: #3468c7;
+  --brand-700: #2851a0;
+  --brand-800: #1e3d7a;
+  --brand-900: #162b57;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

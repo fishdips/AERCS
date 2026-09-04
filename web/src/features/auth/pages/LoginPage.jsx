@@ -33,7 +33,11 @@ export default function LoginPage() {
       else if (data.role === ROLES.ADMIN) navigate('/admin/users');
       else navigate('/activities');
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password');
+      if (err.response) {
+        setError(err.response.data?.error || 'Invalid email or password');
+      } else {
+        setError('Could not reach the server. Check your connection and try again.');
+      }
     } finally {
       setSubmitting(false);
     }

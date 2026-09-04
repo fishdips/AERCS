@@ -77,7 +77,6 @@ export default function AssignMetadataPage() {
           <ActivityWorkflowSidebar
             activeStep="metadata"
             activityId={activity.id}
-            completedSteps={['create', 'upload']}
           />
         </div>
       )}

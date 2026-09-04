@@ -1,6 +1,7 @@
 package com.aercs.controller;
 
 import com.aercs.dto.request.GenerateAccreditorAccessRequest;
+import com.aercs.dto.request.UpdateAccreditorAccessRequest;
 import com.aercs.dto.response.GenerateAccreditorAccessResponse;
 import com.aercs.dto.response.PublicAccreditorAccessResponse;
 import com.aercs.service.AccreditorAccessService;
@@ -39,6 +40,30 @@ public class AccreditorAccessController {
         UUID currentUserId = UUID.fromString(userDetails.getUsername());
         String frontendOrigin = servletRequest.getHeader("Origin");
         return ResponseEntity.ok(accreditorAccessService.generateAccess(request, currentUserId, frontendOrigin));
+    }
+
+    @PatchMapping("/api/accreditor-access/{id}")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<GenerateAccreditorAccessResponse> extendAccess(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateAccreditorAccessRequest request,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest servletRequest
+    ) {
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        String frontendOrigin = servletRequest.getHeader("Origin");
+        return ResponseEntity.ok(accreditorAccessService.extendExpiry(id, request, currentUserId, frontendOrigin));
+    }
+
+    @DeleteMapping("/api/accreditor-access/{id}")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<Void> deleteAccess(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        accreditorAccessService.deleteAccess(id, currentUserId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/api/public/accreditor-access/{token}")

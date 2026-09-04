@@ -478,11 +478,10 @@ export default function EvidencePanel({
                       {batchSelectionEnabled && (
                         <input
                           type="checkbox"
-                          checked={!hasMetadata(item) && batchSelectedIds.includes(item.id)}
-                          disabled={hasMetadata(item)}
+                          checked={batchSelectedIds.includes(item.id)}
                           onClick={(event) => event.stopPropagation()}
                           onChange={() => onToggleBatchSelection(item)}
-                          title={hasMetadata(item) ? 'Metadata Assigned' : 'Select for batch metadata'}
+                          title={hasMetadata(item) ? 'Already has metadata — select to edit' : 'Select for batch metadata'}
                         />
                       )}
                       <div>

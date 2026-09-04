@@ -13,5 +13,7 @@ public interface EvidenceRepository extends JpaRepository<Evidence, UUID>, JpaSp
 
     List<Evidence> findByActivityIdOrderByUploadedAtDesc(UUID activityId);
 
+    List<Evidence> findByActivityIdIn(List<UUID> activityIds);
+
     boolean existsByActivityId(UUID activityId);
 }

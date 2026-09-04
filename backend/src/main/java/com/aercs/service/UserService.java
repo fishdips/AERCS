@@ -1,19 +1,28 @@
 package com.aercs.service;
 
+import com.aercs.dto.request.BatchCreateUserRequest;
 import com.aercs.dto.request.CreateUserRequest;
+import com.aercs.dto.response.BatchCreateUserResult;
 import com.aercs.dto.response.CreateUserResponse;
 import com.aercs.dto.response.UserResponse;
+import com.aercs.entity.Department;
+import com.aercs.entity.Office;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.InvitationEmailException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +33,13 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final InvitationEmailService invitationEmailService;
+
+    // Self-injected proxy so createUsers() -> createUser() goes through Spring's
+    // transaction interceptor per invite, instead of bypassing it via a plain
+    // internal method call (self-invocation does not trigger @Transactional).
+    @Autowired
+    @Lazy
+    private UserService self;
 
     @Transactional
     public CreateUserResponse createUser(CreateUserRequest request, String adminId) {
@@ -38,12 +54,13 @@ public class UserService {
             throw new BadRequestException("Invalid role: " + request.role());
         }
 
+        validateOffice(request.office());
+
         String tempPassword = generateTempPassword();
 
         User user = new User();
         user.setName(request.name());
         user.setEmail(request.email());
-        user.setDepartment(request.department());
         user.setOffice(request.office());
         user.setRole(role);
         user.setPasswordHash(passwordEncoder.encode(tempPassword));
@@ -55,6 +72,21 @@ public class UserService {
         User saved = userRepository.save(user);
         invitationEmailService.sendInvitation(saved, tempPassword);
         return toCreateUserResponse(saved);
+    }
+
+    public List<BatchCreateUserResult> createUsers(BatchCreateUserRequest request, String adminId) {
+        List<BatchCreateUserResult> results = new ArrayList<>();
+        for (BatchCreateUserRequest.Invite invite : request.users()) {
+            CreateUserRequest singleRequest = new CreateUserRequest(
+                    invite.name(), invite.email(), request.office(), request.role());
+            try {
+                CreateUserResponse created = self.createUser(singleRequest, adminId);
+                results.add(new BatchCreateUserResult(invite.email(), true, created, null));
+            } catch (BadRequestException | InvitationEmailException e) {
+                results.add(new BatchCreateUserResult(invite.email(), false, null, e.getMessage()));
+            }
+        }
+        return results;
     }
 
     public List<UserResponse> listUsers() {
@@ -99,6 +131,15 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
+    private void validateOffice(String office) {
+        if (office == null) return;
+        boolean isDepartment = Arrays.stream(Department.values()).anyMatch(d -> d.name().equals(office));
+        boolean isOffice = Arrays.stream(Office.values()).anyMatch(o -> o.name().equals(office));
+        if (!isDepartment && !isOffice) {
+            throw new BadRequestException("Invalid department/office value: " + office);
+        }
+    }
+
     private String generateTempPassword() {
         String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
         SecureRandom random = new SecureRandom();
@@ -115,8 +156,7 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                user.getDepartment() != null ? user.getDepartment().name() : null,
-                user.getOffice() != null ? user.getOffice().name() : null,
+                user.getOffice(),
                 user.isActive(),
                 user.isMustChangePw(),
                 user.getCreatedAt()
@@ -129,8 +169,7 @@ public class UserService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                user.getDepartment() != null ? user.getDepartment().name() : null,
-                user.getOffice() != null ? user.getOffice().name() : null,
+                user.getOffice(),
                 user.isActive(),
                 user.isMustChangePw()
         );

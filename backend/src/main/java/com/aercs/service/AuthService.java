@@ -69,8 +69,7 @@ public class AuthService {
                 user.getId(),
                 user.getName(),
                 user.getRole().name(),
-                user.getDepartment() == null ? null : user.getDepartment().name(),
-                user.getOffice() == null ? null : user.getOffice().name(),
+                user.getOffice(),
                 user.isMustChangePw()
         );
     }

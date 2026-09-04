@@ -15,7 +15,7 @@ import '../SharedEvidence.css';
 export default function ReferenceConfirmModal({ evidence, activity, isOpen, onClose, onSuccess }) {
   const { user } = useAuth();
   const [area, setArea] = useState(activity?.accreditationArea ?? '');
-  const [office, setOffice] = useState(user?.department || activity?.office || activity?.department || '');
+  const [office, setOffice] = useState(user?.office || activity?.office || activity?.department || '');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +23,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
   useEffect(() => {
     if (!isOpen) return;
     setArea(activity?.accreditationArea ?? '');
-    setOffice(user?.department || activity?.office || activity?.department || '');
+    setOffice(user?.office || activity?.office || activity?.department || '');
   }, [activity, isOpen, user]);
 
   const handleClose = () => {

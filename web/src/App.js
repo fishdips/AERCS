@@ -6,6 +6,7 @@ import { RoleProtectedRoute } from './shared/routes/RoleProtectedRoute';
 import LoginPage from './features/auth/pages/LoginPage';
 import ChangePasswordPage from './features/auth/pages/ChangePasswordPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
+import DashboardPage from './features/dashboard/pages/DashboardPage';
 import ActivitiesListPage from './features/activities/pages/ActivitiesListPage';
 import CreateActivityPage from './features/activities/pages/CreateActivityPage';
 import UploadEvidencePage from './features/activities/pages/UploadEvidencePage';
@@ -39,7 +40,14 @@ function App() {
             }
           />
 
-          <Route path="/dashboard" element={<Navigate to="/activities" replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/repository"

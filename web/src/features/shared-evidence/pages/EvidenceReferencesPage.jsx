@@ -5,6 +5,7 @@ import { deleteReference, getReferences } from '../api';
 import { getEvidence } from '../../evidence/api';
 import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
+import api from '../../../shared/api/config';
 import '../SharedEvidence.css';
 
 function formatDate(value) {
@@ -124,7 +125,7 @@ export default function EvidenceReferencesPage() {
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${evidenceId}/view`}
+                    href={`${api.defaults.baseURL}/api/evidence/${evidenceId}/view`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -132,7 +133,7 @@ export default function EvidenceReferencesPage() {
                   </a>
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${evidenceId}/download`}
+                    href={`${api.defaults.baseURL}/api/evidence/${evidenceId}/download`}
                   >
                     Download
                   </a>
@@ -145,7 +146,7 @@ export default function EvidenceReferencesPage() {
                   </div>
                   <div className="se-meta-row">
                     <span className="se-meta-key">Office</span>
-                    <span className="se-meta-val">{evidence.ownerOffice || evidence.uploadedByDepartment || '-'}</span>
+                    <span className="se-meta-val">{evidence.ownerOffice || evidence.uploadedByOffice || '-'}</span>
                   </div>
                   <div className="se-meta-row">
                     <span className="se-meta-key">Area</span>

@@ -4,7 +4,7 @@ import { ROLE_LABELS } from '../../../shared/constants/roles';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import { deleteActivity, getActivity } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatDepartment, formatOffice } from '../constants';
+import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatUserOffice } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
@@ -59,14 +59,11 @@ export default function ActivityDetailPage() {
 
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceItems(items);
-    setBatchSelectedIds((current) => current.filter((idValue) => {
-      const item = items.find((candidate) => candidate.id === idValue);
-      return item && !hasMetadata(item);
-    }));
+    setBatchSelectedIds((current) => current.filter((idValue) => items.some((item) => item.id === idValue)));
   }, []);
 
   const handleToggleBatchSelection = useCallback((item) => {
-    if (!item || hasMetadata(item)) return;
+    if (!item) return;
     setBatchSelectedIds((current) => (
       current.includes(item.id)
         ? current.filter((idValue) => idValue !== item.id)
@@ -159,12 +156,8 @@ export default function ActivityDetailPage() {
                 <dd>{activity.academicYear}</dd>
               </div>
               <div>
-                <dt>Department</dt>
-                <dd>{activity.department ? formatDepartment(activity.department) : '-'}</dd>
-              </div>
-              <div>
                 <dt>Office</dt>
-                <dd>{activity.office ? formatOffice(activity.office) : '-'}</dd>
+                <dd>{formatUserOffice(activity.createdByOffice)}</dd>
               </div>
               <div>
                 <dt>Created By</dt>

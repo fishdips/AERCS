@@ -7,11 +7,11 @@ import { createActivity } from '../api';
 import {
   ACCREDITATION_AREAS,
   ACTIVITY_TYPES,
-  OFFICES,
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
-  formatOffice,
+  resolveUserDepartment,
+  todayLocalISO,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
@@ -22,8 +22,6 @@ const initialForm = {
   activityType: '',
   customActivityType: '',
   activityDate: '',
-  office: '',
-  customOffice: '',
   accreditationArea: '',
   academicYear: '',
 };
@@ -48,6 +46,7 @@ function summaryValue(value, formatter) {
 
 export default function CreateActivityPage() {
   const { user } = useAuth();
+  const userDepartment = resolveUserDepartment(user);
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
@@ -65,24 +64,9 @@ export default function CreateActivityPage() {
     }
   }, [form.activityType, form.customActivityType]);
 
-  useEffect(() => {
-    if (form.office !== 'OTHER' && form.customOffice) {
-      setForm((current) => ({ ...current, customOffice: '' }));
-    }
-  }, [form.office, form.customOffice]);
-
-  const selectedOffice = form.office === 'OTHER' ? form.customOffice.trim() : form.office;
   const canUpload = Boolean(createdActivity);
   const canAssignMetadata = evidenceItems.length > 0 && !isUploading;
   const metadataComplete = evidenceItems.length > 0 && evidenceItems.every(hasMetadata);
-
-  const completedSteps = useMemo(() => {
-    const steps = [];
-    if (createdActivity) steps.push('create');
-    if (evidenceItems.length > 0) steps.push('upload');
-    if (metadataComplete) steps.push('metadata');
-    return steps;
-  }, [createdActivity, evidenceItems, metadataComplete]);
 
   const disabledSteps = useMemo(() => {
     const steps = [];
@@ -104,14 +88,10 @@ export default function CreateActivityPage() {
       nextErrors.customActivityType = 'Custom activity type is required';
     }
     if (!form.activityDate) nextErrors.activityDate = 'Activity date is required';
-    if (form.activityDate && form.activityDate > new Date().toISOString().slice(0, 10)) {
+    if (form.activityDate && form.activityDate > todayLocalISO()) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
-    if (!form.office) nextErrors.office = 'Office is required';
-    if (form.office === 'OTHER' && !form.customOffice.trim()) {
-      nextErrors.customOffice = 'Custom office is required';
-    }
-    if (!user?.department) nextErrors.department = 'Your account has no assigned department';
+    if (!userDepartment) nextErrors.department = 'Your account has no assigned department';
     if (!form.accreditationArea) nextErrors.accreditationArea = 'Accreditation area is required';
     if (!form.academicYear.trim()) nextErrors.academicYear = 'Academic year is required';
     setErrors(nextErrors);
@@ -132,7 +112,6 @@ export default function CreateActivityPage() {
         activityType: form.activityType,
         customActivityType: form.activityType === 'OTHER' ? form.customActivityType.trim() : null,
         activityDate: form.activityDate,
-        office: selectedOffice,
         accreditationArea: form.accreditationArea,
         academicYear: form.academicYear.trim(),
       };
@@ -150,7 +129,7 @@ export default function CreateActivityPage() {
 
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceItems(items);
-    setBatchSelectedIds((current) => current.filter((id) => items.some((item) => item.id === id && !hasMetadata(item))));
+    setBatchSelectedIds((current) => current.filter((id) => items.some((item) => item.id === id)));
   }, []);
 
   const handleSelectAllBatchEligible = (items) => {
@@ -162,7 +141,7 @@ export default function CreateActivityPage() {
   };
 
   const handleToggleBatchSelection = (item) => {
-    if (!item || hasMetadata(item)) return;
+    if (!item) return;
     setBatchSelectedIds((current) => (
       current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]
     ));
@@ -183,8 +162,8 @@ export default function CreateActivityPage() {
 
   const activitySummary = createdActivity || {
     activityName: form.activityName,
-    office: selectedOffice,
-    department: user?.department,
+    owner: user?.name,
+    department: userDepartment,
     activityType: form.activityType,
     customActivityType: form.customActivityType,
     academicYear: form.academicYear,
@@ -221,38 +200,13 @@ export default function CreateActivityPage() {
 
               <div className="am-form-grid">
                 <label className="am-form-field">
-                  <span className="am-form-label">Office <span className="am-required">*</span></span>
-                  <select
-                    className="am-select"
-                    value={form.office}
-                    onChange={(e) => updateField('office', e.target.value)}
-                    disabled={Boolean(createdActivity)}
-                  >
-                    <option value="">Select office</option>
-                    {OFFICES.map((office) => (
-                      <option key={office.value} value={office.value}>{office.label}</option>
-                    ))}
-                  </select>
-                  {errors.office && <span className="am-field-error">{errors.office}</span>}
+                  <span className="am-form-label">Owner</span>
+                  <input className="am-input" value={user?.name || ''} readOnly disabled />
                 </label>
-
-                {form.office === 'OTHER' && (
-                  <label className="am-form-field">
-                    <span className="am-form-label">Custom Office <span className="am-required">*</span></span>
-                    <input
-                      className="am-input"
-                      placeholder="Enter office name"
-                      value={form.customOffice}
-                      onChange={(e) => updateField('customOffice', e.target.value)}
-                      disabled={Boolean(createdActivity)}
-                    />
-                    {errors.customOffice && <span className="am-field-error">{errors.customOffice}</span>}
-                  </label>
-                )}
 
                 <label className="am-form-field">
                   <span className="am-form-label">Department Owner <span className="am-required">*</span></span>
-                  <input className="am-input" value={formatDepartment(user?.department)} readOnly disabled />
+                  <input className="am-input" value={formatDepartment(userDepartment)} readOnly disabled />
                   {errors.department && <span className="am-field-error">{errors.department}</span>}
                 </label>
 
@@ -376,7 +330,7 @@ export default function CreateActivityPage() {
               <section className="am-panel am-summary-panel">
                 <dl className="am-summary-list">
                   <div><dt>Activity Name</dt><dd>{summaryValue(activitySummary.activityName)}</dd></div>
-                  <div><dt>Office</dt><dd>{summaryValue(activitySummary.office, formatOffice)}</dd></div>
+                  <div><dt>Owner</dt><dd>{summaryValue(activitySummary.createdByName || activitySummary.owner)}</dd></div>
                   <div><dt>Department</dt><dd>{summaryValue(activitySummary.department, formatDepartment)}</dd></div>
                   <div><dt>Activity Type</dt><dd>{formatActivityType(activitySummary.activityType, activitySummary.customActivityType)}</dd></div>
                   <div><dt>Academic Year</dt><dd>{summaryValue(activitySummary.academicYear)}</dd></div>
@@ -439,7 +393,6 @@ export default function CreateActivityPage() {
         <ActivityWorkflowSidebar
           activeStep={activeSection}
           activityId={createdActivity?.id}
-          completedSteps={completedSteps}
           disabledSteps={disabledSteps}
           onStepSelect={handleStepSelect}
         />

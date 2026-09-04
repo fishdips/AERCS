@@ -26,7 +26,7 @@ public record EvidenceResponse(
         String notes,
         UUID uploadedById,
         String uploadedByName,
-        String uploadedByDepartment,
+        String uploadedByOffice,
         String uploadedByRole,
         OffsetDateTime uploadedAt,
         OffsetDateTime updatedAt
