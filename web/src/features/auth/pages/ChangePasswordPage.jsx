@@ -53,9 +53,7 @@ export default function ChangePasswordPage() {
         </div>
 
         <div className="cp-brand-center">
-          <div className="cp-crest-placeholder">
-            <span>[ INSTITUTIONAL CREST / SEAL ]</span>
-          </div>
+          <img src="/cit_logo.png" alt="CIT-U Logo" className="cp-crest-img" />
           <p className="cp-system-name">
             Accreditation Evidence Repository &amp; Coordination System
           </p>
