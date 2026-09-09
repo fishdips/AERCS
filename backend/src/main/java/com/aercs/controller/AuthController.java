@@ -8,6 +8,7 @@ import com.aercs.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+
+    @Value("${app.cookie.secure}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site}")
+    private String cookieSameSite;
 
     @PostMapping("/login")
     public ResponseEntity<AuthMeResponse> login(@Valid @RequestBody LoginRequest request,
@@ -62,8 +69,8 @@ public class AuthController {
     private void addJwtCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("aercs_token", token)
                 .httpOnly(true)
-                .secure(false)      // TODO: set to true when deployed over HTTPS
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(Duration.ofHours(8))
                 .build();
@@ -73,8 +80,8 @@ public class AuthController {
     private void clearJwtCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("aercs_token", "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(Duration.ZERO)
                 .build();
