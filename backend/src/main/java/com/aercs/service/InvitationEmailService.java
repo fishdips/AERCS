@@ -13,9 +13,11 @@ import org.springframework.web.client.RestClientException;
 import java.util.List;
 import java.util.Map;
 
-// Sends via the Resend HTTP API (port 443) instead of raw SMTP - Render's outbound
-// network does not allow SMTP traffic (confirmed: both Office365 and Gmail SMTP
-// time out from the deployed backend), so JavaMailSender never worked in production.
+// Sends via the SendGrid HTTP API (port 443) instead of raw SMTP - Render's outbound
+// network does not allow SMTP traffic (confirmed: both Office365 and Gmail SMTP time
+// out from the deployed backend), so JavaMailSender never worked in production.
+// The sender address is a Single Sender Verification in SendGrid (not a verified
+// domain), which is enough to deliver to any recipient.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,8 +28,8 @@ public class InvitationEmailService {
     @Value("${app.mail.from}")
     private String fromAddress;
 
-    @Value("${app.resend.api-key}")
-    private String resendApiKey;
+    @Value("${app.sendgrid.api-key}")
+    private String sendGridApiKey;
 
     public void sendInvitation(User user, String temporaryPassword) {
         String text = """
@@ -66,14 +68,19 @@ public class InvitationEmailService {
         try {
             restClientBuilder.build()
                     .post()
-                    .uri("https://api.resend.com/emails")
-                    .header("Authorization", "Bearer " + resendApiKey)
+                    .uri("https://api.sendgrid.com/v3/mail/send")
+                    .header("Authorization", "Bearer " + sendGridApiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of(
-                            "from", fromAddress,
-                            "to", List.of(to),
+                            "personalizations", List.of(Map.of(
+                                    "to", List.of(Map.of("email", to))
+                            )),
+                            "from", Map.of("email", fromAddress),
                             "subject", subject,
-                            "text", text
+                            "content", List.of(Map.of(
+                                    "type", "text/plain",
+                                    "value", text
+                            ))
                     ))
                     .retrieve()
                     .toBodilessEntity();
