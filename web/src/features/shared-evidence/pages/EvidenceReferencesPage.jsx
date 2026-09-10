@@ -6,6 +6,7 @@ import { getEvidence } from '../../evidence/api';
 import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import api from '../../../shared/api/config';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 import '../SharedEvidence.css';
 
 function formatDate(value) {
@@ -36,6 +37,8 @@ export default function EvidenceReferencesPage() {
 
   const [filterDept, setFilterDept] = useState('');
   const [filterArea, setFilterArea] = useState('');
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     getEvidence(evidenceId)
@@ -287,13 +290,9 @@ export default function EvidenceReferencesPage() {
                         <button
                           className="am-link-button am-link-danger"
                           type="button"
-                          onClick={async () => {
-                            if (!window.confirm('Remove this reference? The original evidence file will remain.')) return;
-                            await deleteReference(ref.id);
-                            loadRefs(currentPage);
-                          }}
+                          onClick={() => setRemoveTarget(ref)}
                         >
-                          Remove
+                          🗑 Remove
                         </button>
                       )}
                     </td>
@@ -328,6 +327,26 @@ export default function EvidenceReferencesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(removeTarget)}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={async () => {
+          setRemoving(true);
+          try {
+            await deleteReference(removeTarget.id);
+            setRemoveTarget(null);
+            await loadRefs(currentPage);
+          } finally {
+            setRemoving(false);
+          }
+        }}
+        title="Remove Reference"
+        message="Remove this reference? The original evidence file will remain."
+        confirmLabel="Remove"
+        danger
+        busy={removing}
+      />
     </ActivityShell>
   );
 }

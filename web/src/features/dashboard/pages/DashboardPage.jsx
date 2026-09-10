@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 import { getDashboardSummary } from '../api';
 import { extendAccreditorAccess, deleteAccreditorAccess } from '../../accreditor-access/api';
 import { formatActivityType, formatDepartment } from '../../activities/constants';
@@ -70,6 +71,7 @@ function AccessRow({ item, onChanged }) {
   const [newExpiry, setNewExpiry] = useState(() => defaultExtendedExpiry(item.expiresAt));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const copyLink = async () => {
     const succeeded = await copyToClipboard(item.accessUrl);
@@ -96,11 +98,11 @@ function AccessRow({ item, onChanged }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this accreditor access link? Anyone with the link will lose access immediately.')) return;
     setSaving(true);
     setError('');
     try {
       await deleteAccreditorAccess(item.id);
+      setDeleteConfirm(false);
       if (onChanged) onChanged();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete access link.');
@@ -137,12 +139,23 @@ function AccessRow({ item, onChanged }) {
         <span className="dash-badge-warning">Expiring Soon</span>
         <ActionMenu
           items={[
-            { label: copied ? 'Copied' : 'Copy Link', onClick: copyLink },
-            { label: 'Extend Expiry', disabled: saving, onClick: () => setEditing(true) },
-            { label: 'Delete', danger: true, disabled: saving, onClick: handleDelete },
+            { label: copied ? '✓ Copied' : '📋 Copy Link', onClick: copyLink },
+            { label: '🕐 Extend Expiry', disabled: saving, onClick: () => setEditing(true) },
+            { label: '🗑 Delete', danger: true, disabled: saving, onClick: () => setDeleteConfirm(true) },
           ]}
         />
       </div>
+
+      <ConfirmModal
+        isOpen={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Access Link"
+        message="Delete this accreditor access link? Anyone with the link will lose access immediately."
+        confirmLabel="Delete"
+        danger
+        busy={saving}
+      />
     </div>
   );
 }

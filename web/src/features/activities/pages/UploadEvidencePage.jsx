@@ -70,13 +70,15 @@ export default function UploadEvidencePage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Upload Evidence</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Upload Evidence</h1>
-        <div className="am-page-actions">
+        <div className="am-page-header-left">
           {uploadInProgress ? (
-            <button className="am-btn-secondary" type="button" disabled>Back</button>
+            <button className="am-btn-secondary" type="button" disabled>← Back</button>
           ) : (
-            <Link className="am-btn-secondary" to={`/activities/${id}`}>Back</Link>
+            <Link className="am-btn-secondary" to={`/activities/${id}`}>← Back</Link>
           )}
+          <h1 className="am-page-title">Upload Evidence</h1>
+        </div>
+        <div className="am-page-actions">
           {canProceedToMetadata ? (
             <Link className="am-btn-primary" to={`/activities/${id}/metadata`}>Assign Metadata</Link>
           ) : (
@@ -101,16 +103,16 @@ export default function UploadEvidencePage() {
               onUploadStateChange={handleUploadStateChange}
               title="Upload Evidence"
             />
-            <div className="am-form-actions am-workflow-actions">
+            <div className="am-form-actions am-workflow-actions-split">
               {uploadInProgress ? (
-                <button className="am-btn-secondary" type="button" disabled>Back</button>
+                <button className="am-btn-secondary" type="button" disabled>← Back</button>
               ) : (
-                <Link className="am-btn-secondary" to="/activities/new">Back</Link>
+                <Link className="am-btn-secondary" to="/activities/new">← Back</Link>
               )}
               {canProceedToMetadata ? (
-                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step</Link>
+                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step →</Link>
               ) : (
-                <button className="am-btn-primary" type="button" disabled>Next Step</button>
+                <button className="am-btn-primary" type="button" disabled>Next Step →</button>
               )}
             </div>
           </div>

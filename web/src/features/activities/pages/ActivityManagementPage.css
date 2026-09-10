@@ -183,6 +183,16 @@
   gap: 1rem;
 }
 
+.am-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.am-workflow-actions-split {
+  justify-content: space-between;
+}
+
 .am-page-title {
   margin: 0;
   font-size: 1.1rem;
@@ -1195,8 +1205,31 @@
 }
 
 .am-evidence-meta {
+  display: block;
   color: #6b7280;
   font-size: 0.68rem;
+  margin-top: 0.15rem;
+}
+
+.am-evidence-meta-assigned {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #15803d;
+}
+
+.am-evidence-meta-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #15803d;
+  color: #fff;
+  font-size: 0.55rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .am-evidence-row-actions {

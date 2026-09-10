@@ -5,6 +5,7 @@ import { downloadEvidenceBlob, getEvidenceViewUrl } from '../api';
 import { deleteReference, listActivityReferencedEvidence } from '../../shared-evidence/api';
 import { formatAccreditationArea } from '../../activities/constants';
 import { formatEvidenceType } from '../constants';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
@@ -40,6 +41,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const loadReferences = useCallback(async () => {
     setLoading(true);
@@ -73,14 +75,18 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
     }
   };
 
-  const handleRemove = async (item) => {
-    if (!window.confirm('Remove this reference from the activity? The original evidence file will remain.')) return;
+  const handleRemove = (item) => setRemoveTarget(item);
+
+  const confirmRemove = async () => {
+    const item = removeTarget;
+    if (!item) return;
     setBusyId(item.referenceId);
     setError('');
     try {
       await deleteReference(item.referenceId);
       if (expandedId === item.referenceId) setExpandedId(null);
       await loadReferences();
+      setRemoveTarget(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to remove reference.');
     } finally {
@@ -164,7 +170,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              View
+                              👁 View
                             </a>
                           )}
                           {item.fileType !== 'LINK' && !item.linkUrl && (
@@ -174,7 +180,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
                               disabled={busyId === item.referenceId}
                             >
-                              {busyId === item.referenceId ? 'Downloading...' : 'Download'}
+                              {busyId === item.referenceId ? 'Downloading...' : '⬇ Download'}
                             </button>
                           )}
                           {canManageReferences && (
@@ -184,7 +190,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               onClick={(e) => { e.stopPropagation(); handleRemove(item); }}
                               disabled={busyId === item.referenceId}
                             >
-                              Remove Reference
+                              🗑 Remove Reference
                             </button>
                           )}
                         </div>
@@ -197,6 +203,17 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
           </tbody>
         </table>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(removeTarget)}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+        title="Remove Reference"
+        message="Remove this reference from the activity? The original evidence file will remain."
+        confirmLabel="Remove"
+        danger
+        busy={Boolean(busyId)}
+      />
     </aside>
   );
 }

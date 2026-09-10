@@ -5,6 +5,7 @@ import { createUser, createUsersBatch, deleteUser, listUsers, updateUserRole, up
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { DEPARTMENTS, OFFICES, formatUserOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import './UserManagementPage.css';
 
@@ -62,6 +63,7 @@ export default function UserManagementPage() {
 
   const [createForm, setCreateForm] = useState({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
   const [createError, setCreateError] = useState('');
+  const [createFieldErrors, setCreateFieldErrors] = useState({});
   const [isCreating, setIsCreating]   = useState(false);
 
   const [showBulkModal, setShowBulkModal]   = useState(false);
@@ -76,6 +78,9 @@ export default function UserManagementPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const [isSaving, setIsSaving] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [revokeConfirmOpen, setRevokeConfirmOpen] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -99,6 +104,7 @@ export default function UserManagementPage() {
   });
 
   const handleSelectUser = (u) => {
+    setActionError('');
     if (selectedUser?.id === u.id) {
       setSelectedUser(null);
     } else {
@@ -107,20 +113,26 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const requestDelete = () => {
     if (!selectedUser) return;
     if (selectedUser.id === currentUser.id) {
-      alert('You cannot delete your own account.');
+      setActionError('You cannot delete your own account.');
       return;
     }
-    if (!window.confirm(`Permanently delete ${selectedUser.name}? This cannot be undone.`)) return;
+    setActionError('');
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) return;
     setIsSaving(true);
     try {
       await deleteUser(selectedUser.id);
       setSelectedUser(null);
+      setDeleteConfirmOpen(false);
       await loadUsers();
     } catch {
-      alert('Failed to delete user. Please try again.');
+      setActionError('Failed to delete user. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -129,6 +141,7 @@ export default function UserManagementPage() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setCreateError('');
+    setCreateFieldErrors({});
     setIsCreating(true);
     try {
       const request = { name: createForm.name, email: createForm.email, office: createForm.office || null, role: createForm.role };
@@ -139,6 +152,7 @@ export default function UserManagementPage() {
       setCreateForm({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
       loadUsers();
     } catch (err) {
+      setCreateFieldErrors(err.response?.data?.details || {});
       setCreateError(err.response?.data?.error || 'Failed to create user');
     } finally {
       setIsCreating(false);
@@ -186,6 +200,7 @@ export default function UserManagementPage() {
 
   const handleUpdate = async () => {
     if (!selectedUser) return;
+    setActionError('');
     setIsSaving(true);
     try {
       if (editForm.role !== selectedUser.role) {
@@ -197,7 +212,7 @@ export default function UserManagementPage() {
       await loadUsers();
       setSelectedUser({ ...selectedUser, ...editForm });
     } catch {
-      alert('Failed to save changes. Please try again.');
+      setActionError('Failed to save changes. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -205,15 +220,15 @@ export default function UserManagementPage() {
 
   const handleRevoke = async () => {
     if (!selectedUser) return;
-    if (!window.confirm(`Revoke access for ${selectedUser.name}?`)) return;
     setIsSaving(true);
     try {
       await updateUserStatus(selectedUser.id, false);
       await loadUsers();
       setSelectedUser({ ...selectedUser, active: false });
       setEditForm((f) => ({ ...f, active: false }));
+      setRevokeConfirmOpen(false);
     } catch {
-      alert('Failed to revoke access. Please try again.');
+      setActionError('Failed to revoke access. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -312,7 +327,7 @@ export default function UserManagementPage() {
                   onClick={handleUpdate}
                   disabled={!selectedUser || isSaving}
                 >
-                  {isSaving ? 'Saving…' : 'Save Changes'}
+                  {isSaving ? 'Saving…' : '✓ Save Changes'}
                 </button>
               </div>
             </div>
@@ -445,23 +460,24 @@ export default function UserManagementPage() {
                 </label>
               </div>
             </div>
+            {actionError && <p className="am-alert am-alert-error">{actionError}</p>}
             <div className="ump-detail-actions">
               <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving}>
-                {isSaving ? '…' : 'Update'}
+                {isSaving ? '…' : '✓ Update'}
               </button>
               <ActionMenu
                 items={[
                   {
-                    label: 'Revoke Access',
+                    label: '🚫 Revoke Access',
                     danger: true,
                     disabled: isSaving,
-                    onClick: handleRevoke,
+                    onClick: () => setRevokeConfirmOpen(true),
                   },
                   {
-                    label: 'Delete User',
+                    label: '🗑 Delete User',
                     danger: true,
                     disabled: isSaving,
-                    onClick: handleDelete,
+                    onClick: requestDelete,
                   },
                 ]}
               />
@@ -475,18 +491,20 @@ export default function UserManagementPage() {
         )}
       </div>
 
-      <Modal isOpen={showCreateModal} onClose={() => { setShowCreateModal(false); setCreateError(''); }} title="Invite User">
+      <Modal isOpen={showCreateModal} onClose={() => { setShowCreateModal(false); setCreateError(''); setCreateFieldErrors({}); }} title="Invite User">
         <form onSubmit={handleCreateUser} noValidate>
           {createError && <p className="ump-modal-error">{createError}</p>}
           <div className="ump-modal-field">
             <label className="ump-modal-label">Full Name</label>
             <input className="ump-modal-input" value={createForm.name}
               onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))} required placeholder="e.g. Juan dela Cruz" />
+            {createFieldErrors.name && <span className="ump-field-error">{createFieldErrors.name}</span>}
           </div>
           <div className="ump-modal-field">
             <label className="ump-modal-label">Email</label>
             <input type="email" className="ump-modal-input" value={createForm.email}
               onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} required placeholder="firstname.lastname@inst.edu" />
+            {createFieldErrors.email && <span className="ump-field-error">{createFieldErrors.email}</span>}
           </div>
           <div className="ump-modal-field">
             <label className="ump-modal-label">Department / Office</label>
@@ -598,6 +616,28 @@ export default function UserManagementPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete User"
+        message={`Permanently delete ${selectedUser?.name}? This cannot be undone.`}
+        confirmLabel="Delete"
+        danger
+        busy={isSaving}
+      />
+
+      <ConfirmModal
+        isOpen={revokeConfirmOpen}
+        onClose={() => setRevokeConfirmOpen(false)}
+        onConfirm={handleRevoke}
+        title="Revoke Access"
+        message={`Revoke access for ${selectedUser?.name}?`}
+        confirmLabel="Revoke"
+        danger
+        busy={isSaving}
+      />
     </div>
   );
 }

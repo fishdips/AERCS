@@ -174,9 +174,9 @@ export default function CreateActivityPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Create</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Evidence Workflow</h1>
-        <div className="am-page-actions">
-          <Link className="am-btn-secondary" to="/activities">Back</Link>
+        <div className="am-page-header-left">
+          <Link className="am-btn-secondary" to="/activities">← Back</Link>
+          <h1 className="am-page-title">Evidence Workflow</h1>
         </div>
       </div>
 
@@ -307,7 +307,7 @@ export default function CreateActivityPage() {
 
               <div className="am-form-actions">
                 <button className="am-btn-primary" type="submit" disabled={isSubmitting || Boolean(createdActivity)}>
-                  {createdActivity ? 'Activity Created' : isSubmitting ? 'Saving...' : 'Create Activity'}
+                  {createdActivity ? '✓ Activity Created' : isSubmitting ? 'Saving...' : '+ Create Activity'}
                 </button>
               </div>
             </form>
@@ -320,8 +320,7 @@ export default function CreateActivityPage() {
           >
             <div className="am-section-heading-row">
               <div>
-                <p className="am-section-label">Upload Evidence</p>
-                <h2 className="am-section-title">Uploaded evidence files</h2>
+                <h2 className="am-section-title">Upload Evidence</h2>
               </div>
               {evidenceItems.length > 0 && <span className="am-status-pill">{evidenceItems.length} uploaded</span>}
             </div>
@@ -367,8 +366,7 @@ export default function CreateActivityPage() {
           >
             <div className="am-section-heading-row">
               <div>
-                <p className="am-section-label">Assign Metadata</p>
-                <h2 className="am-section-title">Assign metadata to selected evidence files</h2>
+                <h2 className="am-section-title">Assign Metadata</h2>
               </div>
               {metadataComplete && <span className="am-status-pill">Complete</span>}
             </div>

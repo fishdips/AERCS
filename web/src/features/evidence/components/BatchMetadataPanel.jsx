@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 
 const initialForm = {
   evidenceType: '',
@@ -28,6 +29,7 @@ export default function BatchMetadataPanel({
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(!externalEvidence);
   const [saving, setSaving] = useState(false);
+  const [overwriteConfirm, setOverwriteConfirm] = useState(false);
 
   const effectiveEvidence = externalEvidence || evidence;
   const selectedIds = controlledSelectedIds || internalSelectedIds;
@@ -109,19 +111,15 @@ export default function BatchMetadataPanel({
     setSelectedIds(nextIds);
   };
 
-  const handleSave = async (event) => {
-    event.preventDefault();
-    setError('');
-    setSuccess('');
-    if (selectedIds.length === 0) {
-      setError('Select at least one evidence file.');
-      return;
-    }
-    if (!form.evidenceType) {
-      setError('Evidence type is required.');
-      return;
-    }
+  const selectedAlreadyAssignedCount = useMemo(
+    () => selectedIds.filter((idValue) => {
+      const item = effectiveEvidence.find((candidate) => candidate.id === idValue);
+      return item && hasMetadata(item);
+    }).length,
+    [selectedIds, effectiveEvidence]
+  );
 
+  const performSave = async () => {
     setSaving(true);
     try {
       await updateEvidenceMetadataBatch({
@@ -135,12 +133,34 @@ export default function BatchMetadataPanel({
       setForm(initialForm);
       if (!externalEvidence) await loadEvidence();
       setSelectedIds([]);
+      setOverwriteConfirm(false);
       if (onSaved) onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save metadata.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    if (selectedIds.length === 0) {
+      setError('Select at least one evidence file.');
+      return;
+    }
+    if (!form.evidenceType) {
+      setError('Evidence type is required.');
+      return;
+    }
+
+    if (selectedAlreadyAssignedCount > 0) {
+      setOverwriteConfirm(true);
+      return;
+    }
+
+    await performSave();
   };
 
   return (
@@ -156,7 +176,6 @@ export default function BatchMetadataPanel({
               <div className="am-table-header-row">
                 <div>
                   <p className="am-section-label">Evidence Files <span className="am-count">{selectedCount} selected</span></p>
-                  <p className="am-helper-text">Assign metadata to selected evidence files.</p>
                 </div>
                 <button
                   className="am-btn-secondary am-btn-sm"
@@ -182,7 +201,14 @@ export default function BatchMetadataPanel({
                           onChange={() => toggleEvidence(item.id)}
                         />
                         <span>{item.originalFileName}</span>
-                        <small>{assigned ? 'Metadata Assigned — select to edit' : item.fileType}</small>
+                        <small className={assigned ? 'am-evidence-meta-assigned' : ''}>
+                          {assigned ? (
+                            <>
+                              <span className="am-evidence-meta-check" aria-hidden="true">✓</span>
+                              Assigned — select to edit
+                            </>
+                          ) : item.fileType}
+                        </small>
                       </label>
                     );
                   })}
@@ -261,11 +287,22 @@ export default function BatchMetadataPanel({
               </button>
             )}
             <button className="am-btn-primary" type="submit" disabled={saving || effectiveEvidence.length === 0 || selectedIds.length === 0}>
-              {saving ? 'Saving...' : 'Assign Metadata'}
+              {saving ? 'Saving...' : '✓ Assign Metadata'}
             </button>
           </div>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={overwriteConfirm}
+        onClose={() => setOverwriteConfirm(false)}
+        onConfirm={performSave}
+        title="Overwrite Existing Metadata"
+        message={`${selectedAlreadyAssignedCount} of the selected file${selectedAlreadyAssignedCount === 1 ? '' : 's'} already ${selectedAlreadyAssignedCount === 1 ? 'has' : 'have'} metadata assigned. Saving will replace ${selectedAlreadyAssignedCount === 1 ? 'it' : 'them'} with the values below. Continue?`}
+        confirmLabel="Overwrite"
+        danger
+        busy={saving}
+      />
     </form>
   );
 }

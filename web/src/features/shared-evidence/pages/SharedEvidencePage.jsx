@@ -6,6 +6,7 @@ import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatU
 import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import InfoTooltip from '../../../shared/components/InfoTooltip';
 import '../SharedEvidence.css';
 
 function ownerOffice(item) {
@@ -62,12 +63,11 @@ export default function SharedEvidencePage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Shared Evidence</p>
       <div className="am-page-header">
-        <div>
+        <div className="am-page-header-left">
           <h1 className="am-page-title">Shared Evidence</h1>
-          <p className="se-page-context">
-            Office-owned evidence reused by other activities.
-            {userDepartment ? ` Showing ${formatDepartment(userDepartment)} evidence only.` : ''}
-          </p>
+          <InfoTooltip
+            text={`Office-owned evidence reused by other activities.${userDepartment ? ` Showing ${formatDepartment(userDepartment)} evidence only.` : ''}`}
+          />
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export default function SharedEvidencePage() {
           </div>
 
           <button className="am-btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? 'Searching...' : '🔍 Search'}
           </button>
         </form>
 

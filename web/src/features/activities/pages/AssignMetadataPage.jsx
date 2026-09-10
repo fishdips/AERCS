@@ -54,9 +54,11 @@ export default function AssignMetadataPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Assign Metadata</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Assign Metadata</h1>
+        <div className="am-page-header-left">
+          <Link className="am-btn-secondary" to={`/activities/${id}/evidence`}>← Back</Link>
+          <h1 className="am-page-title">Assign Metadata</h1>
+        </div>
         <div className="am-page-actions">
-          <Link className="am-btn-secondary" to={`/activities/${id}/evidence`}>Back</Link>
           <Link className="am-btn-secondary" to={`/activities/${id}`}>Activity Details</Link>
         </div>
       </div>
@@ -69,9 +71,6 @@ export default function AssignMetadataPage() {
           <div className="am-workflow-main">
             <ActivitySummary activity={activity} />
             <BatchMetadataPanel activityId={activity.id} />
-            <div className="am-form-actions am-workflow-actions">
-              <Link className="am-btn-secondary" to={`/activities/${activity.id}/evidence`}>Back</Link>
-            </div>
           </div>
 
           <ActivityWorkflowSidebar

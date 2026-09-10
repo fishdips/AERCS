@@ -67,7 +67,7 @@ export default function ActivitiesListPage() {
         {canManageActivity && (
           <div style={{ position: 'relative' }}>
             <button className="am-btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
-              Documentation Type ▾
+              + New ▾
             </button>
               <div className={`am-dropdown-menu ${showDropdown ? 'open' : ''}`}>
                 <Link to="/activities/new" className="am-dropdown-item" onClick={() => setShowDropdown(false)}>Create Activity</Link>

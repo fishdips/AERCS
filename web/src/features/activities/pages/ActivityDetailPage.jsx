@@ -10,6 +10,7 @@ import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -34,6 +35,7 @@ export default function ActivityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [evidenceItems, setEvidenceItems] = useState([]);
   const [evidenceRefreshKey, setEvidenceRefreshKey] = useState(0);
 
@@ -80,7 +82,7 @@ export default function ActivityDetailPage() {
   }, []);
 
   const handleDelete = async () => {
-    if (!activity || !window.confirm(`Delete ${activity.activityName}?`)) return;
+    if (!activity) return;
 
     setIsDeleting(true);
     setError('');
@@ -98,32 +100,34 @@ export default function ActivityDetailPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Details</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Activity Details</h1>
+        <div className="am-page-header-left">
+          <Link className="am-btn-secondary" to="/activities">← Back</Link>
+          <h1 className="am-page-title">Activity Details</h1>
+        </div>
         <div className="am-page-actions">
           {activity && (
             <Link className="am-btn-secondary" to={`/activities/${activity.id}/reference-evidence`}>
-              Reference Evidence
+              🔗 Reference Evidence
             </Link>
           )}
           {activity && canManageActivity && (
             <ActionMenu
               items={[
-                { label: 'Upload Evidence', to: `/activities/${activity.id}/evidence` },
+                { label: '⬆ Upload Evidence', to: `/activities/${activity.id}/evidence` },
                 {
-                  label: 'Generate Accreditor Access',
+                  label: '🔑 Generate Accreditor Access',
                   onClick: () => setAccreditorAccessOpen(true),
                 },
-                { label: 'Edit Activity', to: `/activities/${activity.id}/edit` },
+                { label: '✎ Edit Activity', to: `/activities/${activity.id}/edit` },
                 {
-                  label: isDeleting ? 'Deleting...' : 'Delete Activity',
+                  label: isDeleting ? 'Deleting...' : '🗑 Delete Activity',
                   danger: true,
                   disabled: isDeleting,
-                  onClick: handleDelete,
+                  onClick: () => setDeleteConfirmOpen(true),
                 },
               ]}
             />
           )}
-          <Link className="am-btn-secondary" to="/activities">Back to List</Link>
         </div>
       </div>
 
@@ -210,6 +214,20 @@ export default function ActivityDetailPage() {
             onClose={() => setAccreditorAccessOpen(false)}
             activityId={activity.id}
             title="Generate Activity Evidence Access"
+          />
+
+          <ConfirmModal
+            isOpen={deleteConfirmOpen}
+            onClose={() => setDeleteConfirmOpen(false)}
+            onConfirm={async () => {
+              await handleDelete();
+              setDeleteConfirmOpen(false);
+            }}
+            title="Delete Activity"
+            message={`Delete "${activity.activityName}"? This cannot be undone.`}
+            confirmLabel="Delete"
+            danger
+            busy={isDeleting}
           />
         </div>
       )}

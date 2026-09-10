@@ -14,6 +14,7 @@ import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import Modal from '../../../shared/components/Modal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import InfoTooltip from '../../../shared/components/InfoTooltip';
 import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import {
@@ -191,13 +192,13 @@ export default function RepositoryPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Repository</p>
       <div className="am-page-header">
-        <div>
+        <div className="am-page-header-left">
           <h1 className="am-page-title">Repository</h1>
-          <p className="repo-page-context">
-            {isDeptStaff
+          <InfoTooltip
+            text={isDeptStaff
               ? 'Showing your department’s uploads and files referenced to your department.'
               : 'Global evidence explorer for finding reusable evidence before uploading duplicates.'}
-          </p>
+          />
         </div>
       </div>
 

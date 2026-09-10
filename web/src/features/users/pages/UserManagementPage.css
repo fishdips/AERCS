@@ -383,6 +383,13 @@
   padding: 0.4rem 0.65rem; margin-bottom: 0.75rem;
 }
 
+.ump-field-error {
+  display: block;
+  color: #b91c1c;
+  font-size: 0.68rem;
+  margin-top: 0.25rem;
+}
+
 .ump-modal-field { margin-bottom: 0.85rem; }
 
 .ump-modal-label {

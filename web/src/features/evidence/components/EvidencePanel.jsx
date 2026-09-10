@@ -11,6 +11,7 @@ import {
   uploadEvidence,
 } from '../api';
 import Modal from '../../../shared/components/Modal';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -110,6 +111,7 @@ export default function EvidencePanel({
   const [busyEvidenceId, setBusyEvidenceId] = useState('');
   const [pendingReplaceIndex, setPendingReplaceIndex] = useState(null);
   const [metadataEvidence, setMetadataEvidence] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const loadEvidence = useCallback(async () => {
     setLoading(true);
@@ -302,13 +304,17 @@ export default function EvidencePanel({
     }
   };
 
-  const handleDelete = async (item) => {
-    if (!window.confirm('Are you sure you want to remove this evidence?')) return;
+  const handleDelete = (item) => setDeleteTarget(item);
+
+  const confirmDelete = async () => {
+    const item = deleteTarget;
+    if (!item) return;
     setBusyEvidenceId(item.id);
     setError('');
     try {
       await deleteEvidence(item.id);
       await loadEvidence();
+      setDeleteTarget(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete evidence.');
     } finally {
@@ -406,7 +412,7 @@ export default function EvidencePanel({
               )}
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
-                  {isUploading ? 'Uploading...' : 'Upload Files'}
+                  {isUploading ? 'Uploading...' : '⬆ Upload Files'}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
                   Cancel
@@ -438,7 +444,7 @@ export default function EvidencePanel({
               </label>
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
-                  {isUploading ? 'Saving Link...' : 'Add Drive Link'}
+                  {isUploading ? 'Saving Link...' : '🔗 Add Drive Link'}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => { setLinkTitle(''); setLinkUrl(''); }} disabled={isUploading}>
                   Clear
@@ -466,7 +472,7 @@ export default function EvidencePanel({
               <th>Size</th>
               <th>Uploaded By</th>
               <th>Date</th>
-              <th className="am-ev-toggle-th">Actions</th>
+              <th className="am-ev-toggle-th"></th>
             </tr>
           </thead>
           <tbody>
@@ -486,17 +492,18 @@ export default function EvidencePanel({
                       )}
                       <div>
                         <span className="am-evidence-name">{item.originalFileName}</span>
+                        {hasMetadata(item) && (
+                          <span className="am-evidence-meta am-evidence-meta-assigned">
+                            <span className="am-evidence-meta-check" aria-hidden="true">✓</span>
+                            {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata assigned'}
+                            {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
+                            {item.relatedOffices?.length
+                              ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
+                              : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {hasMetadata(item) && (
-                      <span className="am-evidence-meta">
-                        Metadata Assigned{item.evidenceType ? ` · ${formatEvidenceType(item.evidenceType)}` : ''}
-                        {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
-                        {item.relatedOffices?.length
-                          ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
-                          : ''}
-                      </span>
-                    )}
                   </td>
                   <td>{item.fileType === 'LINK' ? 'LINK' : item.fileType}</td>
                   <td>{formatFileSize(item.fileSize, item.fileType)}</td>
@@ -506,17 +513,17 @@ export default function EvidencePanel({
                     <ActionMenu
                       items={[
                         canManageItem(item) && !hideMetadataActions && {
-                          label: 'View Details',
+                          label: '👁 View Details',
                           disabled: managementLocked,
                           onClick: () => setMetadataEvidence(item),
                         },
                         (item.fileType === 'LINK' || item.linkUrl) && {
-                          label: 'Open Link',
+                          label: '🔗 Open Link',
                           disabled: managementLocked,
                           onClick: () => handleView(item),
                         },
                         canManageItem(item) && (item.fileType === 'LINK' || item.linkUrl) && {
-                          label: 'Edit Link',
+                          label: '✎ Edit Link',
                           disabled: managementLocked,
                           onClick: () => setEditLinkModal({
                             isOpen: true,
@@ -526,12 +533,12 @@ export default function EvidencePanel({
                           }),
                         },
                         PREVIEW_TYPES.includes(item.fileType) && {
-                          label: 'Open Preview',
+                          label: '👁 Open Preview',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleView(item),
                         },
                         item.fileType !== 'LINK' && !item.linkUrl && {
-                          label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
+                          label: busyEvidenceId === item.id ? 'Downloading...' : '⬇ Download',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDownload(item),
                         },
@@ -539,7 +546,7 @@ export default function EvidencePanel({
                           key: 'replace',
                           render: ({ className, close }) => (
                             <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
-                              Replace File
+                              ⇄ Replace File
                               <input
                                 className="am-hidden-input"
                                 type="file"
@@ -554,7 +561,7 @@ export default function EvidencePanel({
                           ),
                         },
                         canManageItem(item) && {
-                          label: 'Delete',
+                          label: '🗑 Delete',
                           danger: true,
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDelete(item),
@@ -657,6 +664,17 @@ export default function EvidencePanel({
         isOpen={Boolean(metadataEvidence)}
         onClose={() => setMetadataEvidence(null)}
         onSaved={loadEvidence}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Remove Evidence"
+        message={`Remove "${deleteTarget?.originalFileName || ''}"? This cannot be undone.`}
+        confirmLabel="Remove"
+        danger
+        busy={Boolean(busyEvidenceId)}
       />
     </aside>
   );

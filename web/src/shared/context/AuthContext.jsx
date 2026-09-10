@@ -1,14 +1,15 @@
-import { createContext, useCallback, useState } from 'react';
+import { createContext, useCallback, useEffect, useState } from 'react';
 import { getMe, logout as apiLogout } from '../api/auth';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Deliberately not auto-checked on mount: a valid session cookie must never
-  // sign someone in without them submitting the login form.
+  // Checked once on mount (and after login/logout) so an existing session
+  // cookie keeps the user signed in across a page refresh, instead of
+  // forcing a fresh login every time the app reloads.
   const refreshUser = useCallback(async () => {
     try {
       const { data } = await getMe();
@@ -19,6 +20,10 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   const logout = useCallback(async () => {
     await apiLogout();

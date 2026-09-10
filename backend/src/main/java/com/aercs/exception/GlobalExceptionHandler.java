@@ -64,8 +64,16 @@ public class GlobalExceptionHandler {
         e.getBindingResult().getFieldErrors()
                 .forEach(fe -> fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
 
+        // The top-level "error" is shown as-is by forms that don't render per-field
+        // "details", so it needs to name the actual problem rather than just say
+        // "Validation failed" - which told the user nothing was wrong except that
+        // something was.
+        String topMessage = fieldErrors.size() == 1
+                ? fieldErrors.values().iterator().next()
+                : "Please fix the following: " + String.join("; ", fieldErrors.values());
+
         Map<String, Object> body = new HashMap<>();
-        body.put("error", "Validation failed");
+        body.put("error", topMessage);
         body.put("details", fieldErrors);
         return ResponseEntity.badRequest().body(body);
     }

@@ -258,11 +258,11 @@ export default function EditActivityPage() {
             </label>
           </div>
 
-          <div className="am-form-actions">
-            <button className="am-btn-primary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </button>
+          <div className="am-form-actions am-workflow-actions">
             <Link className="am-btn-secondary" to={`/activities/${id}`}>Cancel</Link>
+            <button className="am-btn-primary" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : '✓ Save Changes'}
+            </button>
           </div>
         </form>
       )}
