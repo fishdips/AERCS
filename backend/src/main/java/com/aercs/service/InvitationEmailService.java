@@ -5,25 +5,32 @@ import com.aercs.exception.InvitationEmailException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
+import java.util.List;
+import java.util.Map;
+
+// Sends via the Resend HTTP API (port 443) instead of raw SMTP - Render's outbound
+// network does not allow SMTP traffic (confirmed: both Office365 and Gmail SMTP
+// time out from the deployed backend), so JavaMailSender never worked in production.
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class InvitationEmailService {
-    private final JavaMailSender mailSender;
+
+    private final RestClient.Builder restClientBuilder;
 
     @Value("${app.mail.from}")
     private String fromAddress;
 
+    @Value("${app.resend.api-key}")
+    private String resendApiKey;
+
     public void sendInvitation(User user, String temporaryPassword) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromAddress);
-        message.setTo(user.getEmail());
-        message.setSubject("Your AERCS account has been created");
-        message.setText("""
+        String text = """
                 Hello %s,
 
                 An AERCS account has been created for you.
@@ -33,22 +40,14 @@ public class InvitationEmailService {
 
                 Sign in with this temporary password and change it immediately when prompted.
                 If you were not expecting this account, please contact your AERCS administrator.
-                """.formatted(user.getName(), user.getEmail(), temporaryPassword));
+                """.formatted(user.getName(), user.getEmail(), temporaryPassword);
 
-        try {
-            mailSender.send(message);
-        } catch (RuntimeException e) {
-            log.error("Failed to send invitation email to {}", user.getEmail(), e);
-            throw new InvitationEmailException("The account invitation email could not be sent. Check the mail configuration and try again.", e);
-        }
+        send(user.getEmail(), "Your AERCS account has been created", text,
+                "The account invitation email could not be sent. Check the mail configuration and try again.");
     }
 
     public void sendPasswordReset(User user, String resetUrl) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromAddress);
-        message.setTo(user.getEmail());
-        message.setSubject("Reset your AERCS password");
-        message.setText("""
+        String text = """
                 Hello %s,
 
                 We received a request to reset your AERCS password. Click the link below to choose a new one:
@@ -57,13 +56,30 @@ public class InvitationEmailService {
 
                 This link expires in 1 hour. If you didn't request this, you can safely ignore this email —
                 your password will not be changed.
-                """.formatted(user.getName(), resetUrl));
+                """.formatted(user.getName(), resetUrl);
 
+        send(user.getEmail(), "Reset your AERCS password", text,
+                "The password reset email could not be sent. Check the mail configuration and try again.");
+    }
+
+    private void send(String to, String subject, String text, String failureMessage) {
         try {
-            mailSender.send(message);
-        } catch (RuntimeException e) {
-            log.error("Failed to send password reset email to {}", user.getEmail(), e);
-            throw new InvitationEmailException("The password reset email could not be sent. Check the mail configuration and try again.", e);
+            restClientBuilder.build()
+                    .post()
+                    .uri("https://api.resend.com/emails")
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "from", fromAddress,
+                            "to", List.of(to),
+                            "subject", subject,
+                            "text", text
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            log.error("Failed to send email to {}", to, e);
+            throw new InvitationEmailException(failureMessage, e);
         }
     }
 }
