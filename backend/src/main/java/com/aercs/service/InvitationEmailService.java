@@ -3,6 +3,7 @@ package com.aercs.service;
 import com.aercs.entity.User;
 import com.aercs.exception.InvitationEmailException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InvitationEmailService {
     private final JavaMailSender mailSender;
 
@@ -36,6 +38,7 @@ public class InvitationEmailService {
         try {
             mailSender.send(message);
         } catch (RuntimeException e) {
+            log.error("Failed to send invitation email to {}", user.getEmail(), e);
             throw new InvitationEmailException("The account invitation email could not be sent. Check the mail configuration and try again.", e);
         }
     }
@@ -59,6 +62,7 @@ public class InvitationEmailService {
         try {
             mailSender.send(message);
         } catch (RuntimeException e) {
+            log.error("Failed to send password reset email to {}", user.getEmail(), e);
             throw new InvitationEmailException("The password reset email could not be sent. Check the mail configuration and try again.", e);
         }
     }
