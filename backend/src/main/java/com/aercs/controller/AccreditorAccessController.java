@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import com.aercs.entity.User;
+import com.aercs.repository.UserRepository;
+
 @RestController
 @RequiredArgsConstructor
 public class AccreditorAccessController {
@@ -29,6 +32,7 @@ public class AccreditorAccessController {
     private static final String WRITE_ROLES = "hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
 
     private final AccreditorAccessService accreditorAccessService;
+    private final UserRepository userRepository;
 
     @PostMapping("/api/accreditor-access/generate")
     @PreAuthorize(WRITE_ROLES)
@@ -37,7 +41,7 @@ public class AccreditorAccessController {
             @AuthenticationPrincipal UserDetails userDetails,
             HttpServletRequest servletRequest
     ) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         String frontendOrigin = servletRequest.getHeader("Origin");
         return ResponseEntity.ok(accreditorAccessService.generateAccess(request, currentUserId, frontendOrigin));
     }
@@ -50,7 +54,7 @@ public class AccreditorAccessController {
             @AuthenticationPrincipal UserDetails userDetails,
             HttpServletRequest servletRequest
     ) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         String frontendOrigin = servletRequest.getHeader("Origin");
         return ResponseEntity.ok(accreditorAccessService.extendExpiry(id, request, currentUserId, frontendOrigin));
     }
@@ -61,7 +65,7 @@ public class AccreditorAccessController {
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         accreditorAccessService.deleteAccess(id, currentUserId);
         return ResponseEntity.noContent().build();
     }
@@ -95,5 +99,12 @@ public class AccreditorAccessController {
                         .build()
                         .toString())
                 .body(download.resource());
+    }
+
+    private UUID resolveUserId(UserDetails userDetails) {
+        if (userDetails == null || userDetails.getUsername() == null) return null;
+        return userRepository.findByIdentifier(userDetails.getUsername())
+                .map(User::getId)
+                .orElse(null);
     }
 }

@@ -130,7 +130,7 @@ public class AuthService {
     }
 
     private User findUserById(String userId) {
-        return userRepository.findById(UUID.fromString(userId))
+        return userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 

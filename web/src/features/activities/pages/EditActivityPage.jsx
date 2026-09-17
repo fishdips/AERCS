@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
-import { ACCREDITATION_AREAS, ACTIVITY_TYPES, OFFICES, formatDepartment, todayLocalISO } from '../constants';
+import { ACCREDITATION_AREAS, ACTIVITY_TYPES, ALL_OFFICES, OFFICES, SERVICE_OFFICES, formatDepartment, todayLocalISO } from '../constants';
 
 const initialForm = {
   activityName: '',
@@ -18,7 +18,7 @@ const initialForm = {
 };
 
 function isKnownOffice(value) {
-  return OFFICES.some((office) => office.value === value);
+  return ALL_OFFICES.some((office) => office.value === value);
 }
 
 export default function EditActivityPage() {
@@ -196,8 +196,8 @@ export default function EditActivityPage() {
             </label>
 
             <label className="am-form-field">
-              <span className="am-form-label">Department <span className="am-required">*</span></span>
-              <input className="am-input" value={formatDepartment(form.department)} readOnly disabled />
+              <span className="am-form-label">Department/Office Owner <span className="am-required">*</span></span>
+              <input className="am-input" value={formatDepartment(form.office || form.department)} readOnly disabled />
               {errors.department && <span className="am-field-error">{errors.department}</span>}
             </label>
 
@@ -212,9 +212,17 @@ export default function EditActivityPage() {
                 }}
               >
                 <option value="">Select office</option>
-                {OFFICES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
+                <optgroup label="Office">
+                  {OFFICES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Service Office">
+                  {SERVICE_OFFICES.map((so) => (
+                    <option key={so.value} value={so.value}>{so.label}</option>
+                  ))}
+                </optgroup>
+                <option value="OTHER">Other</option>
               </select>
               {errors.office && <span className="am-field-error">{errors.office}</span>}
             </label>

@@ -47,7 +47,7 @@ public class EvidenceService {
         if (files == null || files.isEmpty()) {
             throw new BadRequestException("Select at least one evidence file");
         }
-        User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
         return files.stream()
                 .map(file -> saveEvidenceFile(activity, file, uploadedBy))
                 .map(this::toResponse)
@@ -57,7 +57,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse createLinkEvidence(UUID activityId, CreateLinkEvidenceRequest request, String userId) {
         Activity activity = findActivity(activityId);
-        User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
 
         Evidence evidence = new Evidence();
         evidence.setActivity(activity);
@@ -75,7 +75,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse updateLinkEvidence(UUID evidenceId, UpdateLinkEvidenceRequest request, String userId) {
         Evidence evidence = findEvidence(evidenceId);
-        assertCanModify(evidence, UUID.fromString(userId));
+        assertCanModify(evidence, userId);
 
         evidence.setOriginalFileName(trimToNull(request.title()) != null ? request.title().trim() : "Google Drive Link");
         evidence.setLinkUrl(request.linkUrl().trim());
@@ -171,7 +171,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String userId) {
         Evidence evidence = findEvidence(evidenceId);
-        assertCanModify(evidence, UUID.fromString(userId));
+        assertCanModify(evidence, userId);
         validateFile(file);
 
         String oldPath = evidence.getFilePath();
@@ -192,7 +192,7 @@ public class EvidenceService {
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
         evidence.setUpdatedAt(OffsetDateTime.now());
-        userRepository.findById(UUID.fromString(userId)).ifPresent(evidence::setUploadedBy);
+        userRepository.findByIdentifier(userId).ifPresent(evidence::setUploadedBy);
 
         Evidence saved = evidenceRepository.save(evidence);
         if (oldPath != null && !oldPath.isBlank()) {
@@ -381,8 +381,8 @@ public class EvidenceService {
         return null;
     }
 
-    private void assertCanModify(Evidence evidence, UUID currentUserId) {
-        User currentUser = userRepository.findById(currentUserId).orElse(null);
+    private void assertCanModify(Evidence evidence, String userIdOrIdentifier) {
+        User currentUser = userRepository.findByIdentifier(userIdOrIdentifier).orElse(null);
         if (currentUser == null) throw new ForbiddenException("User not found");
 
         boolean isAdmin = currentUser.getRole() == com.aercs.entity.UserRole.ADMIN
@@ -390,9 +390,13 @@ public class EvidenceService {
         if (isAdmin) return;
 
         User uploader = evidence.getUploadedBy();
-        if (uploader == null || !uploader.getId().equals(currentUserId)) {
+        if (uploader == null || !uploader.getId().equals(currentUser.getId())) {
             throw new ForbiddenException("Only the uploader can modify this evidence");
         }
+    }
+
+    private void assertCanModify(Evidence evidence, UUID currentUserId) {
+        assertCanModify(evidence, currentUserId != null ? currentUserId.toString() : null);
     }
 
     public record EvidenceDownload(String originalFileName, String fileType, long fileSize, MediaType mediaType, Resource resource) {}

@@ -68,22 +68,40 @@ export const DEPARTMENTS = [
 export const OFFICES = [
   { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
   { value: 'RESEARCH_OFFICE', label: 'Research Office' },
-  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
+  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
+  { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
+];
+
+export const SERVICE_OFFICES = [
+  { value: 'STUDENT_SUCCESS_OFFICE', label: 'Student Success Office' },
   { value: 'REGISTRARS_OFFICE', label: 'Registrar\u2019s Office' },
   { value: 'LIBRARY', label: 'Library' },
+  { value: 'GUIDANCE_CENTER', label: 'Guidance Center' },
+  { value: 'MEDICAL_DENTAL_CLINIC', label: 'Medical-Dental Clinic' },
+  { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
+  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
+  { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
+];
+
+export const ALL_OFFICES = [
+  ...OFFICES,
+  ...SERVICE_OFFICES,
+  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
   { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
-  { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
-  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
   { value: 'OTHER', label: 'Other' },
 ];
 
 export function formatDepartment(value) {
-  const option = DEPARTMENTS.find((d) => d.value === value);
-  return option ? option.label : (value || '-');
+  if (!value) return '-';
+  const dept = DEPARTMENTS.find((d) => d.value === value);
+  if (dept) return dept.label;
+  const office = ALL_OFFICES.find((o) => o.value === value);
+  if (office) return office.label;
+  return value;
 }
 
 export function formatOffice(value) {
-  const option = OFFICES.find((o) => o.value === value);
+  const option = ALL_OFFICES.find((o) => o.value === value);
   return option ? option.label : (value || '-');
 }
 
@@ -99,15 +117,20 @@ export function isDepartmentValue(value) {
   return DEPARTMENTS.some((d) => d.value === value);
 }
 
+export function isServiceOfficeValue(value) {
+  if (!value) return false;
+  return SERVICE_OFFICES.some((so) => so.value === value);
+}
+
 export function resolveUserDepartment(user) {
-  return user?.office && isDepartmentValue(user.office) ? user.office : null;
+  return user?.office || null;
 }
 
 export function formatUserOffice(value) {
   if (!value) return '-';
   const dept = DEPARTMENTS.find((d) => d.value === value);
   if (dept) return dept.label;
-  const office = OFFICES.find((o) => o.value === value);
+  const office = ALL_OFFICES.find((o) => o.value === value);
   if (office) return office.label;
   return value;
 }

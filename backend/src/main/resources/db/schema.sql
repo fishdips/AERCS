@@ -30,11 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_users_office
-        CHECK (office IS NULL OR office IN (
-            'CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ',
-            'QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE',
-            'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'
-        ))
+        CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -57,7 +53,7 @@ CREATE TABLE IF NOT EXISTS activities (
     CONSTRAINT chk_activities_activity_type
         CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER')),
     CONSTRAINT chk_activities_department
-        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
+        CHECK (department IS NULL OR LENGTH(TRIM(department)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_office
         CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_department_or_office

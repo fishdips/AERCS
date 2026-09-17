@@ -67,7 +67,7 @@ public class UserService {
         user.setActive(true);
         user.setMustChangePw(true);
 
-        userRepository.findById(UUID.fromString(adminId)).ifPresent(user::setCreatedBy);
+        userRepository.findByIdentifier(adminId).ifPresent(user::setCreatedBy);
 
         User saved = userRepository.save(user);
         invitationEmailService.sendInvitation(saved, tempPassword);
@@ -119,9 +119,11 @@ public class UserService {
 
     @Transactional
     public void deleteUser(UUID userId, String requestingAdminId) {
-        if (userId.equals(UUID.fromString(requestingAdminId))) {
-            throw new BadRequestException("You cannot delete your own account");
-        }
+        userRepository.findByIdentifier(requestingAdminId).ifPresent(admin -> {
+            if (userId.equals(admin.getId())) {
+                throw new BadRequestException("You cannot delete your own account");
+            }
+        });
         User user = findUserById(userId);
         userRepository.delete(user);
     }

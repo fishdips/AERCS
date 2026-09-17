@@ -43,11 +43,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 );
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
-            } catch (UsernameNotFoundException e) {
-                // Valid signature, but the account it points to no longer exists
-                // (e.g. deleted since the cookie was issued). Treat the request
-                // as unauthenticated instead of crashing with a 500.
-                log.debug("JWT referenced a user that no longer exists: {}", userId);
+            } catch (Exception e) {
+                // Valid signature, but the account it points to no longer exists or is invalid
+                // Treat the request as unauthenticated instead of crashing with a 500.
+                log.debug("JWT referenced a user that could not be loaded: {}", userId);
                 SecurityContextHolder.clearContext();
             }
         }

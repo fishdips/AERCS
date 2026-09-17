@@ -47,12 +47,18 @@ public class SharedEvidenceService {
 
         OFFICE_TO_RELATED.put(Office.QUALITY_ASSURANCE_OFFICE, RelatedOffice.QUALITY_ASSURANCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.RESEARCH_OFFICE, RelatedOffice.RESEARCH_OFFICE);
-        OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
+        OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
+        OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
+        OFFICE_TO_RELATED.put(Office.STUDENT_SUCCESS_OFFICE, RelatedOffice.STUDENT_SUCCESS_OFFICE);
         OFFICE_TO_RELATED.put(Office.REGISTRARS_OFFICE, RelatedOffice.REGISTRARS_OFFICE);
         OFFICE_TO_RELATED.put(Office.LIBRARY, RelatedOffice.LIBRARY);
+        OFFICE_TO_RELATED.put(Office.GUIDANCE_CENTER, RelatedOffice.GUIDANCE_CENTER);
+        OFFICE_TO_RELATED.put(Office.MEDICAL_DENTAL_CLINIC, RelatedOffice.MEDICAL_DENTAL_CLINIC);
+        OFFICE_TO_RELATED.put(Office.TECHNICAL_SUPPORT_GROUP, RelatedOffice.TECHNICAL_SUPPORT_GROUP);
+        OFFICE_TO_RELATED.put(Office.SAFETY_AND_SECURITY, RelatedOffice.SAFETY_AND_SECURITY);
+        OFFICE_TO_RELATED.put(Office.ADMISSIONS_AND_SCHOLARSHIPS, RelatedOffice.ADMISSIONS_AND_SCHOLARSHIPS);
+        OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
         OFFICE_TO_RELATED.put(Office.STUDENT_AFFAIRS_OFFICE, RelatedOffice.STUDENT_AFFAIRS_OFFICE);
-        OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
-        OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
     }
 
     @Transactional(readOnly = true)
@@ -262,18 +268,26 @@ public class SharedEvidenceService {
             Join<Evidence, Activity> act = root.join("activity", JoinType.INNER);
             List<Predicate> predicates = new ArrayList<>();
 
-            // DEPT_STAFF: restrict to own department's files OR files referenced to their dept
+            List<String> serviceOffices = List.of(
+                    "STUDENT_SUCCESS_OFFICE", "REGISTRARS_OFFICE", "LIBRARY", "GUIDANCE_CENTER",
+                    "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP", "SAFETY_AND_SECURITY", "ADMISSIONS_AND_SCHOLARSHIPS"
+            );
+            Predicate isServiceOfficeFile = act.get("office").in(serviceOffices);
+
+            // DEPT_STAFF: restrict to own department's files, files referenced to their dept, OR Service Office files (public to all)
             if (viewerDepartment != null) {
                 Predicate ownDept = cb.equal(act.get("department"), viewerDepartment);
+                List<Predicate> visPredicates = new ArrayList<>();
+                visPredicates.add(ownDept);
+                visPredicates.add(isServiceOfficeFile);
                 if (viewerRelatedOffice != null) {
                     Predicate referenced = cb.and(
                             cb.isNotNull(root.get("relatedOffices")),
                             cb.like(root.get("relatedOffices"), "%" + viewerRelatedOffice.name() + "%")
                     );
-                    predicates.add(cb.or(ownDept, referenced));
-                } else {
-                    predicates.add(ownDept);
+                    visPredicates.add(referenced);
                 }
+                predicates.add(cb.or(visPredicates.toArray(new Predicate[0])));
             }
 
             if (areas != null && !areas.isEmpty()) {

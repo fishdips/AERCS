@@ -57,31 +57,36 @@ public class DashboardService {
 
         OFFICE_TO_RELATED.put(Office.QUALITY_ASSURANCE_OFFICE, RelatedOffice.QUALITY_ASSURANCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.RESEARCH_OFFICE, RelatedOffice.RESEARCH_OFFICE);
-        OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
+        OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
+        OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
+        OFFICE_TO_RELATED.put(Office.STUDENT_SUCCESS_OFFICE, RelatedOffice.STUDENT_SUCCESS_OFFICE);
         OFFICE_TO_RELATED.put(Office.REGISTRARS_OFFICE, RelatedOffice.REGISTRARS_OFFICE);
         OFFICE_TO_RELATED.put(Office.LIBRARY, RelatedOffice.LIBRARY);
+        OFFICE_TO_RELATED.put(Office.GUIDANCE_CENTER, RelatedOffice.GUIDANCE_CENTER);
+        OFFICE_TO_RELATED.put(Office.MEDICAL_DENTAL_CLINIC, RelatedOffice.MEDICAL_DENTAL_CLINIC);
+        OFFICE_TO_RELATED.put(Office.TECHNICAL_SUPPORT_GROUP, RelatedOffice.TECHNICAL_SUPPORT_GROUP);
+        OFFICE_TO_RELATED.put(Office.SAFETY_AND_SECURITY, RelatedOffice.SAFETY_AND_SECURITY);
+        OFFICE_TO_RELATED.put(Office.ADMISSIONS_AND_SCHOLARSHIPS, RelatedOffice.ADMISSIONS_AND_SCHOLARSHIPS);
+        OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
         OFFICE_TO_RELATED.put(Office.STUDENT_AFFAIRS_OFFICE, RelatedOffice.STUDENT_AFFAIRS_OFFICE);
-        OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
-        OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
     }
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary(String userId, String frontendOrigin) {
-        User user = userRepository.findById(UUID.fromString(userId))
+        User user = userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         boolean canViewAll = canViewAll(user.getRole());
-        Department scopeDepartment = canViewAll ? null : user.resolveDepartment();
 
-        List<Activity> activities = canViewAll
-                ? activityRepository.findAll()
-                : scopeDepartment == null ? List.of() : activityRepository.findByDepartment(scopeDepartment);
+        List<Activity> activities = activityRepository.findAll().stream()
+                .filter(activity -> isVisibleToUser(activity, user))
+                .toList();
 
         List<UUID> activityIds = activities.stream().map(Activity::getId).toList();
 
-        List<Evidence> evidence = canViewAll
-                ? evidenceRepository.findAll()
-                : activityIds.isEmpty() ? List.<Evidence>of() : evidenceRepository.findByActivityIdIn(activityIds);
+        List<Evidence> evidence = activityIds.isEmpty()
+                ? List.<Evidence>of()
+                : evidenceRepository.findByActivityIdIn(activityIds);
 
         Map<UUID, List<Evidence>> evidenceByActivity = evidence.stream()
                 .collect(Collectors.groupingBy(e -> e.getActivity().getId()));
@@ -171,6 +176,48 @@ public class DashboardService {
         return role == UserRole.ADMIN
                 || role == UserRole.ACCRED_COORDINATOR
                 || role == UserRole.INSTITUTIONAL_OFFICE;
+    }
+
+    private boolean isVisibleToUser(Activity activity, User user) {
+        if (activity == null || user == null) {
+            return false;
+        }
+        if (canViewAll(user.getRole())) {
+            return true;
+        }
+        if (isServiceOfficeActivity(activity)) {
+            return true;
+        }
+        Department userDept = user.resolveDepartment();
+        if (userDept != null && userDept == activity.getDepartment()) {
+            return true;
+        }
+        String userOffice = user.getOffice();
+        if (userOffice != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isServiceOfficeActivity(Activity activity) {
+        if (activity == null) return false;
+        try {
+            User creator = activity.getCreatedBy();
+            if (creator != null && creator.isServiceOfficeUser()) {
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        if (activity.getOffice() != null) {
+            try {
+                Office officeEnum = Office.valueOf(activity.getOffice());
+                if (officeEnum != null && officeEnum.isServiceOffice()) {
+                    return true;
+                }
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return false;
     }
 
     private boolean hasMetadata(Evidence evidence) {

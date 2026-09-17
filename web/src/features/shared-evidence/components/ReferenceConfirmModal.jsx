@@ -4,6 +4,7 @@ import {
   ACCREDITATION_AREAS,
   DEPARTMENTS,
   OFFICES,
+  SERVICE_OFFICES,
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
@@ -54,7 +55,7 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
 
   if (!evidence || !activity) return null;
 
-  const officeOptions = [...DEPARTMENTS, ...OFFICES];
+  const officeOptions = [...DEPARTMENTS, ...OFFICES, ...SERVICE_OFFICES];
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Confirm Reference">

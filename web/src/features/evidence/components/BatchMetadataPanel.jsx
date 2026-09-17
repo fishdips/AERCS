@@ -217,7 +217,7 @@ export default function BatchMetadataPanel({
 
               {selectedIds.length > 0 && (
                 <div className="am-selection-tools">
-                  <button className="am-tertiary-danger" type="button" onClick={() => setSelectedIds([])}>
+                  <button className="am-btn-secondary" type="button" onClick={() => setSelectedIds([])}>
                     Clear Selection
                   </button>
                 </div>
@@ -281,8 +281,13 @@ export default function BatchMetadataPanel({
           </section>
 
           <div className="am-form-actions am-workflow-actions">
+            {selectedIds.length === 0 && selectableEvidence.length > 0 && (
+              <span className="am-field-hint" style={{ color: '#d97706', alignSelf: 'center', marginRight: 'auto', fontWeight: 500 }}>
+                ⚠️ Check at least one evidence file in the table above to assign metadata.
+              </span>
+            )}
             {hideEvidenceSelection && selectedIds.length > 0 && (
-              <button className="am-tertiary-danger" type="button" onClick={() => setSelectedIds([])}>
+              <button className="am-btn-secondary" type="button" onClick={() => setSelectedIds([])}>
                 Clear Selection
               </button>
             )}

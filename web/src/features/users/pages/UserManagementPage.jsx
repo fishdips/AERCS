@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createUser, createUsersBatch, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
-import { DEPARTMENTS, OFFICES, formatUserOffice } from '../../activities/constants';
+import { DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatUserOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
@@ -12,6 +12,7 @@ import './UserManagementPage.css';
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
 const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
+const USER_SERVICE_OFFICES = SERVICE_OFFICES.filter((office) => office.value !== 'OTHER');
 
 function DeptOfficeOptions() {
   return (
@@ -22,6 +23,9 @@ function DeptOfficeOptions() {
       </optgroup>
       <optgroup label="Office">
         {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </optgroup>
+      <optgroup label="Service Office">
+        {USER_SERVICE_OFFICES.map((so) => <option key={so.value} value={so.value}>{so.label}</option>)}
       </optgroup>
     </>
   );

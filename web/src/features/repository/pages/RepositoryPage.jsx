@@ -5,6 +5,7 @@ import {
   ACCREDITATION_AREAS,
   DEPARTMENTS,
   OFFICES,
+  SERVICE_OFFICES,
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
@@ -31,7 +32,6 @@ import { searchRepository } from '../api';
 import '../Repository.css';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
-const ALL_OFFICES = [...DEPARTMENTS, ...OFFICES];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatFileSize(size, fileType) {
@@ -234,9 +234,21 @@ export default function RepositoryPage() {
                 <p className="repo-filter-label">Owner Office</p>
                 <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
                   <option value="">All offices</option>
-                  {ALL_OFFICES.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
+                  <optgroup label="Department">
+                    {DEPARTMENTS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Office">
+                    {OFFICES.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Service Office">
+                    {SERVICE_OFFICES.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             )}
