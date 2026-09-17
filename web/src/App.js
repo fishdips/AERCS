@@ -33,6 +33,7 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/accreditor-access/:token" element={<AccreditorAccessPage />} />
+          <Route path="/a/:token" element={<AccreditorAccessPage />} />
 
           {/* Admin only */}
           <Route

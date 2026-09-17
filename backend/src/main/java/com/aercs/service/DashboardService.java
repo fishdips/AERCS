@@ -256,7 +256,7 @@ public class DashboardService {
         return new DashboardAccreditorAccessItem(
                 access.getId(),
                 access.getToken(),
-                origin + "/accreditor-access/" + access.getToken(),
+                origin + "/a/" + access.getToken(),
                 activity != null ? activity.getId() : null,
                 activity != null ? activity.getActivityName() : null,
                 access.getExpiresAt()

@@ -18,6 +18,7 @@ export default function GenerateAccreditorAccessModal({
   activityId,
   title = 'Generate Accreditor Access',
 }) {
+  const [accreditorEmail, setAccreditorEmail] = useState('');
   const [expiration, setExpiration] = useState(defaultExpiration());
   const [notes, setNotes] = useState('');
   const [generated, setGenerated] = useState(null);
@@ -29,16 +30,22 @@ export default function GenerateAccreditorAccessModal({
     setGenerated(null);
     setCopied(false);
     setError('');
+    setAccreditorEmail('');
     setNotes('');
     setExpiration(defaultExpiration());
     onClose();
   };
 
   const handleGenerate = async () => {
+    if (!accreditorEmail.trim()) {
+      setError('Enter the accreditor email address.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const payload = {
+        accreditorEmail: accreditorEmail.trim(),
         expirationDateTime: expiration ? new Date(expiration).toISOString() : null,
         notes: notes || null,
       };
@@ -76,6 +83,19 @@ export default function GenerateAccreditorAccessModal({
         </div>
 
         <div className="am-form-field">
+          <label className="am-form-label" htmlFor="aa-accreditor-email">Accreditor Email</label>
+          <input
+            id="aa-accreditor-email"
+            className="am-input"
+            type="email"
+            value={accreditorEmail}
+            onChange={(e) => setAccreditorEmail(e.target.value)}
+            placeholder="accreditor@example.com"
+            required
+          />
+        </div>
+
+        <div className="am-form-field">
           <label className="am-form-label" htmlFor="aa-expiration">Expires At</label>
           <input
             id="aa-expiration"
@@ -106,6 +126,7 @@ export default function GenerateAccreditorAccessModal({
             <small>
               {generated.evidenceCount} file(s) · Expires {new Date(generated.expiresAt).toLocaleString()}
             </small>
+            <small>Sent to {accreditorEmail}</small>
             <button className="am-btn-secondary" type="button" onClick={copyLink}>
               {copied ? 'Copied' : 'Copy Link'}
             </button>

@@ -114,6 +114,11 @@ CREATE INDEX IF NOT EXISTS idx_evidence_references_referenced_by_id ON evidence_
 CREATE TABLE IF NOT EXISTS accreditor_access (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     token       VARCHAR(128) NOT NULL UNIQUE,
+    accreditor_email VARCHAR(150),
+    otp_hash    VARCHAR(255),
+    otp_expires_at TIMESTAMPTZ,
+    verified_session_hash VARCHAR(255),
+    verified_session_expires_at TIMESTAMPTZ,
     created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
     activity_id UUID REFERENCES activities(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),

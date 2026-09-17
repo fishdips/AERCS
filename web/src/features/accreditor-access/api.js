@@ -12,6 +12,12 @@ export const deleteAccreditorAccess = (id) =>
 export const getPublicAccreditorAccess = (token) =>
   api.get(`/api/public/accreditor-access/${token}`);
 
+export const requestAccreditorOtp = (token) =>
+  api.post(`/api/public/accreditor-access/${token}/otp`);
+
+export const verifyAccreditorOtp = (token, code) =>
+  api.post(`/api/public/accreditor-access/${token}/otp/verify`, { code });
+
 export const getPublicEvidenceViewUrl = (token, evidenceId) =>
   `${api.defaults.baseURL}/api/public/accreditor-access/${token}/evidence/${evidenceId}/view`;
 

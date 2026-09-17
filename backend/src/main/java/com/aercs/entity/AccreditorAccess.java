@@ -27,6 +27,21 @@ public class AccreditorAccess {
     @Column(name = "token", nullable = false, unique = true, length = 128)
     private String token;
 
+    @Column(name = "accreditor_email", length = 150)
+    private String accreditorEmail;
+
+    @Column(name = "otp_hash", length = 255)
+    private String otpHash;
+
+    @Column(name = "otp_expires_at")
+    private OffsetDateTime otpExpiresAt;
+
+    @Column(name = "verified_session_hash", length = 255)
+    private String verifiedSessionHash;
+
+    @Column(name = "verified_session_expires_at")
+    private OffsetDateTime verifiedSessionExpiresAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     @OnDelete(action = OnDeleteAction.SET_NULL)
