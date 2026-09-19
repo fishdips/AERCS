@@ -185,39 +185,54 @@ public class DashboardService {
         if (canViewAll(user.getRole())) {
             return true;
         }
-        if (isServiceOfficeActivity(activity)) {
-            return true;
+
+        Office serviceOffice = resolveServiceOffice(activity);
+        if (serviceOffice != null) {
+            if (user.resolveDepartment() != null) {
+                return true;
+            }
+            Office userOffice = user.resolveOffice();
+            if (userOffice != null && userOffice == serviceOffice) {
+                return true;
+            }
+            String userOfficeStr = user.getOffice();
+            String actOfficeStr = activity.getOffice();
+            if (userOfficeStr != null && actOfficeStr != null && userOfficeStr.equalsIgnoreCase(actOfficeStr)) {
+                return true;
+            }
+            return false;
         }
+
         Department userDept = user.resolveDepartment();
         if (userDept != null && userDept == activity.getDepartment()) {
             return true;
         }
         String userOffice = user.getOffice();
-        if (userOffice != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+        if (userOffice != null && activity.getOffice() != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
             return true;
         }
         return false;
     }
 
-    private boolean isServiceOfficeActivity(Activity activity) {
-        if (activity == null) return false;
-        try {
-            User creator = activity.getCreatedBy();
-            if (creator != null && creator.isServiceOfficeUser()) {
-                return true;
-            }
-        } catch (Exception ignored) {
-        }
+    private Office resolveServiceOffice(Activity activity) {
+        if (activity == null) return null;
         if (activity.getOffice() != null) {
             try {
                 Office officeEnum = Office.valueOf(activity.getOffice());
                 if (officeEnum != null && officeEnum.isServiceOffice()) {
-                    return true;
+                    return officeEnum;
                 }
             } catch (IllegalArgumentException ignored) {
             }
         }
-        return false;
+        try {
+            User creator = activity.getCreatedBy();
+            if (creator != null && creator.isServiceOfficeUser()) {
+                return creator.resolveOffice();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private boolean hasMetadata(Evidence evidence) {

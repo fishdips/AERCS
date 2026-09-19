@@ -231,15 +231,17 @@ public class SharedEvidenceService {
 
         boolean isDeptStaff = currentUser.getRole() == UserRole.DEPT_STAFF;
         Department viewerDept = isDeptStaff ? currentUser.resolveDepartment() : null;
-        RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept) : null;
+        Office viewerOffice = isDeptStaff ? currentUser.resolveOffice() : null;
+        RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept)
+                : (viewerOffice != null ? OFFICE_TO_RELATED.get(viewerOffice) : null);
 
-        // DEPT_STAFF see only their own dept + files referenced to them; ignore the frontend dept filter
+        // DEPT_STAFF see only their own dept/office + files referenced to them; ignore the frontend dept filter
         String effectiveDept = isDeptStaff ? null : blankToNull(department);
 
         Specification<Evidence> spec = buildRepositorySpec(
                 blankToNull(keyword), areas, effectiveDept,
                 blankToNull(academicYear), activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo,
-                viewerDept, viewerRelatedOffice
+                viewerDept, viewerOffice, viewerRelatedOffice
         );
         Pageable sorted = PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(),
@@ -262,6 +264,7 @@ public class SharedEvidenceService {
             LocalDate dateFrom,
             LocalDate dateTo,
             Department viewerDepartment,
+            Office viewerOffice,
             RelatedOffice viewerRelatedOffice
     ) {
         return (root, query, cb) -> {
@@ -274,12 +277,23 @@ public class SharedEvidenceService {
             );
             Predicate isServiceOfficeFile = act.get("office").in(serviceOffices);
 
-            // DEPT_STAFF: restrict to own department's files, files referenced to their dept, OR Service Office files (public to all)
             if (viewerDepartment != null) {
                 Predicate ownDept = cb.equal(act.get("department"), viewerDepartment);
                 List<Predicate> visPredicates = new ArrayList<>();
                 visPredicates.add(ownDept);
                 visPredicates.add(isServiceOfficeFile);
+                if (viewerRelatedOffice != null) {
+                    Predicate referenced = cb.and(
+                            cb.isNotNull(root.get("relatedOffices")),
+                            cb.like(root.get("relatedOffices"), "%" + viewerRelatedOffice.name() + "%")
+                    );
+                    visPredicates.add(referenced);
+                }
+                predicates.add(cb.or(visPredicates.toArray(new Predicate[0])));
+            } else if (viewerOffice != null && viewerOffice.isServiceOffice()) {
+                Predicate ownOffice = cb.equal(act.get("office"), viewerOffice.name());
+                List<Predicate> visPredicates = new ArrayList<>();
+                visPredicates.add(ownOffice);
                 if (viewerRelatedOffice != null) {
                     Predicate referenced = cb.and(
                             cb.isNotNull(root.get("relatedOffices")),

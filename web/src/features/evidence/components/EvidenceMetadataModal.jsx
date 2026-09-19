@@ -245,9 +245,9 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                 <span className="am-form-label">Referencing Offices / Visibility</span>
                 {isServiceOfficeValue(currentUser?.office) || isServiceOfficeValue(evidence?.uploadedByOffice) ? (
                   <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: '#60a5fa', fontSize: '0.85rem' }}>
-                    🌐 <strong>Public / Common to All (Service Office)</strong>
+                    🌐 <strong>Service Office Common Post</strong>
                     <p style={{ margin: '0.25rem 0 0 0', opacity: 0.85, fontSize: '0.78rem' }}>
-                      As content created under a Service Office, this evidence is automatically visible and shared with all departments and offices.
+                      As content created under a Service Office, this evidence is automatically visible to academic departments and users within your office.
                     </p>
                   </div>
                 ) : (
