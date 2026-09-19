@@ -192,6 +192,35 @@
   border-color: var(--brand-600);
 }
 
+.login-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.login-password-input {
+  padding-right: 2.25rem;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.4rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.login-password-toggle:hover {
+  color: #111;
+}
+
 .login-options {
   display: flex;
   align-items: center;
