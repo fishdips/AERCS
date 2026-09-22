@@ -4,6 +4,8 @@ import {
   downloadPublicEvidenceBlob,
   getPublicAccreditorAccess,
   getPublicEvidenceViewUrl,
+  requestAccreditorOtp,
+  verifyAccreditorOtp,
 } from '../api';
 import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
@@ -41,15 +43,59 @@ export default function AccreditorAccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [verificationRequired, setVerificationRequired] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setError('');
     getPublicAccreditorAccess(token)
       .then(({ data }) => setAccess(data))
-      .catch(() => setError('Access link is invalid or expired.'))
+      .catch(async (err) => {
+        if (err.response?.status === 403) {
+          setVerificationRequired(true);
+          try {
+            await requestAccreditorOtp(token);
+            setOtpSent(true);
+          } catch (otpError) {
+            setError(otpError.response?.data?.error || 'Unable to send the verification code.');
+          }
+        } else {
+          setError('Access link is invalid or expired.');
+        }
+      })
       .finally(() => setLoading(false));
   }, [token]);
+
+  const handleRequestOtp = async () => {
+    setOtpBusy(true);
+    setError('');
+    try {
+      await requestAccreditorOtp(token);
+      setOtpSent(true);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Unable to send the verification code.');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault();
+    setOtpBusy(true);
+    setError('');
+    try {
+      const { data } = await verifyAccreditorOtp(token, otp);
+      setAccess(data);
+      setVerificationRequired(false);
+    } catch (err) {
+      setError(err.response?.data?.error || 'The verification code is invalid or expired.');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
 
   const handleDownload = async (item) => {
     setBusyId(item.id);
@@ -80,6 +126,35 @@ export default function AccreditorAccessPage() {
       <main className="aa-public-main">
         {loading && <div className="aa-empty">Loading access link...</div>}
         {error && <div className="aa-error">{error}</div>}
+
+        {!loading && verificationRequired && !access && (
+          <section className="aa-verification">
+            <h2>Verify accreditor access</h2>
+            <p>
+              {otpSent
+                ? 'A one-time verification code was sent to the invited email address.'
+                : 'Sending a one-time verification code to the invited email address...'}
+            </p>
+            <form onSubmit={handleVerifyOtp}>
+              <label htmlFor="aa-otp">6-digit verification code</label>
+              <input
+                id="aa-otp"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+              />
+              <button type="submit" disabled={otpBusy || !otpSent}>
+                {otpBusy ? 'Verifying...' : 'Verify and view evidence'}
+              </button>
+              <button type="button" onClick={handleRequestOtp} disabled={otpBusy}>
+                Resend code
+              </button>
+            </form>
+          </section>
+        )}
 
         {!loading && !error && access && (
           <>

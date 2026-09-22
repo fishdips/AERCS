@@ -91,4 +91,9 @@ public class User {
             return null;
         }
     }
+
+    public boolean isServiceOfficeUser() {
+        Office o = resolveOffice();
+        return o != null && o.isServiceOffice();
+    }
 }

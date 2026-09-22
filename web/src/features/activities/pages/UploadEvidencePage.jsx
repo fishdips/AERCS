@@ -9,7 +9,6 @@ import {
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
-  formatOffice,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 
@@ -19,8 +18,7 @@ function ActivitySummary({ activity }) {
       <p className="am-section-label">Activity Summary</p>
       <dl className="am-summary-list">
         <div><dt>Activity Name</dt><dd>{activity.activityName}</dd></div>
-        <div><dt>Office</dt><dd>{activity.office ? formatOffice(activity.office) : '-'}</dd></div>
-        <div><dt>Department</dt><dd>{activity.department ? formatDepartment(activity.department) : '-'}</dd></div>
+        <div><dt>Department/Office Owner</dt><dd>{formatDepartment(activity.office || activity.department)}</dd></div>
         <div><dt>Activity Type</dt><dd>{formatActivityType(activity.activityType, activity.customActivityType)}</dd></div>
         <div><dt>Academic Year</dt><dd>{activity.academicYear}</dd></div>
         <div><dt>Accreditation Area</dt><dd>{formatAccreditationArea(activity.accreditationArea)}</dd></div>

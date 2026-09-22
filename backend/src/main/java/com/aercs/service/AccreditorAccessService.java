@@ -20,6 +20,7 @@ import com.aercs.repository.EvidenceReferenceRepository;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
@@ -35,7 +36,8 @@ import java.util.UUID;
 public class AccreditorAccessService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final int TOKEN_BYTES = 32;
+    private static final String TOKEN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private static final int TOKEN_LENGTH = 10;
 
     private final AccreditorAccessRepository accessRepository;
     private final EvidenceRepository evidenceRepository;
@@ -43,6 +45,8 @@ public class AccreditorAccessService {
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final EvidenceService evidenceService;
+    private final InvitationEmailService invitationEmailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public GenerateAccreditorAccessResponse generateAccess(
@@ -90,6 +94,7 @@ public class AccreditorAccessService {
 
         AccreditorAccess access = new AccreditorAccess();
         access.setToken(generateUniqueToken());
+        access.setAccreditorEmail(request.accreditorEmail().trim());
         access.setCreatedBy(createdBy);
         access.setActivity(activity);
         access.setEvidence(selectedEvidence);
@@ -97,10 +102,17 @@ public class AccreditorAccessService {
         access.setNotes(trimToNull(request.notes()));
 
         AccreditorAccess saved = accessRepository.save(access);
+        String accessUrl = buildAccessUrl(frontendOrigin, saved.getToken());
+        invitationEmailService.sendAccreditorAccess(
+                request.accreditorEmail().trim(),
+                accessUrl,
+                saved.getExpiresAt(),
+                saved.getNotes()
+        );
         return new GenerateAccreditorAccessResponse(
                 saved.getId(),
                 saved.getToken(),
-                normalizeFrontendOrigin(frontendOrigin) + "/accreditor-access/" + saved.getToken(),
+                accessUrl,
                 saved.getExpiresAt(),
                 saved.getEvidence().size()
         );
@@ -125,7 +137,7 @@ public class AccreditorAccessService {
         return new GenerateAccreditorAccessResponse(
                 saved.getId(),
                 saved.getToken(),
-                normalizeFrontendOrigin(frontendOrigin) + "/accreditor-access/" + saved.getToken(),
+                buildAccessUrl(frontendOrigin, saved.getToken()),
                 saved.getExpiresAt(),
                 saved.getEvidence().size()
         );
@@ -159,6 +171,40 @@ public class AccreditorAccessService {
     @Transactional(readOnly = true)
     public PublicAccreditorAccessResponse getPublicAccess(String token) {
         AccreditorAccess access = getValidAccess(token);
+        return getPublicAccess(access);
+    }
+
+    public void requestOtp(String token) {
+        AccreditorAccess access = getValidAccess(token);
+        if (access.getAccreditorEmail() == null || access.getAccreditorEmail().isBlank()) {
+            throw new BadRequestException("This access link does not have an invited email address");
+        }
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+        access.setOtpHash(passwordEncoder.encode(code));
+        access.setOtpExpiresAt(OffsetDateTime.now().plusMinutes(10));
+        access.setVerifiedSessionHash(null);
+        access.setVerifiedSessionExpiresAt(null);
+        accessRepository.save(access);
+        invitationEmailService.sendAccreditorOtp(access.getAccreditorEmail(), code);
+    }
+
+    public String verifyOtp(String token, String code) {
+        AccreditorAccess access = getValidAccess(token);
+        if (access.getOtpHash() == null || access.getOtpExpiresAt() == null
+                || !access.getOtpExpiresAt().isAfter(OffsetDateTime.now())
+                || !passwordEncoder.matches(code, access.getOtpHash())) {
+            throw new BadRequestException("The verification code is invalid or expired");
+        }
+        String sessionToken = generateSessionToken();
+        access.setVerifiedSessionHash(passwordEncoder.encode(sessionToken));
+        access.setVerifiedSessionExpiresAt(OffsetDateTime.now().plusHours(8));
+        access.setOtpHash(null);
+        access.setOtpExpiresAt(null);
+        accessRepository.save(access);
+        return sessionToken;
+    }
+
+    private PublicAccreditorAccessResponse getPublicAccess(AccreditorAccess access) {
         return new PublicAccreditorAccessResponse(
                 access.getId(),
                 access.getNotes(),
@@ -186,6 +232,16 @@ public class AccreditorAccessService {
         boolean allowed = access.getEvidence().stream().anyMatch(e -> e.getId().equals(evidenceId));
         if (!allowed) {
             throw new ResourceNotFoundException("Evidence file not found for this access link");
+        }
+    }
+
+    public void requireVerified(String token, String sessionToken) {
+        AccreditorAccess access = getValidAccess(token);
+        if (sessionToken == null || access.getVerifiedSessionHash() == null
+                || access.getVerifiedSessionExpiresAt() == null
+                || !access.getVerifiedSessionExpiresAt().isAfter(OffsetDateTime.now())
+                || !passwordEncoder.matches(sessionToken, access.getVerifiedSessionHash())) {
+            throw new ForbiddenException("Accreditor verification is required");
         }
     }
 
@@ -219,11 +275,19 @@ public class AccreditorAccessService {
     private String generateUniqueToken() {
         String token;
         do {
-            byte[] bytes = new byte[TOKEN_BYTES];
-            SECURE_RANDOM.nextBytes(bytes);
-            token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            StringBuilder value = new StringBuilder(TOKEN_LENGTH);
+            for (int i = 0; i < TOKEN_LENGTH; i++) {
+                value.append(TOKEN_ALPHABET.charAt(SECURE_RANDOM.nextInt(TOKEN_ALPHABET.length())));
+            }
+            token = value.toString();
         } while (accessRepository.existsByToken(token));
         return token;
+    }
+
+    private String generateSessionToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String normalizeFrontendOrigin(String frontendOrigin) {
@@ -231,6 +295,10 @@ public class AccreditorAccessService {
             return "http://localhost:3000";
         }
         return frontendOrigin.replaceAll("/+$", "");
+    }
+
+    private String buildAccessUrl(String frontendOrigin, String token) {
+        return normalizeFrontendOrigin(frontendOrigin) + "/a/" + token;
     }
 
     private String firstNonBlank(String... values) {

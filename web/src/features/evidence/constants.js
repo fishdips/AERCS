@@ -12,13 +12,23 @@ export const EVIDENCE_TYPES = [
 export const RELATED_OFFICES = [
   { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
   { value: 'RESEARCH_OFFICE', label: 'Research Office' },
-  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
-  { value: 'REGISTRARS_OFFICE', label: 'Registrar Office' },
-  { value: 'LIBRARY', label: 'Library' },
-  { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
-  { value: 'GUIDANCE_OFFICE', label: 'Guidance Office' },
   { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
   { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
+
+  // Service Offices
+  { value: 'STUDENT_SUCCESS_OFFICE', label: 'Student Success Office' },
+  { value: 'REGISTRARS_OFFICE', label: 'Registrar\u2019s Office' },
+  { value: 'LIBRARY', label: 'Library' },
+  { value: 'GUIDANCE_CENTER', label: 'Guidance Center' },
+  { value: 'MEDICAL_DENTAL_CLINIC', label: 'Medical-Dental Clinic' },
+  { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
+  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
+  { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
+
+  // Colleges & Other Offices
+  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
+  { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
+  { value: 'GUIDANCE_OFFICE', label: 'Guidance Office' },
   { value: 'FINANCE_OFFICE', label: 'Finance Office' },
   { value: 'CLINIC', label: 'Clinic' },
   { value: 'COLLEGE_OF_COMPUTER_STUDIES', label: 'College of Computer Studies' },

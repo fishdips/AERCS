@@ -32,11 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_users_office
-        CHECK (office IS NULL OR office IN (
-            'CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ',
-            'QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE',
-            'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'
-        ))
+        CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -59,7 +55,7 @@ CREATE TABLE IF NOT EXISTS activities (
     CONSTRAINT chk_activities_activity_type
         CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER')),
     CONSTRAINT chk_activities_department
-        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
+        CHECK (department IS NULL OR LENGTH(TRIM(department)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_office
         CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_department_or_office
@@ -120,6 +116,11 @@ CREATE INDEX IF NOT EXISTS idx_evidence_references_referenced_by_id ON evidence_
 CREATE TABLE IF NOT EXISTS accreditor_access (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     token       VARCHAR(128) NOT NULL UNIQUE,
+    accreditor_email VARCHAR(150),
+    otp_hash    VARCHAR(255),
+    otp_expires_at TIMESTAMPTZ,
+    verified_session_hash VARCHAR(255),
+    verified_session_expires_at TIMESTAMPTZ,
     created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
     activity_id UUID REFERENCES activities(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),

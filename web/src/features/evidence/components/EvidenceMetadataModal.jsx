@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
-import { formatAccreditationArea } from '../../activities/constants';
+import { formatAccreditationArea, isServiceOfficeValue } from '../../activities/constants';
+import { useAuth } from '../../../shared/hooks/useAuth';
 import { downloadEvidenceBlob, getEvidenceMetadata, updateEvidenceMetadata, viewEvidenceBlob } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES, formatEvidenceType, formatRelatedOffice } from '../constants';
 
@@ -40,6 +41,7 @@ function saveBlob(blob, fileName) {
 }
 
 export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSaved }) {
+  const { user: currentUser } = useAuth();
   const [metadata, setMetadata] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState('');
@@ -240,19 +242,28 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
               </label>
 
               <div className="am-form-field">
-                <span className="am-form-label">Referencing Offices</span>
-                <div className="am-office-options">
-                  {RELATED_OFFICES.map((office) => (
-                    <label key={office.value}>
-                      <input
-                        type="checkbox"
-                        checked={form.relatedOffices.includes(office.value)}
-                        onChange={() => toggleOffice(office.value)}
-                      />
-                      {office.label}
-                    </label>
-                  ))}
-                </div>
+                <span className="am-form-label">Referencing Offices / Visibility</span>
+                {isServiceOfficeValue(currentUser?.office) || isServiceOfficeValue(evidence?.uploadedByOffice) ? (
+                  <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: '#60a5fa', fontSize: '0.85rem' }}>
+                    🌐 <strong>Service Office Common Post</strong>
+                    <p style={{ margin: '0.25rem 0 0 0', opacity: 0.85, fontSize: '0.78rem' }}>
+                      As content created under a Service Office, this evidence is automatically visible to academic departments and users within your office.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="am-office-options">
+                    {RELATED_OFFICES.map((office) => (
+                      <label key={office.value}>
+                        <input
+                          type="checkbox"
+                          checked={form.relatedOffices.includes(office.value)}
+                          onChange={() => toggleOffice(office.value)}
+                        />
+                        {office.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <label className="am-form-field">

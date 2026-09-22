@@ -91,7 +91,7 @@ export default function CreateActivityPage() {
     if (form.activityDate && form.activityDate > todayLocalISO()) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
-    if (!userDepartment) nextErrors.department = 'Your account has no assigned department';
+    if (!userDepartment) nextErrors.department = 'Your account has no assigned department or office';
     if (!form.accreditationArea) nextErrors.accreditationArea = 'Accreditation area is required';
     if (!form.academicYear.trim()) nextErrors.academicYear = 'Academic year is required';
     setErrors(nextErrors);
@@ -129,7 +129,11 @@ export default function CreateActivityPage() {
 
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceItems(items);
-    setBatchSelectedIds((current) => current.filter((id) => items.some((item) => item.id === id)));
+    setBatchSelectedIds((current) => {
+      const validCurrent = current.filter((id) => items.some((item) => item.id === id));
+      if (validCurrent.length > 0) return validCurrent;
+      return items.filter((item) => !hasMetadata(item)).map((item) => item.id);
+    });
   }, []);
 
   const handleSelectAllBatchEligible = (items) => {
@@ -205,7 +209,7 @@ export default function CreateActivityPage() {
                 </label>
 
                 <label className="am-form-field">
-                  <span className="am-form-label">Department Owner <span className="am-required">*</span></span>
+                  <span className="am-form-label">Department/Office Owner <span className="am-required">*</span></span>
                   <input className="am-input" value={formatDepartment(userDepartment)} readOnly disabled />
                   {errors.department && <span className="am-field-error">{errors.department}</span>}
                 </label>
@@ -330,7 +334,7 @@ export default function CreateActivityPage() {
                 <dl className="am-summary-list">
                   <div><dt>Activity Name</dt><dd>{summaryValue(activitySummary.activityName)}</dd></div>
                   <div><dt>Owner</dt><dd>{summaryValue(activitySummary.createdByName || activitySummary.owner)}</dd></div>
-                  <div><dt>Department</dt><dd>{summaryValue(activitySummary.department, formatDepartment)}</dd></div>
+                  <div><dt>Department/Office Owner</dt><dd>{summaryValue(activitySummary.office || activitySummary.department, formatDepartment)}</dd></div>
                   <div><dt>Activity Type</dt><dd>{formatActivityType(activitySummary.activityType, activitySummary.customActivityType)}</dd></div>
                   <div><dt>Academic Year</dt><dd>{summaryValue(activitySummary.academicYear)}</dd></div>
                   <div><dt>Accreditation Area</dt><dd>{summaryValue(activitySummary.accreditationArea, formatAccreditationArea)}</dd></div>

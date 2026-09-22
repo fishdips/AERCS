@@ -61,7 +61,11 @@ export default function ActivityDetailPage() {
 
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceItems(items);
-    setBatchSelectedIds((current) => current.filter((idValue) => items.some((item) => item.id === idValue)));
+    setBatchSelectedIds((current) => {
+      const validCurrent = current.filter((idValue) => items.some((item) => item.id === idValue));
+      if (validCurrent.length > 0) return validCurrent;
+      return items.filter((item) => !hasMetadata(item)).map((item) => item.id);
+    });
   }, []);
 
   const handleToggleBatchSelection = useCallback((item) => {
@@ -160,8 +164,8 @@ export default function ActivityDetailPage() {
                 <dd>{activity.academicYear}</dd>
               </div>
               <div>
-                <dt>Office</dt>
-                <dd>{formatUserOffice(activity.createdByOffice)}</dd>
+                <dt>Department/Office Owner</dt>
+                <dd>{formatUserOffice(activity.office || activity.department || activity.createdByOffice)}</dd>
               </div>
               <div>
                 <dt>Created By</dt>

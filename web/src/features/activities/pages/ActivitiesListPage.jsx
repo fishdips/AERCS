@@ -4,7 +4,23 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import Modal from '../../../shared/components/Modal';
 import { listActivities } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatActivityType, formatDeptOrOffice, EVIDENCE_TYPES } from '../constants';
+import {
+  ACCREDITATION_AREAS,
+  ACTIVITY_TYPES,
+  ACTIVITY_WRITE_ROLES,
+  DEPARTMENTS,
+  EVIDENCE_TYPES,
+  OFFICES,
+  SERVICE_OFFICES,
+  formatActivityType,
+  formatDeptOrOffice,
+} from '../constants';
+
+const ORGANIZATION_UNITS = [
+  ...DEPARTMENTS,
+  ...OFFICES,
+  ...SERVICE_OFFICES,
+];
 
 function formatDate(value) {
   if (!value) return '-';
@@ -21,6 +37,10 @@ export default function ActivitiesListPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [activityTypeFilter, setActivityTypeFilter] = useState('');
+  const [organizationFilter, setOrganizationFilter] = useState('');
+  const [academicYearFilter, setAcademicYearFilter] = useState('');
+  const [accreditationAreaFilter, setAccreditationAreaFilter] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
@@ -43,19 +63,54 @@ export default function ActivitiesListPage() {
 
   const filteredActivities = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return activities;
     return activities.filter((activity) => {
       const name = activity.activityName || '';
       const academicYear = activity.academicYear || '';
       const department = activity.department || '';
       const office = activity.office || '';
 
-      return name.toLowerCase().includes(q)
+      const matchesSearch = !q || name.toLowerCase().includes(q)
         || academicYear.toLowerCase().includes(q)
         || department.toLowerCase().includes(q)
         || office.toLowerCase().includes(q);
+      const matchesType = !activityTypeFilter || activity.activityType === activityTypeFilter;
+      const matchesOrganization = !organizationFilter
+        || department === organizationFilter
+        || office === organizationFilter;
+      const matchesAcademicYear = !academicYearFilter || academicYear === academicYearFilter;
+      const matchesAccreditationArea = !accreditationAreaFilter
+        || activity.accreditationArea === accreditationAreaFilter;
+
+      return matchesSearch
+        && matchesType
+        && matchesOrganization
+        && matchesAcademicYear
+        && matchesAccreditationArea;
     });
-  }, [activities, query]);
+  }, [
+    activities,
+    query,
+    activityTypeFilter,
+    organizationFilter,
+    academicYearFilter,
+    accreditationAreaFilter,
+  ]);
+
+  const academicYears = useMemo(() => (
+    [...new Set(activities.map((activity) => activity.academicYear).filter(Boolean))]
+      .sort((a, b) => b.localeCompare(a))
+  ), [activities]);
+
+  const hasActiveFilters = query || activityTypeFilter || organizationFilter
+    || academicYearFilter || accreditationAreaFilter;
+
+  const clearFilters = () => {
+    setQuery('');
+    setActivityTypeFilter('');
+    setOrganizationFilter('');
+    setAcademicYearFilter('');
+    setAccreditationAreaFilter('');
+  };
 
   const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
 
@@ -84,6 +139,27 @@ export default function ActivitiesListPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <select className="am-select" value={activityTypeFilter} onChange={(e) => setActivityTypeFilter(e.target.value)}>
+          <option value=""> All types   </option>
+          {ACTIVITY_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+        </select>
+        <select className="am-select" value={organizationFilter} onChange={(e) => setOrganizationFilter(e.target.value)}>
+          <option value=""> All departments/offices </option>
+          {ORGANIZATION_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+        </select>
+        <select className="am-select" value={academicYearFilter} onChange={(e) => setAcademicYearFilter(e.target.value)}>
+          <option value=""> All academic years </option>
+          {academicYears.map((year) => <option key={year} value={year}>{year}</option>)}
+        </select>
+        <select className="am-select" value={accreditationAreaFilter} onChange={(e) => setAccreditationAreaFilter(e.target.value)}>
+          <option value=""> All areas </option>
+          {ACCREDITATION_AREAS.map((area) => <option key={area.value} value={area.value}>{area.label}</option>)}
+        </select>
+        {hasActiveFilters && (
+          <button className="am-btn-secondary am-clear-filters" onClick={clearFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {error && <p className="am-alert am-alert-error">{error}</p>}

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { deleteReference, getReferences } from '../api';
 import { getEvidence } from '../../evidence/api';
-import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, formatAccreditationArea } from '../../activities/constants';
+import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import api from '../../../shared/api/config';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
@@ -80,7 +80,7 @@ export default function EvidenceReferencesPage() {
 
   const uniqueOffices = [...new Set(refs.map((r) => r.referencedByOffice || r.referencedByDepartment).filter(Boolean))].length;
   const uniqueAreas = [...new Set(refs.map((r) => r.accreditationArea).filter(Boolean))].length;
-  const officeOptions = [...DEPARTMENTS, ...OFFICES];
+  const officeOptions = [...DEPARTMENTS, ...OFFICES, ...SERVICE_OFFICES];
 
   return (
     <ActivityShell>

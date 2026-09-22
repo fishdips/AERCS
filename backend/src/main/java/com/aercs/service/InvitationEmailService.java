@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -79,6 +80,44 @@ public class InvitationEmailService {
 
         send(user.getEmail(), "Reset your AERCS password", text,
                 "The password reset email could not be sent. Check the mail configuration and try again.");
+    }
+
+    public void sendAccreditorAccess(String email, String accessUrl, OffsetDateTime expiresAt, String notes) {
+        String text = """
+                Hello,
+
+                You have been granted read-only access to AERCS accreditation evidence.
+
+                Open the temporary access link below:
+                %s
+
+                This link expires at: %s
+                Notes: %s
+
+                No AERCS account or login is required to use this link.
+                """.formatted(
+                accessUrl,
+                expiresAt,
+                notes == null || notes.isBlank() ? "None" : notes
+        );
+
+        send(email, "Your AERCS accreditor access link", text,
+                "The accreditor access email could not be sent. Check the mail configuration and try again.");
+    }
+
+    public void sendAccreditorOtp(String email, String code) {
+        String text = """
+                Hello,
+
+                Your AERCS accreditor access verification code is:
+
+                %s
+
+                This code expires in 10 minutes. No AERCS account or login is required.
+                """.formatted(code);
+
+        send(email, "Your AERCS access verification code", text,
+                "The accreditor verification email could not be sent. Check the mail configuration and try again.");
     }
 
     private void send(String to, String subject, String text, String failureMessage) {

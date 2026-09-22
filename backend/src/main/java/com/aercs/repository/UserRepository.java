@@ -18,4 +18,20 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
 
     boolean existsByRole(UserRole role);
+
+    default Optional<User> findByIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            UUID uuid = UUID.fromString(identifier.trim());
+            Optional<User> userByUuid = findById(uuid);
+            if (userByUuid.isPresent()) {
+                return userByUuid;
+            }
+        } catch (IllegalArgumentException ignored) {
+        }
+        return findByEmail(identifier.trim());
+    }
 }
+

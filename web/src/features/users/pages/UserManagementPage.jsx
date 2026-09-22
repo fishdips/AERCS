@@ -6,7 +6,7 @@ import {
   revokeUserSessions, updateUserOffice, updateUserProfile, updateUserRole, updateUserStatus,
 } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
-import { DEPARTMENTS, OFFICES, formatUserOffice } from '../../activities/constants';
+import { DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatUserOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
@@ -14,7 +14,17 @@ import './UserManagementPage.css';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
+const ORG_UNIT_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'Org unit: All' },
+  { value: '', label: 'Unassigned' },
+  ...DEPARTMENTS.map((department) => ({ value: department.value, label: department.label })),
+  ...OFFICES.filter((office) => office.value !== 'OTHER')
+    .map((office) => ({ value: office.value, label: office.label })),
+  ...SERVICE_OFFICES.filter((office) => office.value !== 'OTHER')
+    .map((office) => ({ value: office.value, label: office.label })),
+];
 const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
+const USER_SERVICE_OFFICES = SERVICE_OFFICES.filter((office) => office.value !== 'OTHER');
 
 function DeptOfficeOptions({ value }) {
   const isKnown = !value
@@ -31,6 +41,9 @@ function DeptOfficeOptions({ value }) {
       </optgroup>
       <optgroup label="Office">
         {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </optgroup>
+      <optgroup label="Service Office">
+        {USER_SERVICE_OFFICES.map((so) => <option key={so.value} value={so.value}>{so.label}</option>)}
       </optgroup>
     </>
   );
@@ -85,6 +98,9 @@ export default function UserManagementPage() {
   const [searchQuery, setSearchQuery]   = useState('');
   const [roleFilter, setRoleFilter]     = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [orgUnitFilter, setOrgUnitFilter] = useState('ALL');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -122,8 +138,24 @@ export default function UserManagementPage() {
     const matchStatus = statusFilter === 'ALL'
       || (statusFilter === 'ACTIVE' && u.active)
       || (statusFilter === 'INACTIVE' && !u.active);
-    return matchSearch && matchRole && matchStatus;
+    const matchOrgUnit = orgUnitFilter === 'ALL' || (u.office || '') === orgUnitFilter;
+    const createdDate = u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : '';
+    const matchCreatedFrom = !createdFrom || (createdDate && createdDate >= createdFrom);
+    const matchCreatedTo = !createdTo || (createdDate && createdDate <= createdTo);
+    return matchSearch && matchRole && matchStatus && matchOrgUnit && matchCreatedFrom && matchCreatedTo;
   });
+
+  const hasActiveFilters = searchQuery || roleFilter !== 'ALL' || statusFilter !== 'ALL'
+    || orgUnitFilter !== 'ALL' || createdFrom || createdTo;
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setRoleFilter('ALL');
+    setStatusFilter('ALL');
+    setOrgUnitFilter('ALL');
+    setCreatedFrom('');
+    setCreatedTo('');
+  };
 
   const handleSelectUser = (u) => {
     setActionError('');
@@ -421,6 +453,38 @@ export default function UserManagementPage() {
                   <option key={s} value={s}>{s === 'ALL' ? 'Status: All' : s}</option>
                 ))}
               </select>
+              <select className="ump-select" value={orgUnitFilter} onChange={(e) => setOrgUnitFilter(e.target.value)}>
+                {ORG_UNIT_FILTER_OPTIONS.map((orgUnit) => (
+                  <option key={orgUnit.value || 'UNASSIGNED'} value={orgUnit.value}>{orgUnit.label}</option>
+                ))}
+              </select>
+              <label className="ump-date-filter">
+                <span>From</span>
+                <input
+                  className="ump-date-input"
+                  type="date"
+                  value={createdFrom}
+                  max={createdTo || undefined}
+                  onChange={(e) => setCreatedFrom(e.target.value)}
+                  aria-label="Created from"
+                />
+              </label>
+              <label className="ump-date-filter">
+                <span>To</span>
+                <input
+                  className="ump-date-input"
+                  type="date"
+                  min={createdFrom || undefined}
+                  value={createdTo}
+                  onChange={(e) => setCreatedTo(e.target.value)}
+                  aria-label="Created to"
+                />
+              </label>
+              {hasActiveFilters && (
+                <button className="ump-btn-secondary ump-clear-filters" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              )}
             </div>
 
             <div className="ump-table-section">

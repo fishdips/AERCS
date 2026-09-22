@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.aercs.entity.User;
+import com.aercs.repository.UserRepository;
+
 @RestController
 @RequiredArgsConstructor
 public class EvidenceController {
@@ -32,6 +35,7 @@ public class EvidenceController {
     private static final String WRITE_ROLES = "hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
 
     private final EvidenceService evidenceService;
+    private final UserRepository userRepository;
 
     @PostMapping(value = "/api/activities/{activityId}/evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize(WRITE_ROLES)
@@ -77,7 +81,7 @@ public class EvidenceController {
     public ResponseEntity<EvidenceMetadataResponse> updateEvidenceMetadata(@PathVariable UUID evidenceId,
                                                                             @Valid @RequestBody EvidenceMetadataRequest request,
                                                                             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(evidenceService.updateMetadata(evidenceId, request, currentUserId));
     }
 
@@ -86,7 +90,7 @@ public class EvidenceController {
     public ResponseEntity<List<EvidenceMetadataResponse>> updateEvidenceMetadataBatch(
             @Valid @RequestBody BatchEvidenceMetadataRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(evidenceService.updateMetadataBatch(request, currentUserId));
     }
 
@@ -128,8 +132,15 @@ public class EvidenceController {
     @PreAuthorize(WRITE_ROLES)
     public ResponseEntity<Map<String, String>> deleteEvidence(@PathVariable UUID evidenceId,
                                                                @AuthenticationPrincipal UserDetails userDetails) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         evidenceService.deleteEvidence(evidenceId, currentUserId);
         return ResponseEntity.ok(Map.of("message", "Evidence removed"));
+    }
+
+    private UUID resolveUserId(UserDetails userDetails) {
+        if (userDetails == null || userDetails.getUsername() == null) return null;
+        return userRepository.findByIdentifier(userDetails.getUsername())
+                .map(User::getId)
+                .orElse(null);
     }
 }

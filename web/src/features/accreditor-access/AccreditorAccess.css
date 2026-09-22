@@ -107,6 +107,56 @@
   background: #fef2f2;
 }
 
+.aa-verification {
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
+}
+
+.aa-verification h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.aa-verification p {
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.aa-verification form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.aa-verification label {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.aa-verification input {
+  border: 1px solid #d1d5db;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  padding: 0.5rem;
+}
+
+.aa-verification button {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.5rem 0.7rem;
+}
+
+.aa-verification button[type="button"]:last-child {
+  background: #fff;
+  color: #111827;
+}
+
 .aa-generate {
   display: flex;
   flex-direction: column;
