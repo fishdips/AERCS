@@ -47,6 +47,12 @@ public class User {
     @Column(name = "must_change_pw", nullable = false)
     private boolean mustChangePw = true;
 
+    // Bumped whenever an admin needs to invalidate this user's outstanding JWTs
+    // (force logout, password reset) without waiting for natural expiry - a
+    // token is only accepted while its embedded "tv" claim matches this value.
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
     @Column(name = "reset_token", length = 64, unique = true)
     private String resetToken;
 

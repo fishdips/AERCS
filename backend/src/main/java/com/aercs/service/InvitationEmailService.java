@@ -48,6 +48,23 @@ public class InvitationEmailService {
                 "The account invitation email could not be sent. Check the mail configuration and try again.");
     }
 
+    public void sendAdminPasswordReset(User user, String temporaryPassword) {
+        String text = """
+                Hello %s,
+
+                An administrator has reset your AERCS password.
+
+                Email: %s
+                Temporary password: %s
+
+                Sign in with this temporary password and change it immediately when prompted.
+                If you were not expecting this, please contact your AERCS administrator.
+                """.formatted(user.getName(), user.getEmail(), temporaryPassword);
+
+        send(user.getEmail(), "Your AERCS password has been reset", text,
+                "The password reset email could not be sent. Check the mail configuration and try again.");
+    }
+
     public void sendPasswordReset(User user, String resetUrl) {
         String text = """
                 Hello %s,

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { createUser, createUsersBatch, deleteUser, listUsers, updateUserRole, updateUserStatus } from '../api';
+import {
+  createUser, createUsersBatch, deleteUser, listUsers, resetUserPassword,
+  revokeUserSessions, updateUserOffice, updateUserProfile, updateUserRole, updateUserStatus,
+} from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { DEPARTMENTS, OFFICES, formatUserOffice } from '../../activities/constants';
 import Modal from '../../../shared/components/Modal';
@@ -13,10 +16,16 @@ const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
 const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
 
-function DeptOfficeOptions() {
+function DeptOfficeOptions({ value }) {
+  const isKnown = !value
+    || DEPARTMENTS.some((d) => d.value === value)
+    || USER_OFFICES.some((o) => o.value === value);
   return (
     <>
       <option value="">None</option>
+      {/* Value doesn't match any known department/office (e.g. legacy data) —
+          show it as-is instead of silently falling back to "None". */}
+      {!isKnown && <option value={value}>{value}</option>}
       <optgroup label="Department">
         {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
       </optgroup>
@@ -55,7 +64,7 @@ export default function UserManagementPage() {
 
   const [users, setUsers]               = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [editForm, setEditForm]         = useState({ role: '', active: true });
+  const [editForm, setEditForm]         = useState({ role: '', active: true, office: '', name: '', email: '' });
 
   const [showCreateModal, setShowCreateModal]     = useState(false);
   const [showTempPwModal, setShowTempPwModal]     = useState(false);
@@ -79,8 +88,13 @@ export default function UserManagementPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [revokeConfirmOpen, setRevokeConfirmOpen] = useState(false);
+  const [resetPwConfirmOpen, setResetPwConfirmOpen] = useState(false);
+  const [forceLogoutConfirmOpen, setForceLogoutConfirmOpen] = useState(false);
+  const [isResettingPw, setIsResettingPw] = useState(false);
+  const [isForcingLogout, setIsForcingLogout] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -92,6 +106,14 @@ export default function UserManagementPage() {
   }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
+
+  const isEditFormDirty = !!selectedUser && (
+    editForm.name !== selectedUser.name
+    || editForm.email !== selectedUser.email
+    || editForm.role !== selectedUser.role
+    || editForm.office !== (selectedUser.office || '')
+    || editForm.active !== selectedUser.active
+  );
 
   const filteredUsers = users.filter((u) => {
     const q = searchQuery.toLowerCase();
@@ -105,11 +127,12 @@ export default function UserManagementPage() {
 
   const handleSelectUser = (u) => {
     setActionError('');
+    setActionMessage('');
     if (selectedUser?.id === u.id) {
       setSelectedUser(null);
     } else {
       setSelectedUser(u);
-      setEditForm({ role: u.role, active: u.active });
+      setEditForm({ role: u.role, active: u.active, office: u.office || '', name: u.name, email: u.email });
     }
   };
 
@@ -121,6 +144,16 @@ export default function UserManagementPage() {
     }
     setActionError('');
     setDeleteConfirmOpen(true);
+  };
+
+  const requestForceLogout = () => {
+    if (!selectedUser) return;
+    if (selectedUser.id === currentUser.id) {
+      setActionError('You cannot force logout your own account.');
+      return;
+    }
+    setActionError('');
+    setForceLogoutConfirmOpen(true);
   };
 
   const handleDelete = async () => {
@@ -201,20 +234,59 @@ export default function UserManagementPage() {
   const handleUpdate = async () => {
     if (!selectedUser) return;
     setActionError('');
+    setActionMessage('');
     setIsSaving(true);
     try {
+      if (editForm.name !== selectedUser.name || editForm.email !== selectedUser.email) {
+        await updateUserProfile(selectedUser.id, editForm.name.trim(), editForm.email.trim());
+      }
       if (editForm.role !== selectedUser.role) {
         await updateUserRole(selectedUser.id, editForm.role);
+      }
+      if (editForm.office !== (selectedUser.office || '')) {
+        await updateUserOffice(selectedUser.id, editForm.office);
       }
       if (editForm.active !== selectedUser.active) {
         await updateUserStatus(selectedUser.id, editForm.active);
       }
       await loadUsers();
       setSelectedUser({ ...selectedUser, ...editForm });
-    } catch {
-      setActionError('Failed to save changes. Please try again.');
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to save changes. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    setActionError('');
+    setActionMessage('');
+    setIsResettingPw(true);
+    try {
+      await resetUserPassword(selectedUser.id);
+      setResetPwConfirmOpen(false);
+      setActionMessage(`A new temporary password was emailed to ${selectedUser.email}.`);
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to reset password. Please try again.');
+    } finally {
+      setIsResettingPw(false);
+    }
+  };
+
+  const handleForceLogout = async () => {
+    if (!selectedUser) return;
+    setActionError('');
+    setActionMessage('');
+    setIsForcingLogout(true);
+    try {
+      await revokeUserSessions(selectedUser.id);
+      setForceLogoutConfirmOpen(false);
+      setActionMessage(`${selectedUser.name} has been signed out of all sessions.`);
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to force logout. Please try again.');
+    } finally {
+      setIsForcingLogout(false);
     }
   };
 
@@ -325,7 +397,7 @@ export default function UserManagementPage() {
                 <button
                   className="ump-btn-secondary"
                   onClick={handleUpdate}
-                  disabled={!selectedUser || isSaving}
+                  disabled={!selectedUser || isSaving || !isEditFormDirty}
                 >
                   {isSaving ? 'Saving…' : '✓ Save Changes'}
                 </button>
@@ -421,13 +493,31 @@ export default function UserManagementPage() {
               </div>
             </div>
             <div className="ump-detail-field">
-              <label className="ump-detail-label">Department / Office</label>
+              <label className="ump-detail-label">Full Name</label>
               <input
                 className="ump-detail-input"
-                value={selectedUser.office ? formatUserOffice(selectedUser.office) : ''}
-                readOnly
-                placeholder="—"
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
               />
+            </div>
+            <div className="ump-detail-field">
+              <label className="ump-detail-label">Email</label>
+              <input
+                type="email"
+                className="ump-detail-input"
+                value={editForm.email}
+                onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="ump-detail-field">
+              <label className="ump-detail-label">Department / Office</label>
+              <select
+                className="ump-detail-select"
+                value={editForm.office}
+                onChange={(e) => setEditForm((f) => ({ ...f, office: e.target.value }))}
+              >
+                <DeptOfficeOptions value={editForm.office} />
+              </select>
             </div>
             <div className="ump-detail-field">
               <label className="ump-detail-label">Role</label>
@@ -461,12 +551,23 @@ export default function UserManagementPage() {
               </div>
             </div>
             {actionError && <p className="am-alert am-alert-error">{actionError}</p>}
+            {actionMessage && <p className="am-alert am-alert-success">{actionMessage}</p>}
             <div className="ump-detail-actions">
-              <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving}>
+              <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving || !isEditFormDirty}>
                 {isSaving ? '…' : '✓ Update'}
               </button>
               <ActionMenu
                 items={[
+                  {
+                    label: '✉ Resend Invite / Reset Password',
+                    disabled: isResettingPw,
+                    onClick: () => setResetPwConfirmOpen(true),
+                  },
+                  {
+                    label: '🔒 Force Logout',
+                    disabled: isForcingLogout,
+                    onClick: requestForceLogout,
+                  },
                   {
                     label: '🚫 Revoke Access',
                     danger: true,
@@ -637,6 +738,27 @@ export default function UserManagementPage() {
         confirmLabel="Revoke"
         danger
         busy={isSaving}
+      />
+
+      <ConfirmModal
+        isOpen={resetPwConfirmOpen}
+        onClose={() => setResetPwConfirmOpen(false)}
+        onConfirm={handleResetPassword}
+        title="Reset Password"
+        message={`Send ${selectedUser?.name} a new temporary password by email? Their current password will stop working, and they'll be required to set a new one on next login.`}
+        confirmLabel="Send"
+        busy={isResettingPw}
+      />
+
+      <ConfirmModal
+        isOpen={forceLogoutConfirmOpen}
+        onClose={() => setForceLogoutConfirmOpen(false)}
+        onConfirm={handleForceLogout}
+        title="Force Logout"
+        message={`Sign ${selectedUser?.name} out of every active session? They'll need to log in again.`}
+        confirmLabel="Force Logout"
+        danger
+        busy={isForcingLogout}
       />
     </div>
   );

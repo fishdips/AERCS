@@ -118,6 +118,57 @@ public class UserService {
     }
 
     @Transactional
+    public UserResponse updateOffice(UUID userId, String office) {
+        User user = findUserById(userId);
+        validateOffice(office);
+        user.setOffice(office);
+        return toUserResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse updateProfile(UUID userId, String name, String email) {
+        User user = findUserById(userId);
+
+        if (!user.getEmail().equalsIgnoreCase(email) && userRepository.existsByEmail(email)) {
+            throw new BadRequestException("A user with this email already exists");
+        }
+
+        user.setName(name);
+        user.setEmail(email);
+        return toUserResponse(userRepository.save(user));
+    }
+
+    // Issues a fresh temporary password and re-sends the invitation-style email -
+    // covers both "resend a lost invite" and "reset this user's password" from
+    // the admin's point of view. Bumps the token version so any session issued
+    // with the old password is logged out immediately.
+    @Transactional
+    public UserResponse resetUserPassword(UUID userId) {
+        User user = findUserById(userId);
+
+        String tempPassword = generateTempPassword();
+        user.setPasswordHash(passwordEncoder.encode(tempPassword));
+        user.setMustChangePw(true);
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        User saved = userRepository.save(user);
+
+        invitationEmailService.sendAdminPasswordReset(saved, tempPassword);
+        return toUserResponse(saved);
+    }
+
+    // Invalidates every outstanding JWT for this user (they'll be signed out on
+    // their next request) without touching their password or active status.
+    @Transactional
+    public UserResponse revokeSessions(UUID userId, String requestingAdminId) {
+        if (userId.equals(UUID.fromString(requestingAdminId))) {
+            throw new BadRequestException("You cannot force logout your own account");
+        }
+        User user = findUserById(userId);
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        return toUserResponse(userRepository.save(user));
+    }
+
+    @Transactional
     public void deleteUser(UUID userId, String requestingAdminId) {
         if (userId.equals(UUID.fromString(requestingAdminId))) {
             throw new BadRequestException("You cannot delete your own account");

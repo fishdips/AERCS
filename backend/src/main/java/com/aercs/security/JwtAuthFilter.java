@@ -37,12 +37,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String userId = jwtUtil.extractUserId(token);
             try {
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
+                int tokenVersion = jwtUtil.extractTokenVersion(token);
 
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                // isEnabled() reflects the account's current active flag and the
+                // token version guards against a stale JWT surviving a suspension,
+                // password reset, or an admin-forced logout - both are re-checked
+                // against the database on every request, not just at login.
+                boolean staleToken = !(userDetails instanceof AercsUserPrincipal principal)
+                        || principal.getTokenVersion() != tokenVersion;
+
+                if (userDetails.isEnabled() && !staleToken) {
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             } catch (UsernameNotFoundException e) {
                 // Valid signature, but the account it points to no longer exists
                 // (e.g. deleted since the cookie was issued). Treat the request

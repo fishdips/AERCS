@@ -2,6 +2,8 @@ package com.aercs.controller;
 
 import com.aercs.dto.request.BatchCreateUserRequest;
 import com.aercs.dto.request.CreateUserRequest;
+import com.aercs.dto.request.UpdateOfficeRequest;
+import com.aercs.dto.request.UpdateProfileRequest;
 import com.aercs.dto.request.UpdateRoleRequest;
 import com.aercs.dto.request.UpdateStatusRequest;
 import com.aercs.dto.response.BatchCreateUserResult;
@@ -57,6 +59,29 @@ public class AdminUserController {
     public ResponseEntity<UserResponse> updateStatus(@PathVariable UUID id,
                                                       @Valid @RequestBody UpdateStatusRequest request) {
         return ResponseEntity.ok(userService.updateStatus(id, request.active()));
+    }
+
+    @PatchMapping("/{id}/office")
+    public ResponseEntity<UserResponse> updateOffice(@PathVariable UUID id,
+                                                      @Valid @RequestBody UpdateOfficeRequest request) {
+        return ResponseEntity.ok(userService.updateOffice(id, request.office()));
+    }
+
+    @PatchMapping("/{id}/profile")
+    public ResponseEntity<UserResponse> updateProfile(@PathVariable UUID id,
+                                                        @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(userService.updateProfile(id, request.name(), request.email()));
+    }
+
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<UserResponse> resetPassword(@PathVariable UUID id) {
+        return ResponseEntity.ok(userService.resetUserPassword(id));
+    }
+
+    @PostMapping("/{id}/revoke-sessions")
+    public ResponseEntity<UserResponse> revokeSessions(@PathVariable UUID id,
+                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.revokeSessions(id, userDetails.getUsername()));
     }
 
     @DeleteMapping("/{id}")
