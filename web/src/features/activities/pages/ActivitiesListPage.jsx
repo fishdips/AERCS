@@ -6,8 +6,8 @@ import Modal from '../../../shared/components/Modal';
 import { listActivities } from '../api';
 import {
   ACCREDITATION_AREAS,
+  ACTIVITY_CREATE_ROLES,
   ACTIVITY_TYPES,
-  ACTIVITY_WRITE_ROLES,
   DEPARTMENTS,
   EVIDENCE_TYPES,
   OFFICES,
@@ -101,6 +101,23 @@ export default function ActivitiesListPage() {
       .sort((a, b) => b.localeCompare(a))
   ), [activities]);
 
+  // Only offer org units that actually appear in the (already access-scoped)
+  // activities the user can see - a dept staff member's list only ever
+  // contains their own department, so the full institution-wide list would
+  // mostly just be empty options for them.
+  const organizationOptions = useMemo(() => {
+    const seen = new Map();
+    activities.forEach((activity) => {
+      const value = activity.department || activity.office;
+      if (!value || seen.has(value)) return;
+      const known = ORGANIZATION_UNITS.find((unit) => unit.value === value);
+      seen.set(value, known ? known.label : value);
+    });
+    return [...seen.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [activities]);
+
   const hasActiveFilters = query || activityTypeFilter || organizationFilter
     || academicYearFilter || accreditationAreaFilter;
 
@@ -112,14 +129,14 @@ export default function ActivitiesListPage() {
     setAccreditationAreaFilter('');
   };
 
-  const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
+  const canCreateActivity = user && ACTIVITY_CREATE_ROLES.includes(user.role);
 
   return (
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities</p>
       <div className="am-page-header">
         <h1 className="am-page-title">Activities</h1>
-        {canManageActivity && (
+        {canCreateActivity && (
           <div style={{ position: 'relative' }}>
             <button className="am-btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
               + New ▾
@@ -145,7 +162,7 @@ export default function ActivitiesListPage() {
         </select>
         <select className="am-select" value={organizationFilter} onChange={(e) => setOrganizationFilter(e.target.value)}>
           <option value=""> All departments/offices </option>
-          {ORGANIZATION_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+          {organizationOptions.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
         </select>
         <select className="am-select" value={academicYearFilter} onChange={(e) => setAcademicYearFilter(e.target.value)}>
           <option value=""> All academic years </option>

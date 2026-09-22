@@ -19,6 +19,15 @@ export const ACTIVITY_WRITE_ROLES = [
   ROLES.ADMIN,
 ];
 
+// Admin manages accounts/access, not content - excluded here so an admin
+// never sees a create/upload entry point that the backend will now reject.
+// Admin keeps ACTIVITY_WRITE_ROLES for moderation (edit/delete/metadata).
+export const ACTIVITY_CREATE_ROLES = [
+  ROLES.DEPT_STAFF,
+  ROLES.INSTITUTIONAL_OFFICE,
+  ROLES.ACCRED_COORDINATOR,
+];
+
 export const ACTIVITY_TYPES = [
   { value: 'SEMINAR', label: 'Seminar' },
   { value: 'TRAINING', label: 'Training' },

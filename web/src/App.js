@@ -20,7 +20,7 @@ import SharedEvidencePage from './features/shared-evidence/pages/SharedEvidenceP
 import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvidencePage';
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
 import AccreditorAccessPage from './features/accreditor-access/pages/AccreditorAccessPage';
-import { ACTIVITY_WRITE_ROLES } from './features/activities/constants';
+import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES } from './features/activities/constants';
 
 function App() {
   return (
@@ -75,7 +75,7 @@ function App() {
           <Route
             path="/activities/new"
             element={
-              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+              <RoleProtectedRoute allowedRoles={ACTIVITY_CREATE_ROLES}>
                 <CreateActivityPage />
               </RoleProtectedRoute>
             }
@@ -84,7 +84,7 @@ function App() {
           <Route
             path="/activities/:id/evidence"
             element={
-              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+              <RoleProtectedRoute allowedRoles={ACTIVITY_CREATE_ROLES}>
                 <UploadEvidencePage />
               </RoleProtectedRoute>
             }

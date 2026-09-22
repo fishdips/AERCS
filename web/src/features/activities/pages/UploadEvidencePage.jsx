@@ -5,7 +5,7 @@ import ActivityShell from '../components/ActivityShell';
 import ActivityWorkflowSidebar from '../components/ActivityWorkflowSidebar';
 import { getActivity } from '../api';
 import {
-  ACTIVITY_WRITE_ROLES,
+  ACTIVITY_CREATE_ROLES,
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
@@ -54,7 +54,7 @@ export default function UploadEvidencePage() {
     loadActivity();
   }, [loadActivity]);
 
-  const canManageEvidence = user && ACTIVITY_WRITE_ROLES.includes(user.role);
+  const canManageEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
   const hasUploadedEvidence = evidenceCount > 0;
   const canProceedToMetadata = hasUploadedEvidence && !uploadInProgress;
   const handleEvidenceChange = useCallback((items) => {

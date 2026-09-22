@@ -33,12 +33,16 @@ import com.aercs.repository.UserRepository;
 public class EvidenceController {
 
     private static final String WRITE_ROLES = "hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
+    // Admin manages accounts/access, not content - excluded from authoring new
+    // evidence so the audit trail (who actually submitted it) stays meaningful.
+    // Admin keeps WRITE_ROLES below for moderation (edit/replace/delete).
+    private static final String CREATE_ROLES = "hasAnyRole('DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
 
     private final EvidenceService evidenceService;
     private final UserRepository userRepository;
 
     @PostMapping(value = "/api/activities/{activityId}/evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize(WRITE_ROLES)
+    @PreAuthorize(CREATE_ROLES)
     public ResponseEntity<List<EvidenceResponse>> uploadEvidence(@PathVariable UUID activityId,
                                                                   @RequestParam("files") List<MultipartFile> files,
                                                                   @AuthenticationPrincipal UserDetails userDetails) {
@@ -46,7 +50,7 @@ public class EvidenceController {
     }
 
     @PostMapping("/api/activities/{activityId}/evidence/link")
-    @PreAuthorize(WRITE_ROLES)
+    @PreAuthorize(CREATE_ROLES)
     public ResponseEntity<EvidenceResponse> createLinkEvidence(@PathVariable UUID activityId,
                                                                 @Valid @RequestBody CreateLinkEvidenceRequest request,
                                                                 @AuthenticationPrincipal UserDetails userDetails) {

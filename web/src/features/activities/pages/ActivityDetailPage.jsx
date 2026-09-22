@@ -4,7 +4,7 @@ import { ROLE_LABELS } from '../../../shared/constants/roles';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import { deleteActivity, getActivity } from '../api';
-import { ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatUserOffice } from '../constants';
+import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatUserOffice } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
@@ -57,6 +57,7 @@ export default function ActivityDetailPage() {
   }, [loadActivity]);
 
   const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
+  const canCreateEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);
 
   const handleEvidenceChange = useCallback((items) => {
@@ -117,7 +118,9 @@ export default function ActivityDetailPage() {
           {activity && canManageActivity && (
             <ActionMenu
               items={[
-                { label: '⬆ Upload Evidence', to: `/activities/${activity.id}/evidence` },
+                ...(canCreateEvidence
+                  ? [{ label: '⬆ Upload Evidence', to: `/activities/${activity.id}/evidence` }]
+                  : []),
                 {
                   label: '🔑 Generate Accreditor Access',
                   onClick: () => setAccreditorAccessOpen(true),
@@ -189,7 +192,7 @@ export default function ActivityDetailPage() {
               activityId={activity.id}
               batchSelectionEnabled={canManageActivity}
               batchSelectedIds={batchSelectedIds}
-              canManageEvidence={canManageActivity}
+              canManageEvidence={canCreateEvidence}
               onEvidenceChange={handleEvidenceChange}
               onSelectAllBatchEligible={handleSelectAllBatchEligible}
               onToggleBatchSelection={handleToggleBatchSelection}
