@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
 import { ACCREDITATION_AREAS, ACTIVITY_TYPES, ALL_OFFICES, OFFICES, SERVICE_OFFICES, formatDepartment, todayLocalISO } from '../constants';
+import { Check } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const initialForm = {
   activityName: '',
@@ -269,7 +271,7 @@ export default function EditActivityPage() {
           <div className="am-form-actions am-workflow-actions">
             <Link className="am-btn-secondary" to={`/activities/${id}`}>Cancel</Link>
             <button className="am-btn-primary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : '✓ Save Changes'}
+              {isSubmitting ? 'Saving...' : <><Icon as={Check} /> Save Changes</>}
             </button>
           </div>
         </form>

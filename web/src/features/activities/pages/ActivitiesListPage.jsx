@@ -4,6 +4,8 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import Modal from '../../../shared/components/Modal';
 import { listActivities } from '../api';
+import { ChevronDown, Plus } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 import {
   ACCREDITATION_AREAS,
   ACTIVITY_CREATE_ROLES,
@@ -139,7 +141,7 @@ export default function ActivitiesListPage() {
         {canCreateActivity && (
           <div style={{ position: 'relative' }}>
             <button className="am-btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
-              + New ▾
+              <Icon as={Plus} /> New <Icon as={ChevronDown} />
             </button>
               <div className={`am-dropdown-menu ${showDropdown ? 'open' : ''}`}>
                 <Link to="/activities/new" className="am-dropdown-item" onClick={() => setShowDropdown(false)}>Create Activity</Link>

@@ -122,9 +122,15 @@ public class DashboardService {
 
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime soon = now.plusDays(7);
-        List<AccreditorAccess> expiring = canViewAll
-                ? accreditorAccessRepository.findByActiveTrueAndExpiresAtBetween(now, soon)
-                : accreditorAccessRepository.findByActiveTrueAndExpiresAtBetweenAndCreatedById(now, soon, user.getId());
+        // Links are visible to the creator's whole office/department but editable only by the creator.
+        List<AccreditorAccess> expiring;
+        if (canViewAll) {
+            expiring = accreditorAccessRepository.findByActiveTrueAndExpiresAtBetween(now, soon);
+        } else if (user.getOffice() == null || user.getOffice().isBlank()) {
+            expiring = accreditorAccessRepository.findByActiveTrueAndExpiresAtBetweenAndCreatedById(now, soon, user.getId());
+        } else {
+            expiring = accreditorAccessRepository.findExpiringVisibleToOffice(now, soon, user.getId(), user.getOffice());
+        }
         expiring = expiring.stream().sorted(Comparator.comparing(AccreditorAccess::getExpiresAt)).toList();
 
         String origin = normalizeFrontendOrigin(frontendOrigin);
@@ -144,7 +150,7 @@ public class DashboardService {
                 limit(noEvidenceActivities).stream().map(a -> toActivityItem(a, evidenceByActivity)).toList(),
                 limit(missingMetadataActivities).stream().map(a -> toActivityItem(a, evidenceByActivity)).toList(),
                 limit(missingMetadata).stream().map(e -> toEvidenceItem(e, referenceCounts)).toList(),
-                limit(expiring).stream().map(a -> toAccessItem(a, origin)).toList()
+                limit(expiring).stream().map(a -> toAccessItem(a, origin, user)).toList()
         );
     }
 
@@ -266,16 +272,24 @@ public class DashboardService {
         );
     }
 
-    private DashboardAccreditorAccessItem toAccessItem(AccreditorAccess access, String origin) {
+    private DashboardAccreditorAccessItem toAccessItem(AccreditorAccess access, String origin, User viewer) {
         Activity activity = access.getActivity();
         return new DashboardAccreditorAccessItem(
                 access.getId(),
-                access.getToken(),
-                origin + "/a/" + access.getToken(),
+                access.getName(),
+                origin + "/accreditor/links/" + access.getId(),
                 activity != null ? activity.getId() : null,
                 activity != null ? activity.getActivityName() : null,
-                access.getExpiresAt()
+                access.getExpiresAt(),
+                access.getCreatedBy() != null ? access.getCreatedBy().getName() : null,
+                canEditAccess(viewer, access)
         );
+    }
+
+    // Mirrors AccreditorAccessService: only the creator, an admin or an accreditation coordinator may edit.
+    private boolean canEditAccess(User viewer, AccreditorAccess access) {
+        if (viewer.getRole() == UserRole.ADMIN || viewer.getRole() == UserRole.ACCRED_COORDINATOR) return true;
+        return access.getCreatedBy() != null && access.getCreatedBy().getId().equals(viewer.getId());
     }
 
     private String normalizeFrontendOrigin(String frontendOrigin) {

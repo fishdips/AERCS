@@ -9,6 +9,8 @@ import {
   formatDepartment,
 } from '../constants';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
+import { ArrowLeft } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function ActivitySummary({ activity }) {
   return (
@@ -53,7 +55,7 @@ export default function AssignMetadataPage() {
       <p className="am-breadcrumb">Workspace / Activities / Assign Metadata</p>
       <div className="am-page-header">
         <div className="am-page-header-left">
-          <Link className="am-btn-secondary" to={`/activities/${id}/evidence`}>← Back</Link>
+          <Link className="am-btn-secondary" to={`/activities/${id}/evidence`}><Icon as={ArrowLeft} /> Back</Link>
           <h1 className="am-page-title">Assign Metadata</h1>
         </div>
         <div className="am-page-actions">

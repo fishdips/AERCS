@@ -27,20 +27,13 @@ public class AccreditorAccess {
     @Column(name = "token", nullable = false, unique = true, length = 128)
     private String token;
 
+    @Column(name = "name", length = 150)
+    private String name;
+
+    // Legacy: the address a pre-account link was emailed to. New links are
+    // assigned to registered accreditor accounts via `accreditors` instead.
     @Column(name = "accreditor_email", length = 150)
     private String accreditorEmail;
-
-    @Column(name = "otp_hash", length = 255)
-    private String otpHash;
-
-    @Column(name = "otp_expires_at")
-    private OffsetDateTime otpExpiresAt;
-
-    @Column(name = "verified_session_hash", length = 255)
-    private String verifiedSessionHash;
-
-    @Column(name = "verified_session_expires_at")
-    private OffsetDateTime verifiedSessionExpiresAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
@@ -58,6 +51,15 @@ public class AccreditorAccess {
             inverseJoinColumns = @JoinColumn(name = "evidence_id")
     )
     private Set<Evidence> evidence = new HashSet<>();
+
+    // Registered accreditor accounts (role ACCREDITOR_LINK) that can open this link after logging in.
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "accreditor_access_users",
+            joinColumns = @JoinColumn(name = "access_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> accreditors = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

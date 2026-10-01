@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../api';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLES } from '../../../shared/constants/roles';
+import { getHomePath } from '../../../shared/constants/roles';
 import './ChangePasswordPage.css';
 
 export default function ChangePasswordPage() {
@@ -32,8 +32,7 @@ export default function ChangePasswordPage() {
     try {
       await changePassword(currentPassword, newPassword);
       setUser({ ...user, mustChangePw: false });
-      if (user.role === ROLES.ADMIN) navigate('/admin/users');
-      else navigate('/dashboard');
+      navigate(getHomePath(user.role, '/dashboard'));
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update password');
     } finally {

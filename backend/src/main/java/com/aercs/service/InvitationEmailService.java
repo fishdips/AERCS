@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 // Sends via the SendGrid HTTP API (port 443) instead of raw SMTP - Render's outbound
 // network does not allow SMTP traffic (confirmed: both Office365 and Gmail SMTP time
@@ -82,42 +83,25 @@ public class InvitationEmailService {
                 "The password reset email could not be sent. Check the mail configuration and try again.");
     }
 
-    public void sendAccreditorAccess(String email, String accessUrl, OffsetDateTime expiresAt, String notes) {
+    // Tells a registered accreditor that one or more access links were assigned to them.
+    // Links are only viewable after logging in, so the email carries no access token.
+    public void sendAccreditorLinksAssigned(User accreditor, List<String> linkNames, String loginUrl) {
+        String links = linkNames.stream().map(name -> "  - " + name).collect(Collectors.joining("\n"));
         String text = """
-                Hello,
+                Hello %s,
 
-                You have been granted read-only access to AERCS accreditation evidence.
-
-                Open the temporary access link below:
-                %s
-
-                This link expires at: %s
-                Notes: %s
-
-                No AERCS account or login is required to use this link.
-                """.formatted(
-                accessUrl,
-                expiresAt,
-                notes == null || notes.isBlank() ? "None" : notes
-        );
-
-        send(email, "Your AERCS accreditor access link", text,
-                "The accreditor access email could not be sent. Check the mail configuration and try again.");
-    }
-
-    public void sendAccreditorOtp(String email, String code) {
-        String text = """
-                Hello,
-
-                Your AERCS accreditor access verification code is:
+                The following AERCS accreditor access link(s) have been assigned to you:
 
                 %s
 
-                This code expires in 10 minutes. No AERCS account or login is required.
-                """.formatted(code);
+                Log in to AERCS to review the shared evidence:
+                %s
 
-        send(email, "Your AERCS access verification code", text,
-                "The accreditor verification email could not be sent. Check the mail configuration and try again.");
+                Open "Evidence Links" after signing in to see every link assigned to your account.
+                """.formatted(accreditor.getName(), links, loginUrl);
+
+        send(accreditor.getEmail(), "New AERCS accreditor access link", text,
+                "The accreditor notification email could not be sent. Check the mail configuration and try again.");
     }
 
     private void send(String to, String subject, String text, String failureMessage) {

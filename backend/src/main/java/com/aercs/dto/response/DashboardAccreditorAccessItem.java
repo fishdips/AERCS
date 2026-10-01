@@ -5,9 +5,11 @@ import java.util.UUID;
 
 public record DashboardAccreditorAccessItem(
         UUID id,
-        String token,
+        String name,
         String accessUrl,
         UUID activityId,
         String activityName,
-        OffsetDateTime expiresAt
+        OffsetDateTime expiresAt,
+        String createdByName,
+        boolean canEdit
 ) {}

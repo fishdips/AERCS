@@ -11,6 +11,8 @@ import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidenc
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import { ArrowLeft, KeyRound, Link2, Pencil, Trash2, Upload } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -106,28 +108,30 @@ export default function ActivityDetailPage() {
       <p className="am-breadcrumb">Workspace / Activities / Details</p>
       <div className="am-page-header">
         <div className="am-page-header-left">
-          <Link className="am-btn-secondary" to="/activities">← Back</Link>
+          <Link className="am-btn-secondary" to="/activities"><Icon as={ArrowLeft} /> Back</Link>
           <h1 className="am-page-title">Activity Details</h1>
         </div>
         <div className="am-page-actions">
           {activity && (
             <Link className="am-btn-secondary" to={`/activities/${activity.id}/reference-evidence`}>
-              🔗 Reference Evidence
+              <Icon as={Link2} /> Reference Evidence
             </Link>
           )}
           {activity && canManageActivity && (
             <ActionMenu
               items={[
                 ...(canCreateEvidence
-                  ? [{ label: '⬆ Upload Evidence', to: `/activities/${activity.id}/evidence` }]
+                  ? [{ icon: Upload, label: 'Upload Evidence', to: `/activities/${activity.id}/evidence` }]
                   : []),
                 {
-                  label: '🔑 Generate Accreditor Access',
+                  icon: KeyRound,
+                  label: 'Generate Accreditor Access',
                   onClick: () => setAccreditorAccessOpen(true),
                 },
-                { label: '✎ Edit Activity', to: `/activities/${activity.id}/edit` },
+                { icon: Pencil, label: 'Edit Activity', to: `/activities/${activity.id}/edit` },
                 {
-                  label: isDeleting ? 'Deleting...' : '🗑 Delete Activity',
+                  icon: Trash2,
+                  label: isDeleting ? 'Deleting...' : 'Delete Activity',
                   danger: true,
                   disabled: isDeleting,
                   onClick: () => setDeleteConfirmOpen(true),
@@ -220,7 +224,8 @@ export default function ActivityDetailPage() {
             isOpen={accreditorAccessOpen}
             onClose={() => setAccreditorAccessOpen(false)}
             activityId={activity.id}
-            title="Generate Activity Evidence Access"
+            defaultName={activity.activityName}
+            title="Share Activity Evidence with Accreditors"
           />
 
           <ConfirmModal

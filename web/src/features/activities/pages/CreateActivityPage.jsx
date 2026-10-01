@@ -15,6 +15,8 @@ import {
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
+import { ArrowLeft, Check, Plus } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const initialForm = {
   activityName: '',
@@ -179,7 +181,7 @@ export default function CreateActivityPage() {
       <p className="am-breadcrumb">Workspace / Activities / Create</p>
       <div className="am-page-header">
         <div className="am-page-header-left">
-          <Link className="am-btn-secondary" to="/activities">← Back</Link>
+          <Link className="am-btn-secondary" to="/activities"><Icon as={ArrowLeft} /> Back</Link>
           <h1 className="am-page-title">Evidence Workflow</h1>
         </div>
       </div>
@@ -311,7 +313,7 @@ export default function CreateActivityPage() {
 
               <div className="am-form-actions">
                 <button className="am-btn-primary" type="submit" disabled={isSubmitting || Boolean(createdActivity)}>
-                  {createdActivity ? '✓ Activity Created' : isSubmitting ? 'Saving...' : '+ Create Activity'}
+                  {createdActivity ? <><Icon as={Check} /> Activity Created</> : isSubmitting ? 'Saving...' : <><Icon as={Plus} /> Create Activity</>}
                 </button>
               </div>
             </form>

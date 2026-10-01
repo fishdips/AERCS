@@ -8,6 +8,8 @@ import GenerateAccreditorAccessModal from '../../accreditor-access/components/Ge
 import ActionMenu from '../../../shared/components/ActionMenu';
 import InfoTooltip from '../../../shared/components/InfoTooltip';
 import '../SharedEvidence.css';
+import { Search } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function ownerOffice(item) {
   return formatUserOffice(item?.uploadedByOffice);
@@ -111,7 +113,7 @@ export default function SharedEvidencePage() {
           </div>
 
           <button className="am-btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Searching...' : '🔍 Search'}
+            {loading ? 'Searching...' : <><Icon as={Search} /> Search</>}
           </button>
         </form>
 

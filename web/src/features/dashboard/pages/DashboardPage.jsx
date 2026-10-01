@@ -4,11 +4,13 @@ import ActivityShell from '../../activities/components/ActivityShell';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import { getDashboardSummary } from '../api';
-import { extendAccreditorAccess, deleteAccreditorAccess } from '../../accreditor-access/api';
+import { extendAccreditorAccess, deleteAccreditorAccess, getAccreditorAccessLinks } from '../../accreditor-access/api';
+import EditAccreditorLinkModal from '../../accreditor-access/components/EditAccreditorLinkModal';
 import { formatActivityType, formatDepartment } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
 import { copyToClipboard } from '../../../shared/utils/clipboard';
 import './DashboardPage.css';
+import { Check, Clock, Copy, Pencil, Trash2 } from 'lucide-react';
 
 function formatDateOnly(value) {
   if (!value) return '-';
@@ -72,6 +74,27 @@ function AccessRow({ item, onChanged }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [editLink, setEditLink] = useState(null);
+
+  // The dashboard item is a summary; the edit modal needs the full link with its accreditors.
+  const openEditLink = async () => {
+    setError('');
+    setSaving(true);
+    try {
+      const { data } = await getAccreditorAccessLinks();
+      const full = data.find((l) => l.id === item.id);
+      if (!full) {
+        setError('This access link no longer exists.');
+        if (onChanged) onChanged();
+        return;
+      }
+      setEditLink(full);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load the access link.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const copyLink = async () => {
     const succeeded = await copyToClipboard(item.accessUrl);
@@ -113,8 +136,8 @@ function AccessRow({ item, onChanged }) {
   return (
     <div className="dash-access-row">
       <div className="dash-access-info">
-        <span>{item.activityName || 'Evidence-only access link'}</span>
-        <small>Expires {formatDateTime(item.expiresAt)}</small>
+        <span>{item.name || item.activityName || 'Evidence-only access link'}</span>
+        <small>Expires {formatDateTime(item.expiresAt)}{item.createdByName ? ` · Created by ${item.createdByName}` : ''}</small>
         {copyFailed && <small>Could not copy automatically — copy the link manually: {item.accessUrl}</small>}
         {error && <small className="dash-access-error">{error}</small>}
         {editing && (
@@ -139,19 +162,30 @@ function AccessRow({ item, onChanged }) {
         <span className="dash-badge-warning">Expiring Soon</span>
         <ActionMenu
           items={[
-            { label: copied ? '✓ Copied' : '📋 Copy Link', onClick: copyLink },
-            { label: '🕐 Extend Expiry', disabled: saving, onClick: () => setEditing(true) },
-            { label: '🗑 Delete', danger: true, disabled: saving, onClick: () => setDeleteConfirm(true) },
+            { icon: copied ? Check : Copy, label: copied ? 'Copied' : 'Copy Link', onClick: copyLink },
+            // Same-office colleagues can see a link, but only its creator can change it.
+            item.canEdit && { icon: Pencil, label: 'Edit Link', disabled: saving, onClick: openEditLink },
+            item.canEdit && { icon: Clock, label: 'Extend Expiry', disabled: saving, onClick: () => setEditing(true) },
+            item.canEdit && { icon: Trash2, label: 'Delete', danger: true, disabled: saving, onClick: () => setDeleteConfirm(true) },
           ]}
         />
       </div>
+
+      <EditAccreditorLinkModal
+        link={editLink}
+        onClose={() => setEditLink(null)}
+        onSaved={() => {
+          setEditLink(null);
+          if (onChanged) onChanged();
+        }}
+      />
 
       <ConfirmModal
         isOpen={deleteConfirm}
         onClose={() => setDeleteConfirm(false)}
         onConfirm={handleDelete}
         title="Delete Access Link"
-        message="Delete this accreditor access link? Anyone with the link will lose access immediately."
+        message="Delete this accreditor access link? Assigned accreditors will lose access immediately."
         confirmLabel="Delete"
         danger
         busy={saving}

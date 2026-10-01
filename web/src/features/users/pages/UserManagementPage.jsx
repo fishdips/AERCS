@@ -11,6 +11,8 @@ import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import './UserManagementPage.css';
+import { Ban, Check as CheckIcon, LogOut, Mail, Trash2, X } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
@@ -58,7 +60,7 @@ const PERMISSIONS_TABLE = [
   { role: 'System Administrator',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
 ];
 
-const Check = () => <span className="perm-check">✓</span>;
+const Check = () => <span className="perm-check"><Icon as={CheckIcon} size={14} /></span>;
 const Dash  = () => <span className="perm-dash">—</span>;
 
 function formatDate(iso) {
@@ -72,7 +74,7 @@ export default function UserManagementPage() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   const [users, setUsers]               = useState([]);
@@ -431,7 +433,7 @@ export default function UserManagementPage() {
                   onClick={handleUpdate}
                   disabled={!selectedUser || isSaving || !isEditFormDirty}
                 >
-                  {isSaving ? 'Saving…' : '✓ Save Changes'}
+                  {isSaving ? 'Saving…' : <><Icon as={CheckIcon} /> Save Changes</>}
                 </button>
               </div>
             </div>
@@ -618,28 +620,32 @@ export default function UserManagementPage() {
             {actionMessage && <p className="am-alert am-alert-success">{actionMessage}</p>}
             <div className="ump-detail-actions">
               <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving || !isEditFormDirty}>
-                {isSaving ? '…' : '✓ Update'}
+                {isSaving ? '…' : <><Icon as={CheckIcon} /> Update</>}
               </button>
               <ActionMenu
                 items={[
                   {
-                    label: '✉ Resend Invite / Reset Password',
+                    icon: Mail,
+                    label: 'Resend Invite / Reset Password',
                     disabled: isResettingPw,
                     onClick: () => setResetPwConfirmOpen(true),
                   },
                   {
-                    label: '🔒 Force Logout',
+                    icon: LogOut,
+                    label: 'Force Logout',
                     disabled: isForcingLogout,
                     onClick: requestForceLogout,
                   },
                   {
-                    label: '🚫 Revoke Access',
+                    icon: Ban,
+                    label: 'Revoke Access',
                     danger: true,
                     disabled: isSaving,
                     onClick: () => setRevokeConfirmOpen(true),
                   },
                   {
-                    label: '🗑 Delete User',
+                    icon: Trash2,
+                    label: 'Delete User',
                     danger: true,
                     disabled: isSaving,
                     onClick: requestDelete,
@@ -751,7 +757,7 @@ export default function UserManagementPage() {
                 <button type="button" className="ump-bulk-row-remove"
                   onClick={() => removeBulkRow(i)} disabled={bulkRows.length === 1}
                   aria-label="Remove row">
-                  ✕
+                  <Icon as={X} />
                 </button>
               </div>
             ))}

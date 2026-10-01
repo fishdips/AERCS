@@ -6,11 +6,13 @@ import '../pages/ActivityManagementPage.css';
 export default function ActivityShell({ children }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === ROLES.ADMIN;
+  const isAccreditor = user?.role === ROLES.ACCREDITOR_LINK;
+  const navClass = ({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`;
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -36,15 +38,24 @@ export default function ActivityShell({ children }) {
       <div className="am-body">
         <aside className="am-sidebar">
           <nav className="am-nav">
-            <p className="am-nav-section">Workspace</p>
-            <NavLink to="/dashboard" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Dashboard</NavLink>
-            <NavLink to="/activities" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Documentation</NavLink>
-            <NavLink to="/repository" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Repository</NavLink>
-            <NavLink to="/shared-evidence" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Shared Evidence</NavLink>
+            {isAccreditor ? (
+              <>
+                <p className="am-nav-section">Accreditation Review</p>
+                <NavLink to="/accreditor" className={navClass}>Evidence Links</NavLink>
+              </>
+            ) : (
+              <>
+                <p className="am-nav-section">Workspace</p>
+                <NavLink to="/dashboard" className={navClass}>Dashboard</NavLink>
+                <NavLink to="/activities" className={navClass}>Documentation</NavLink>
+                <NavLink to="/repository" className={navClass}>Repository</NavLink>
+                <NavLink to="/shared-evidence" className={navClass}>Shared Evidence</NavLink>
+              </>
+            )}
             {isAdmin && (
               <>
                 <p className="am-nav-section">Administration</p>
-                <NavLink to="/admin/users" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Access Management</NavLink>
+                <NavLink to="/admin/users" className={navClass}>Access Management</NavLink>
               </>
             )}
           </nav>

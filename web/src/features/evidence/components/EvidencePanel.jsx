@@ -16,6 +16,8 @@ import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import { Check, ChevronDown, ChevronUp, Download, ExternalLink, Eye, Link2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'];
@@ -412,7 +414,7 @@ export default function EvidencePanel({
               )}
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
-                  {isUploading ? 'Uploading...' : '⬆ Upload Files'}
+                  {isUploading ? 'Uploading...' : <><Icon as={Upload} /> Upload Files</>}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
                   Cancel
@@ -444,7 +446,7 @@ export default function EvidencePanel({
               </label>
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
-                  {isUploading ? 'Saving Link...' : '🔗 Add Drive Link'}
+                  {isUploading ? 'Saving Link...' : <><Icon as={Link2} /> Add Drive Link</>}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => { setLinkTitle(''); setLinkUrl(''); }} disabled={isUploading}>
                   Clear
@@ -494,7 +496,7 @@ export default function EvidencePanel({
                         <span className="am-evidence-name">{item.originalFileName}</span>
                         {hasMetadata(item) && (
                           <span className="am-evidence-meta am-evidence-meta-assigned">
-                            <span className="am-evidence-meta-check" aria-hidden="true">✓</span>
+                            <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
                             {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata assigned'}
                             {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
                             {item.relatedOffices?.length
@@ -513,17 +515,20 @@ export default function EvidencePanel({
                     <ActionMenu
                       items={[
                         canManageItem(item) && !hideMetadataActions && {
-                          label: '👁 View Details',
+                          icon: Eye,
+                          label: 'View Details',
                           disabled: managementLocked,
                           onClick: () => setMetadataEvidence(item),
                         },
                         (item.fileType === 'LINK' || item.linkUrl) && {
-                          label: '🔗 Open Link',
+                          icon: ExternalLink,
+                          label: 'Open Link',
                           disabled: managementLocked,
                           onClick: () => handleView(item),
                         },
                         canManageItem(item) && (item.fileType === 'LINK' || item.linkUrl) && {
-                          label: '✎ Edit Link',
+                          icon: Pencil,
+                          label: 'Edit Link',
                           disabled: managementLocked,
                           onClick: () => setEditLinkModal({
                             isOpen: true,
@@ -532,13 +537,9 @@ export default function EvidencePanel({
                             linkUrl: item.linkUrl || '',
                           }),
                         },
-                        PREVIEW_TYPES.includes(item.fileType) && {
-                          label: '👁 Open Preview',
-                          disabled: managementLocked || busyEvidenceId === item.id,
-                          onClick: () => handleView(item),
-                        },
                         item.fileType !== 'LINK' && !item.linkUrl && {
-                          label: busyEvidenceId === item.id ? 'Downloading...' : '⬇ Download',
+                          icon: Download,
+                          label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDownload(item),
                         },
@@ -546,7 +547,7 @@ export default function EvidencePanel({
                           key: 'replace',
                           render: ({ className, close }) => (
                             <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
-                              ⇄ Replace File
+                              <Icon as={RefreshCw} /> Replace File
                               <input
                                 className="am-hidden-input"
                                 type="file"
@@ -561,14 +562,15 @@ export default function EvidencePanel({
                           ),
                         },
                         canManageItem(item) && {
-                          label: '🗑 Delete',
+                          icon: Trash2,
+                          label: 'Delete',
                           danger: true,
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDelete(item),
                         },
                       ]}
                     />
-                    <span className="am-ev-chevron">{expandedId === item.id ? '▴' : '▾'}</span>
+                    <span className="am-ev-chevron"><Icon as={expandedId === item.id ? ChevronUp : ChevronDown} /></span>
                   </td>
                 </tr>
               </React.Fragment>

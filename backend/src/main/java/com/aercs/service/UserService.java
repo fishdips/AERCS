@@ -12,6 +12,7 @@ import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
 import com.aercs.exception.InvitationEmailException;
 import com.aercs.exception.ResourceNotFoundException;
+import com.aercs.repository.AccreditorAccessRepository;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final AccreditorAccessRepository accreditorAccessRepository;
     private final PasswordEncoder passwordEncoder;
     private final InvitationEmailService invitationEmailService;
 
@@ -106,6 +108,10 @@ public class UserService {
             throw new BadRequestException("Invalid role: " + newRole);
         }
 
+        // An account that stops being an accreditor loses every link assigned to it.
+        if (user.getRole() == UserRole.ACCREDITOR_LINK && role != UserRole.ACCREDITOR_LINK) {
+            accreditorAccessRepository.removeAccreditorFromAllLinks(user.getId());
+        }
         user.setRole(role);
         return toUserResponse(userRepository.save(user));
     }
@@ -176,6 +182,7 @@ public class UserService {
             }
         });
         User user = findUserById(userId);
+        accreditorAccessRepository.removeAccreditorFromAllLinks(user.getId());
         userRepository.delete(user);
     }
 

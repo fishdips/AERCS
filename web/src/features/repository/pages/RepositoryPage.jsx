@@ -30,6 +30,8 @@ import {
 } from '../../evidence/constants';
 import { searchRepository } from '../api';
 import '../Repository.css';
+import { ExternalLink, FileText, Link2 } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
@@ -401,12 +403,12 @@ export default function RepositoryPage() {
                     />
                   ) : detail.fileType === 'LINK' || detail.linkUrl ? (
                     <div className="repo-preview-placeholder">
-                      <span className="repo-preview-icon">🔗</span>
+                      <span className="repo-preview-icon"><Icon as={Link2} size={32} /></span>
                       <p>External link — use Open Link to view</p>
                     </div>
                   ) : (
                     <div className="repo-preview-placeholder">
-                      <span className="repo-preview-icon">📄</span>
+                      <span className="repo-preview-icon"><Icon as={FileText} size={32} /></span>
                       <p>No preview available for this file type</p>
                     </div>
                   )}
@@ -425,7 +427,7 @@ export default function RepositoryPage() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      🔗 Open Link
+                      <Icon as={ExternalLink} /> Open Link
                     </a>
                   </div>
                 )}

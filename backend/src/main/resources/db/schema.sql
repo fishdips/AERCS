@@ -116,11 +116,9 @@ CREATE INDEX IF NOT EXISTS idx_evidence_references_referenced_by_id ON evidence_
 CREATE TABLE IF NOT EXISTS accreditor_access (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     token       VARCHAR(128) NOT NULL UNIQUE,
+    name        VARCHAR(150),
+    -- Legacy: the address pre-account links were emailed to. New links use accreditor_access_users.
     accreditor_email VARCHAR(150),
-    otp_hash    VARCHAR(255),
-    otp_expires_at TIMESTAMPTZ,
-    verified_session_hash VARCHAR(255),
-    verified_session_expires_at TIMESTAMPTZ,
     created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
     activity_id UUID REFERENCES activities(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -135,6 +133,14 @@ CREATE TABLE IF NOT EXISTS accreditor_access_evidence (
     PRIMARY KEY (access_id, evidence_id)
 );
 
+-- Registered accreditor accounts (role ACCREDITOR_LINK) a link is assigned to.
+CREATE TABLE IF NOT EXISTS accreditor_access_users (
+    access_id   UUID NOT NULL REFERENCES accreditor_access(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (access_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_accreditor_access_users_user_id ON accreditor_access_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_token ON accreditor_access(token);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_expires_at ON accreditor_access(expires_at);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_evidence_access_id ON accreditor_access_evidence(access_id);

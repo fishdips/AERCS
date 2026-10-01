@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../api';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLES } from '../../../shared/constants/roles';
+import { getPostLoginPath } from '../../../shared/constants/roles';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const { user, loading, setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set by the route guards when a signed-out user opened a protected page directly
+  // (e.g. an accreditor following a link to /accreditor/links/:id).
+  const requestedPath = location.state?.from?.pathname;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,9 +23,8 @@ export default function LoginPage() {
     if (loading) return;
     if (!user) return;
     if (user.mustChangePw) navigate('/change-password', { replace: true });
-    else if (user.role === ROLES.ADMIN) navigate('/admin/users', { replace: true });
-    else navigate('/activities', { replace: true });
-  }, [user, loading, navigate]);
+    else navigate(getPostLoginPath(user.role, requestedPath), { replace: true });
+  }, [user, loading, navigate, requestedPath]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,8 +34,7 @@ export default function LoginPage() {
       const { data } = await login(email, password);
       setUser(data);
       if (data.mustChangePw) navigate('/change-password');
-      else if (data.role === ROLES.ADMIN) navigate('/admin/users');
-      else navigate('/activities');
+      else navigate(getPostLoginPath(data.role, requestedPath), { replace: true });
     } catch (err) {
       if (err.response) {
         setError(err.response.data?.error || 'Invalid email or password');

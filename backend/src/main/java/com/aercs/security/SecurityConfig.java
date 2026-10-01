@@ -44,9 +44,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout",
                         "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/public/accreditor-access/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/public/accreditor-access/**").permitAll()
-                .anyRequest().authenticated()
+                // Every signed-in account, accreditors included, manages its own session/password.
+                .requestMatchers("/api/auth/**").authenticated()
+                // Accreditor accounts can only reach the links assigned to them - nothing else.
+                .requestMatchers("/api/accreditor/**").hasRole("ACCREDITOR_LINK")
+                .anyRequest().hasAnyRole("ADMIN", "DEPT_STAFF", "ACCRED_COORDINATOR", "INSTITUTIONAL_OFFICE")
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

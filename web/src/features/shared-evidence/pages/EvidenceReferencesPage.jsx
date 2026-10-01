@@ -8,6 +8,8 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import api from '../../../shared/api/config';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import '../SharedEvidence.css';
+import { Trash2 } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -292,7 +294,7 @@ export default function EvidenceReferencesPage() {
                           type="button"
                           onClick={() => setRemoveTarget(ref)}
                         >
-                          🗑 Remove
+                          <Icon as={Trash2} /> Remove
                         </button>
                       )}
                     </td>

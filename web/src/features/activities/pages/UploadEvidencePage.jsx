@@ -11,6 +11,8 @@ import {
   formatDepartment,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function ActivitySummary({ activity }) {
   return (
@@ -70,9 +72,9 @@ export default function UploadEvidencePage() {
       <div className="am-page-header">
         <div className="am-page-header-left">
           {uploadInProgress ? (
-            <button className="am-btn-secondary" type="button" disabled>← Back</button>
+            <button className="am-btn-secondary" type="button" disabled><Icon as={ArrowLeft} /> Back</button>
           ) : (
-            <Link className="am-btn-secondary" to={`/activities/${id}`}>← Back</Link>
+            <Link className="am-btn-secondary" to={`/activities/${id}`}><Icon as={ArrowLeft} /> Back</Link>
           )}
           <h1 className="am-page-title">Upload Evidence</h1>
         </div>
@@ -103,14 +105,14 @@ export default function UploadEvidencePage() {
             />
             <div className="am-form-actions am-workflow-actions-split">
               {uploadInProgress ? (
-                <button className="am-btn-secondary" type="button" disabled>← Back</button>
+                <button className="am-btn-secondary" type="button" disabled><Icon as={ArrowLeft} /> Back</button>
               ) : (
-                <Link className="am-btn-secondary" to="/activities/new">← Back</Link>
+                <Link className="am-btn-secondary" to="/activities/new"><Icon as={ArrowLeft} /> Back</Link>
               )}
               {canProceedToMetadata ? (
-                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step →</Link>
+                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step <Icon as={ArrowRight} /></Link>
               ) : (
-                <button className="am-btn-primary" type="button" disabled>Next Step →</button>
+                <button className="am-btn-primary" type="button" disabled>Next Step <Icon as={ArrowRight} /></button>
               )}
             </div>
           </div>

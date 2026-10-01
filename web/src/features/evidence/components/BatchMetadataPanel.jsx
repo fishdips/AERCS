@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import { Check, TriangleAlert } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const initialForm = {
   evidenceType: '',
@@ -204,7 +206,7 @@ export default function BatchMetadataPanel({
                         <small className={assigned ? 'am-evidence-meta-assigned' : ''}>
                           {assigned ? (
                             <>
-                              <span className="am-evidence-meta-check" aria-hidden="true">✓</span>
+                              <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
                               Assigned — select to edit
                             </>
                           ) : item.fileType}
@@ -283,7 +285,7 @@ export default function BatchMetadataPanel({
           <div className="am-form-actions am-workflow-actions">
             {selectedIds.length === 0 && selectableEvidence.length > 0 && (
               <span className="am-field-hint" style={{ color: '#d97706', alignSelf: 'center', marginRight: 'auto', fontWeight: 500 }}>
-                ⚠️ Check at least one evidence file in the table above to assign metadata.
+                <Icon as={TriangleAlert} /> Check at least one evidence file in the table above to assign metadata.
               </span>
             )}
             {hideEvidenceSelection && selectedIds.length > 0 && (
@@ -292,7 +294,7 @@ export default function BatchMetadataPanel({
               </button>
             )}
             <button className="am-btn-primary" type="submit" disabled={saving || effectiveEvidence.length === 0 || selectedIds.length === 0}>
-              {saving ? 'Saving...' : '✓ Assign Metadata'}
+              {saving ? 'Saving...' : <><Icon as={Check} /> Assign Metadata</>}
             </button>
           </div>
         </>

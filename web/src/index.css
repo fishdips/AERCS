@@ -83,7 +83,9 @@ input, select, button, textarea {
   border: 0;
   color: #111827;
   cursor: pointer;
-  display: block;
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
   font-size: 0.76rem;
   line-height: 1.25;
   padding: 0.5rem 0.6rem;
@@ -106,4 +108,10 @@ input, select, button, textarea {
 .ui-action-menu-item:disabled {
   color: #9ca3af;
   cursor: not-allowed;
+}
+
+.ui-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.15em;
 }

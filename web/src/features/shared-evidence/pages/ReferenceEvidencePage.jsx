@@ -7,6 +7,8 @@ import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
 import api from '../../../shared/api/config';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import '../SharedEvidence.css';
+import { ArrowRight } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'JPG', 'PNG'];
 
@@ -126,7 +128,7 @@ export default function ReferenceEvidencePage() {
             onClick={handleReference}
             disabled={!selected}
           >
-            {selected ? `Reference Selected →` : 'Reference Selected →'}
+            Reference Selected <Icon as={ArrowRight} />
           </button>
           <button className="am-btn-secondary" type="button" onClick={() => navigate(-1)}>
             Cancel

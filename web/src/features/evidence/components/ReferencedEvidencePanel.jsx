@@ -6,6 +6,8 @@ import { deleteReference, listActivityReferencedEvidence } from '../../shared-ev
 import { formatAccreditationArea } from '../../activities/constants';
 import { formatEvidenceType } from '../constants';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import { ChevronDown, ChevronUp, Download, ExternalLink, Eye, Trash2 } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
@@ -138,7 +140,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                   <td>{formatFileSize(item.fileSize)}</td>
                   <td>{formatDate(item.referencedAt)}</td>
                   <td className="am-ev-toggle-cell">
-                    <span className="am-ev-chevron">{expandedId === item.referenceId ? '▴' : '▾'}</span>
+                    <span className="am-ev-chevron"><Icon as={expandedId === item.referenceId ? ChevronUp : ChevronDown} /></span>
                   </td>
                 </tr>
 
@@ -159,7 +161,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              🔗 Open Link
+                              <Icon as={ExternalLink} /> Open Link
                             </a>
                           )}
                           {PREVIEW_TYPES.includes(item.fileType) && (
@@ -170,7 +172,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              👁 View
+                              <Icon as={Eye} /> View
                             </a>
                           )}
                           {item.fileType !== 'LINK' && !item.linkUrl && (
@@ -180,7 +182,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
                               disabled={busyId === item.referenceId}
                             >
-                              {busyId === item.referenceId ? 'Downloading...' : '⬇ Download'}
+                              {busyId === item.referenceId ? 'Downloading...' : <><Icon as={Download} /> Download</>}
                             </button>
                           )}
                           {canManageReferences && (
@@ -190,7 +192,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
                               onClick={(e) => { e.stopPropagation(); handleRemove(item); }}
                               disabled={busyId === item.referenceId}
                             >
-                              🗑 Remove Reference
+                              <Icon as={Trash2} /> Remove Reference
                             </button>
                           )}
                         </div>
