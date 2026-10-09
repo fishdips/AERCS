@@ -1,26 +1,56 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ROLE_LABELS } from '../../../shared/constants/roles';
+import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
-import { deleteActivity, getActivity } from '../api';
-import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES, formatAccreditationArea, formatActivityType, formatUserOffice } from '../constants';
+import { deleteActivity, getActivity, updateActivity } from '../api';
+import {
+  ACCREDITATION_AREAS,
+  ACTIVITY_CREATE_ROLES,
+  ACTIVITY_WRITE_ROLES,
+  formatAccreditationArea,
+  formatActivityType,
+  formatUserOffice,
+} from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
-import { ArrowLeft, KeyRound, Link2, Pencil, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Check, KeyRound, Link2, Pencil, Trash2, Upload, X } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 function formatDate(value) {
   if (!value) return '-';
-  return new Date(`${value}T00:00:00`).toLocaleDateString('en-PH', {
+  const str = String(value);
+  const normalized = str.includes('T') ? str : `${str}T00:00:00`;
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '-';
+  const dateStr = d.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timeStr = d.toLocaleTimeString('en-PH', {
+    timeZone: 'Asia/Manila',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${dateStr} · ${timeStr}`;
 }
 
 function hasMetadata(item) {
@@ -41,6 +71,16 @@ export default function ActivityDetailPage() {
   const [evidenceItems, setEvidenceItems] = useState([]);
   const [evidenceRefreshKey, setEvidenceRefreshKey] = useState(0);
 
+  // In-place edit state for the Activity Record
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAccreditationArea, setEditAccreditationArea] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editErrors, setEditErrors] = useState({});
+  const [editSubmitError, setEditSubmitError] = useState('');
+  const [editSuccessNotice, setEditSuccessNotice] = useState('');
+
   const loadActivity = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -60,6 +100,20 @@ export default function ActivityDetailPage() {
 
   const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
   const canCreateEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
+
+  const isCreator = Boolean(
+    user && activity && (
+      (activity.createdById && user.id && String(activity.createdById).toLowerCase() === String(user.id).toLowerCase()) ||
+      (activity.createdByName && user.name && activity.createdByName.trim().toLowerCase() === user.name.trim().toLowerCase())
+    )
+  );
+
+  const canEditRecord = Boolean(
+    isCreator ||
+    user?.role === ROLES.ADMIN ||
+    user?.role === ROLES.ACCRED_COORDINATOR
+  );
+
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);
 
   const handleEvidenceChange = useCallback((items) => {
@@ -87,6 +141,65 @@ export default function ActivityDetailPage() {
       return allSelected ? [] : eligibleIds;
     });
   }, []);
+
+  const handleStartEdit = useCallback(() => {
+    if (!activity) return;
+    setEditTitle(activity.activityName || '');
+    setEditDescription(activity.description || '');
+    setEditAccreditationArea(activity.accreditationArea || '');
+    setEditErrors({});
+    setEditSubmitError('');
+    setIsEditing(true);
+  }, [activity]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditErrors({});
+    setEditSubmitError('');
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (!activity) return;
+    const nextErrors = {};
+    if (!editTitle.trim()) nextErrors.title = 'Activity title is required';
+    if (!editAccreditationArea) nextErrors.area = 'Accreditation area is required';
+    if (Object.keys(nextErrors).length > 0) {
+      setEditErrors(nextErrors);
+      return;
+    }
+
+    setIsSaving(true);
+    setEditSubmitError('');
+    try {
+      const payload = {
+        activityName: editTitle.trim(),
+        description: editDescription.trim(),
+        activityType: activity.activityType,
+        customActivityType: activity.customActivityType || null,
+        activityDate: activity.activityDate,
+        department: activity.department || null,
+        office: activity.office || null,
+        accreditationArea: editAccreditationArea,
+        academicYear: activity.academicYear,
+      };
+      const { data } = await updateActivity(activity.id, payload);
+      setActivity(data);
+      setIsEditing(false);
+      setEditSuccessNotice('Activity record updated successfully.');
+      setTimeout(() => setEditSuccessNotice(''), 4000);
+    } catch (err) {
+      const details = err.response?.data?.details;
+      if (details) {
+        setEditErrors({
+          title: details.activityName || '',
+          area: details.accreditationArea || '',
+        });
+      }
+      setEditSubmitError(err.response?.data?.error || 'Failed to update activity. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!activity) return;
@@ -128,7 +241,9 @@ export default function ActivityDetailPage() {
                   label: 'Generate Accreditor Access',
                   onClick: () => setAccreditorAccessOpen(true),
                 },
-                { icon: Pencil, label: 'Edit Activity', to: `/activities/${activity.id}/edit` },
+                ...(canEditRecord
+                  ? [{ icon: Pencil, label: 'Edit Activity', onClick: handleStartEdit }]
+                  : []),
                 {
                   icon: Trash2,
                   label: isDeleting ? 'Deleting...' : 'Delete Activity',
@@ -143,6 +258,7 @@ export default function ActivityDetailPage() {
       </div>
 
       {location.state?.message && <p className="am-alert am-alert-success">{location.state.message}</p>}
+      {editSuccessNotice && <p className="am-alert am-alert-success">{editSuccessNotice}</p>}
       {error && <p className="am-alert am-alert-error">{error}</p>}
       {loading && <p className="am-empty am-empty-plain">Loading activity...</p>}
 
@@ -150,9 +266,30 @@ export default function ActivityDetailPage() {
         <div className="am-detail-stack">
           <section className="am-panel am-panel-main">
             <div className="am-detail-heading">
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="am-section-label">Activity Record</p>
-                <h2 className="am-detail-title">{activity.activityName}</h2>
+                {!isEditing ? (
+                  <h2 className="am-detail-title">{activity.activityName}</h2>
+                ) : (
+                  <div style={{ marginTop: '0.35rem' }}>
+                    <label className="am-section-label" htmlFor="edit-activity-title" style={{ fontSize: '0.62rem' }}>
+                      Activity Title <span className="am-required">*</span>
+                    </label>
+                    <input
+                      id="edit-activity-title"
+                      type="text"
+                      className="am-input"
+                      value={editTitle}
+                      onChange={(e) => {
+                        setEditTitle(e.target.value);
+                        if (editErrors.title) setEditErrors((prev) => ({ ...prev, title: '' }));
+                      }}
+                      placeholder="Activity Title"
+                      maxLength={150}
+                    />
+                    {editErrors.title && <span className="am-field-error">{editErrors.title}</span>}
+                  </div>
+                )}
               </div>
               <span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span>
             </div>
@@ -163,8 +300,31 @@ export default function ActivityDetailPage() {
                 <dd>{formatDate(activity.activityDate)}</dd>
               </div>
               <div>
-                <dt>Accreditation Area</dt>
-                <dd>{formatAccreditationArea(activity.accreditationArea)}</dd>
+                <dt>Accreditation Area {isEditing && <span className="am-required">*</span>}</dt>
+                <dd>
+                  {!isEditing ? (
+                    formatAccreditationArea(activity.accreditationArea)
+                  ) : (
+                    <>
+                      <select
+                        className="am-select"
+                        value={editAccreditationArea}
+                        onChange={(e) => {
+                          setEditAccreditationArea(e.target.value);
+                          if (editErrors.area) setEditErrors((prev) => ({ ...prev, area: '' }));
+                        }}
+                      >
+                        <option value="">Select accreditation area</option>
+                        {ACCREDITATION_AREAS.map((area) => (
+                          <option key={area.value} value={area.value}>
+                            {area.label}
+                          </option>
+                        ))}
+                      </select>
+                      {editErrors.area && <span className="am-field-error">{editErrors.area}</span>}
+                    </>
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>Academic Year</dt>
@@ -182,12 +342,59 @@ export default function ActivityDetailPage() {
                 <dt>Creator Role</dt>
                 <dd>{ROLE_LABELS[activity.createdByRole] || activity.createdByRole || '-'}</dd>
               </div>
+              <div>
+                <dt>Last Edited</dt>
+                <dd>{formatDateTime(activity.updatedAt)}</dd>
+              </div>
             </dl>
 
             <div className="am-description">
               <p className="am-section-label">Description</p>
-              <p>{activity.description || 'No description provided.'}</p>
+              {!isEditing ? (
+                <p>{activity.description || 'No description provided.'}</p>
+              ) : (
+                <div style={{ marginTop: '0.35rem' }}>
+                  <textarea
+                    className="am-textarea"
+                    rows={4}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Enter activity description..."
+                  />
+                </div>
+              )}
             </div>
+
+            {isEditing && (
+              <div
+                className="am-form-actions"
+                style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  marginTop: '1rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid #f3f4f6',
+                }}
+              >
+                <button
+                  type="button"
+                  className="am-btn-primary"
+                  disabled={isSaving}
+                  onClick={handleSaveEdit}
+                >
+                  <Icon as={Check} size={14} /> {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  className="am-btn-secondary"
+                  disabled={isSaving}
+                  onClick={handleCancelEdit}
+                >
+                  <Icon as={X} size={14} /> Cancel
+                </button>
+              </div>
+            )}
+            {editSubmitError && <p className="am-alert am-alert-error" style={{ marginTop: '0.75rem' }}>{editSubmitError}</p>}
           </section>
 
           <div className="am-evidence-section">

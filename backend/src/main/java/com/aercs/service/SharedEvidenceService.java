@@ -57,6 +57,7 @@ public class SharedEvidenceService {
         OFFICE_TO_RELATED.put(Office.TECHNICAL_SUPPORT_GROUP, RelatedOffice.TECHNICAL_SUPPORT_GROUP);
         OFFICE_TO_RELATED.put(Office.SAFETY_AND_SECURITY, RelatedOffice.SAFETY_AND_SECURITY);
         OFFICE_TO_RELATED.put(Office.ADMISSIONS_AND_SCHOLARSHIPS, RelatedOffice.ADMISSIONS_AND_SCHOLARSHIPS);
+        OFFICE_TO_RELATED.put(Office.NATIONAL_SERVICE_TRAINING_PROGRAM, RelatedOffice.NATIONAL_SERVICE_TRAINING_PROGRAM);
         OFFICE_TO_RELATED.put(Office.EXTENSION_OFFICE, RelatedOffice.EXTENSION_OFFICE);
         OFFICE_TO_RELATED.put(Office.STUDENT_AFFAIRS_OFFICE, RelatedOffice.STUDENT_AFFAIRS_OFFICE);
     }
@@ -235,8 +236,8 @@ public class SharedEvidenceService {
         RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept)
                 : (viewerOffice != null ? OFFICE_TO_RELATED.get(viewerOffice) : null);
 
-        // DEPT_STAFF see only their own dept/office + files referenced to them; ignore the frontend dept filter
-        String effectiveDept = isDeptStaff ? null : blankToNull(department);
+        // Filter by owner department/office if selected
+        String effectiveDept = blankToNull(department);
 
         Specification<Evidence> spec = buildRepositorySpec(
                 blankToNull(keyword), areas, effectiveDept,
@@ -273,7 +274,8 @@ public class SharedEvidenceService {
 
             List<String> serviceOffices = List.of(
                     "STUDENT_SUCCESS_OFFICE", "REGISTRARS_OFFICE", "LIBRARY", "GUIDANCE_CENTER",
-                    "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP", "SAFETY_AND_SECURITY", "ADMISSIONS_AND_SCHOLARSHIPS"
+                    "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP", "SAFETY_AND_SECURITY",
+                    "ADMISSIONS_AND_SCHOLARSHIPS", "NATIONAL_SERVICE_TRAINING_PROGRAM"
             );
             Predicate isServiceOfficeFile = act.get("office").in(serviceOffices);
 
@@ -311,13 +313,19 @@ public class SharedEvidenceService {
                 // Try to parse as Department enum first, then Office enum
                 Department deptEnum = tryParseDepartment(department);
                 Office officeEnum = tryParseOffice(department);
+                Join<Evidence, User> uploaderJoin = root.join("uploadedBy", JoinType.LEFT);
+                List<Predicate> deptPreds = new ArrayList<>();
                 if (deptEnum != null) {
-                    predicates.add(cb.equal(act.get("department"), deptEnum));
+                    deptPreds.add(cb.equal(act.get("department"), deptEnum));
+                    deptPreds.add(cb.equal(uploaderJoin.get("office"), deptEnum.name()));
                 } else if (officeEnum != null) {
-                    predicates.add(cb.equal(act.get("office"), officeEnum.name()));
+                    deptPreds.add(cb.equal(act.get("office"), officeEnum.name()));
+                    deptPreds.add(cb.equal(uploaderJoin.get("office"), officeEnum.name()));
                 } else {
-                    predicates.add(cb.equal(cb.lower(act.get("office")), department.toLowerCase()));
+                    deptPreds.add(cb.equal(cb.lower(act.get("office")), department.toLowerCase()));
+                    deptPreds.add(cb.equal(cb.lower(uploaderJoin.get("office")), department.toLowerCase()));
                 }
+                predicates.add(cb.or(deptPreds.toArray(new Predicate[0])));
             }
             if (academicYear != null) {
                 predicates.add(cb.equal(act.get("academicYear"), academicYear));
@@ -361,6 +369,10 @@ public class SharedEvidenceService {
         if (viewerDepartment != null) {
             referencedToViewer = activity.getDepartment() != viewerDepartment;
         }
+        String uploaderDept = uploader == null ? null : uploader.getOffice();
+        if (uploaderDept == null || uploaderDept.isBlank()) {
+            uploaderDept = activity.getDepartment() != null ? activity.getDepartment().name() : activity.getOffice();
+        }
         return new RepositoryEvidenceResponse(
                 e.getId(),
                 activity.getId(),
@@ -376,7 +388,7 @@ public class SharedEvidenceService {
                 activity.getOffice(),
                 e.getEvidenceType(),
                 uploader == null ? null : uploader.getName(),
-                uploader == null ? null : uploader.getOffice(),
+                uploaderDept,
                 e.getUploadedAt(),
                 refCount,
                 referencedToViewer
@@ -446,6 +458,9 @@ public class SharedEvidenceService {
         User uploader = e.getUploadedBy();
         List<String> tags = parseStrings(e.getTags());
         String uploaderDept = uploader == null ? null : uploader.getOffice();
+        if (uploaderDept == null || uploaderDept.isBlank()) {
+            uploaderDept = activity.getDepartment() != null ? activity.getDepartment().name() : activity.getOffice();
+        }
 
         return new SharedEvidenceResponse(
                 e.getId(),

@@ -23,6 +23,24 @@ function isKnownOffice(value) {
   return ALL_OFFICES.some((office) => office.value === value);
 }
 
+function formatDateTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '-';
+  const dateStr = d.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timeStr = d.toLocaleTimeString('en-PH', {
+    timeZone: 'Asia/Manila',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${dateStr} · ${timeStr}`;
+}
+
 export default function EditActivityPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,12 +50,14 @@ export default function EditActivityPage() {
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastEdited, setLastEdited] = useState(null);
 
   const loadActivity = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
       const { data } = await getActivity(id);
+      setLastEdited(data.updatedAt);
       const officeIsKnown = !data.office || isKnownOffice(data.office);
       setForm({
         activityName: data.activityName || '',
@@ -124,7 +144,14 @@ export default function EditActivityPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Edit</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Edit Activity</h1>
+        <div>
+          <h1 className="am-page-title">Edit Activity</h1>
+          {lastEdited && (
+            <p className="am-breadcrumb" style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.72rem' }}>
+              Last Edited: {formatDateTime(lastEdited)}
+            </p>
+          )}
+        </div>
         <Link className="am-btn-secondary" to={`/activities/${id}`}>Cancel</Link>
       </div>
 

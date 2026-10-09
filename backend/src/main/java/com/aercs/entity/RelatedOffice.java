@@ -15,6 +15,7 @@ public enum RelatedOffice {
     TECHNICAL_SUPPORT_GROUP,
     SAFETY_AND_SECURITY,
     ADMISSIONS_AND_SCHOLARSHIPS,
+    NATIONAL_SERVICE_TRAINING_PROGRAM,
 
     // Colleges / Departments & Legacy Offices
     EXTENSION_OFFICE,

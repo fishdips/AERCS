@@ -24,6 +24,7 @@ export const RELATED_OFFICES = [
   { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
   { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
+  { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
 
   // Colleges & Other Offices
   { value: 'EXTENSION_OFFICE', label: 'Extension Office' },

@@ -24,6 +24,7 @@ function formatDateOnly(value) {
 function formatDateTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',

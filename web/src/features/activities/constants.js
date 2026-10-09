@@ -39,6 +39,7 @@ export const ACTIVITY_TYPES = [
   { value: 'CONFERENCE', label: 'Conference' },
   { value: 'WEBINAR', label: 'Webinar' },
   { value: 'ADMINISTRATIVE', label: 'Administrative' },
+  { value: 'FACULTY', label: 'Faculty' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -72,6 +73,7 @@ export const DEPARTMENTS = [
   { value: 'CNAHS', label: 'CNAHS' },
   { value: 'CCS', label: 'CCS' },
   { value: 'CCJ', label: 'CCJ' },
+  { value: 'CES', label: 'CES' },
 ];
 
 export const OFFICES = [
@@ -90,6 +92,7 @@ export const SERVICE_OFFICES = [
   { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
   { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
+  { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
 ];
 
 export const ALL_OFFICES = [

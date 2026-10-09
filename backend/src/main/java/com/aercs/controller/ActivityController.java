@@ -51,8 +51,9 @@ public class ActivityController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
     public ResponseEntity<ActivityResponse> updateActivity(@PathVariable UUID id,
-                                                            @Valid @RequestBody ActivityRequest request) {
-        return ResponseEntity.ok(activityService.updateActivity(id, request));
+                                                            @Valid @RequestBody ActivityRequest request,
+                                                            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(activityService.updateActivity(id, request, userDetails.getUsername()));
     }
 
     @DeleteMapping("/{id}")

@@ -9,6 +9,7 @@ import com.aercs.entity.Office;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
@@ -142,14 +143,32 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
+    public ActivityResponse updateActivity(UUID id, ActivityRequest request, String userId) {
         validateRequest(request);
 
         Activity activity = findActivity(id);
+        if (userId != null) {
+            User user = userRepository.findByIdentifier(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
+            boolean isAdminOrCoord = user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.ACCRED_COORDINATOR;
+            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
+            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
+            if (!isCreator && !isAdminOrCoord && !isSameDept && !isSameOffice) {
+                throw new ForbiddenException("You are not authorized to edit this activity");
+            }
+        }
+
         var existingDepartment = activity.getDepartment();
         applyRequest(activity, request);
         activity.setDepartment(existingDepartment);
+        activity.setUpdatedAt(java.time.OffsetDateTime.now(java.time.ZoneId.of("Asia/Manila")));
         return toResponse(activityRepository.save(activity));
+    }
+
+    @Transactional
+    public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
+        return updateActivity(id, request, null);
     }
 
     @Transactional

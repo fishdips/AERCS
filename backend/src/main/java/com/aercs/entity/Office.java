@@ -15,6 +15,7 @@ public enum Office {
     TECHNICAL_SUPPORT_GROUP,
     SAFETY_AND_SECURITY,
     ADMISSIONS_AND_SCHOLARSHIPS,
+    NATIONAL_SERVICE_TRAINING_PROGRAM,
 
     // Legacy values
     EXTENSION_OFFICE,
@@ -34,6 +35,7 @@ public enum Office {
             case TECHNICAL_SUPPORT_GROUP -> "Technical Support Group";
             case SAFETY_AND_SECURITY -> "Safety & Security";
             case ADMISSIONS_AND_SCHOLARSHIPS -> "Admissions & Scholarships";
+            case NATIONAL_SERVICE_TRAINING_PROGRAM -> "National Service Training Program";
             case EXTENSION_OFFICE -> "Extension Office";
             case STUDENT_AFFAIRS_OFFICE -> "Student Affairs Office";
         };
@@ -48,7 +50,8 @@ public enum Office {
                  MEDICAL_DENTAL_CLINIC,
                  TECHNICAL_SUPPORT_GROUP,
                  SAFETY_AND_SECURITY,
-                 ADMISSIONS_AND_SCHOLARSHIPS -> true;
+                 ADMISSIONS_AND_SCHOLARSHIPS,
+                 NATIONAL_SERVICE_TRAINING_PROGRAM -> true;
             default -> false;
         };
     }

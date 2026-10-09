@@ -38,7 +38,7 @@ public class DataInitializer {
             // Drop any legacy or auto-generated check constraints on activities
             jdbcTemplate.execute("ALTER TABLE activities DROP CONSTRAINT IF EXISTS chk_activities_activity_type;");
             jdbcTemplate.execute("ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_activity_type_check;");
-            jdbcTemplate.execute("ALTER TABLE activities ADD CONSTRAINT chk_activities_activity_type CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER'));");
+            jdbcTemplate.execute("ALTER TABLE activities ADD CONSTRAINT chk_activities_activity_type CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'FACULTY', 'OTHER'));");
 
             jdbcTemplate.execute("ALTER TABLE activities DROP CONSTRAINT IF EXISTS chk_activities_department;");
             jdbcTemplate.execute("ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_department_check;");

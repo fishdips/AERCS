@@ -66,7 +66,7 @@ public class Activity {
 
     @PrePersist
     protected void onCreate() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(java.time.ZoneId.of("Asia/Manila"));
         if (createdAt == null) {
             createdAt = now;
         }
@@ -77,6 +77,6 @@ public class Activity {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now(java.time.ZoneId.of("Asia/Manila"));
     }
 }

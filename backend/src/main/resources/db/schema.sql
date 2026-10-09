@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS activities (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_activities_activity_type
-        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER')),
+        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'FACULTY', 'OTHER')),
     CONSTRAINT chk_activities_department
         CHECK (department IS NULL OR LENGTH(TRIM(department)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_office

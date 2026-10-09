@@ -44,7 +44,7 @@ function formatFileSize(size, fileType) {
 }
 
 function ownerOffice(item) {
-  return formatUserOffice(item?.uploadedByOffice);
+  return formatUserOffice(item?.uploadedByOffice || item?.office || item?.department);
 }
 
 function activityOwnerLabel(activity) {
@@ -231,29 +231,27 @@ export default function RepositoryPage() {
               </select>
             </div>
 
-            {!isDeptStaff && (
-              <div className="repo-filter-section">
-                <p className="repo-filter-label">Owner Office</p>
-                <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
-                  <option value="">All offices</option>
-                  <optgroup label="Department">
-                    {DEPARTMENTS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Office">
-                    {OFFICES.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Service Office">
-                    {SERVICE_OFFICES.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-            )}
+            <div className="repo-filter-section">
+              <p className="repo-filter-label">Owner Office</p>
+              <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
+                <option value="">All offices</option>
+                <optgroup label="Department">
+                  {DEPARTMENTS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Office">
+                  {OFFICES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Service Office">
+                  {SERVICE_OFFICES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
 
             <div className="repo-filter-section">
               <p className="repo-filter-label">Academic Year</p>
