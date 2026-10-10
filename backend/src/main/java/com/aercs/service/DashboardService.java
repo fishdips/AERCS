@@ -181,7 +181,6 @@ public class DashboardService {
 
     private boolean canViewAll(UserRole role) {
         return role == UserRole.ADMIN
-                || role == UserRole.ACCRED_COORDINATOR
                 || role == UserRole.INSTITUTIONAL_OFFICE;
     }
 
@@ -287,9 +286,16 @@ public class DashboardService {
         );
     }
 
-    // Mirrors AccreditorAccessService: only the creator, an admin or an accreditation coordinator may edit.
+    // Mirrors AccreditorAccessService: only the creator, an admin or an accreditation coordinator in the same office may edit.
     private boolean canEditAccess(User viewer, AccreditorAccess access) {
-        if (viewer.getRole() == UserRole.ADMIN || viewer.getRole() == UserRole.ACCRED_COORDINATOR) return true;
+        if (viewer.getRole() == UserRole.ADMIN) return true;
+        if (viewer.getRole() == UserRole.ACCRED_COORDINATOR) {
+            String userOffice = viewer.getOffice();
+            User createdBy = access.getCreatedBy();
+            if (userOffice != null && createdBy != null && userOffice.equalsIgnoreCase(createdBy.getOffice())) {
+                return true;
+            }
+        }
         return access.getCreatedBy() != null && access.getCreatedBy().getId().equals(viewer.getId());
     }
 

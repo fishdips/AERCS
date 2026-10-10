@@ -188,7 +188,7 @@ export default function RepositoryPage() {
   const pageStart = totalElements === 0 ? 0 : currentPage * 20 + 1;
   const pageEnd = Math.min((currentPage + 1) * 20, totalElements);
 
-  const isDeptStaff = user?.role === 'DEPT_STAFF';
+  const isDeptStaff = user?.role === 'DEPT_STAFF' || user?.role === 'ACCRED_COORDINATOR';
 
   return (
     <ActivityShell>

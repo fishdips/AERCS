@@ -10,8 +10,9 @@ describe('getPostLoginPath', () => {
     expect(getPostLoginPath(ROLES.ACCREDITOR_LINK, '/dashboard')).toBe('/accreditor');
   });
 
-  it('ignores an admin return path for a non-admin login', () => {
-    expect(getPostLoginPath(ROLES.ACCRED_COORDINATOR, '/admin/users')).toBe('/activities');
+  it('ignores an admin return path for a non-admin staff login', () => {
+    expect(getPostLoginPath(ROLES.DEPT_STAFF, '/admin/users')).toBe('/activities');
+    expect(getPostLoginPath(ROLES.CHAIRPERSON, '/admin/users')).toBe('/admin/users');
   });
 
   it('follows a return path the role can use', () => {

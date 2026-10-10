@@ -24,7 +24,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/users")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'ACCRED_COORDINATOR')")
 @RequiredArgsConstructor
 public class AdminUserController {
 
@@ -33,61 +33,66 @@ public class AdminUserController {
     @PostMapping
     public ResponseEntity<CreateUserResponse> createUser(@Valid @RequestBody CreateUserRequest request,
                                                           @AuthenticationPrincipal UserDetails userDetails) {
-        CreateUserResponse response = userService.createUser(request, userDetails.getUsername());
+        CreateUserResponse response = userService.createUser(request, userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/batch")
     public ResponseEntity<List<BatchCreateUserResult>> createUsers(@Valid @RequestBody BatchCreateUserRequest request,
                                                                     @AuthenticationPrincipal UserDetails userDetails) {
-        List<BatchCreateUserResult> results = userService.createUsers(request, userDetails.getUsername());
+        List<BatchCreateUserResult> results = userService.createUsers(request, userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.status(HttpStatus.CREATED).body(results);
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> listUsers() {
-        return ResponseEntity.ok(userService.listUsers());
+    public ResponseEntity<List<UserResponse>> listUsers(@AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.listUsers(userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PatchMapping("/{id}/role")
     public ResponseEntity<UserResponse> updateRole(@PathVariable UUID id,
-                                                    @Valid @RequestBody UpdateRoleRequest request) {
-        return ResponseEntity.ok(userService.updateRole(id, request.role()));
+                                                    @Valid @RequestBody UpdateRoleRequest request,
+                                                    @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.updateRole(id, request.role(), userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserResponse> updateStatus(@PathVariable UUID id,
-                                                      @Valid @RequestBody UpdateStatusRequest request) {
-        return ResponseEntity.ok(userService.updateStatus(id, request.active()));
+                                                      @Valid @RequestBody UpdateStatusRequest request,
+                                                      @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.updateStatus(id, request.active(), userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PatchMapping("/{id}/office")
     public ResponseEntity<UserResponse> updateOffice(@PathVariable UUID id,
-                                                      @Valid @RequestBody UpdateOfficeRequest request) {
-        return ResponseEntity.ok(userService.updateOffice(id, request.office()));
+                                                      @Valid @RequestBody UpdateOfficeRequest request,
+                                                      @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.updateOffice(id, request.office(), userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PatchMapping("/{id}/profile")
     public ResponseEntity<UserResponse> updateProfile(@PathVariable UUID id,
-                                                        @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateProfile(id, request.name(), request.email()));
+                                                        @Valid @RequestBody UpdateProfileRequest request,
+                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.updateProfile(id, request.name(), request.email(), userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PostMapping("/{id}/reset-password")
-    public ResponseEntity<UserResponse> resetPassword(@PathVariable UUID id) {
-        return ResponseEntity.ok(userService.resetUserPassword(id));
+    public ResponseEntity<UserResponse> resetPassword(@PathVariable UUID id,
+                                                      @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(userService.resetUserPassword(id, userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PostMapping("/{id}/revoke-sessions")
     public ResponseEntity<UserResponse> revokeSessions(@PathVariable UUID id,
                                                         @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(userService.revokeSessions(id, userDetails.getUsername()));
+        return ResponseEntity.ok(userService.revokeSessions(id, userDetails != null ? userDetails.getUsername() : null));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id,
                                             @AuthenticationPrincipal UserDetails userDetails) {
-        userService.deleteUser(id, userDetails.getUsername());
+        userService.deleteUser(id, userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.noContent().build();
     }
 }

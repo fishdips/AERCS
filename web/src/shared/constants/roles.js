@@ -5,6 +5,7 @@ export const ROLES = {
   ADMIN: 'ADMIN',
   DEPT_STAFF: 'DEPT_STAFF',
   ACCRED_COORDINATOR: 'ACCRED_COORDINATOR',
+  CHAIRPERSON: 'ACCRED_COORDINATOR',
   INSTITUTIONAL_OFFICE: 'INSTITUTIONAL_OFFICE',
   ACCREDITOR_LINK: 'ACCREDITOR_LINK',
 };
@@ -12,7 +13,7 @@ export const ROLES = {
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'System Administrator',
   [ROLES.DEPT_STAFF]: 'Department Staff',
-  [ROLES.ACCRED_COORDINATOR]: 'Accred. Coordinator',
+  [ROLES.ACCRED_COORDINATOR]: 'Chairperson',
   [ROLES.INSTITUTIONAL_OFFICE]: 'Institutional Office',
   [ROLES.ACCREDITOR_LINK]: 'Accreditor',
 };
@@ -32,6 +33,6 @@ export function getPostLoginPath(role, requestedPath, staffDefault) {
   if (!requestedPath) return home;
   const isAccreditorPath = requestedPath === '/accreditor' || requestedPath.startsWith('/accreditor/');
   if (isAccreditorPath !== (role === ROLES.ACCREDITOR_LINK)) return home;
-  if (requestedPath.startsWith('/admin') && role !== ROLES.ADMIN) return home;
+  if (requestedPath.startsWith('/admin') && role !== ROLES.ADMIN && role !== ROLES.ACCRED_COORDINATOR) return home;
   return requestedPath;
 }

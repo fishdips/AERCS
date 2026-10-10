@@ -15,7 +15,19 @@ import { Ban, Check as CheckIcon, LogOut, Mail, Trash2, X } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
-const ROLE_FILTER_OPTIONS = ['ALL', ...Object.keys(ROLES)];
+const CHAIRPERSON_ASSIGNABLE_ROLES = [
+  ROLES.DEPT_STAFF,
+  ROLES.ACCRED_COORDINATOR,
+  ROLES.ACCREDITOR_LINK,
+];
+const ALL_ASSIGNABLE_ROLES = [
+  ROLES.DEPT_STAFF,
+  ROLES.ADMIN,
+  ROLES.ACCRED_COORDINATOR,
+  ROLES.INSTITUTIONAL_OFFICE,
+  ROLES.ACCREDITOR_LINK,
+];
+const ROLE_FILTER_OPTIONS = ['ALL', ...ALL_ASSIGNABLE_ROLES];
 const ORG_UNIT_FILTER_OPTIONS = [
   { value: 'ALL', label: 'Org unit: All' },
   { value: '', label: 'Unassigned' },
@@ -31,7 +43,8 @@ const USER_SERVICE_OFFICES = SERVICE_OFFICES.filter((office) => office.value !==
 function DeptOfficeOptions({ value }) {
   const isKnown = !value
     || DEPARTMENTS.some((d) => d.value === value)
-    || USER_OFFICES.some((o) => o.value === value);
+    || USER_OFFICES.some((o) => o.value === value)
+    || USER_SERVICE_OFFICES.some((so) => so.value === value);
   return (
     <>
       <option value="">None</option>
@@ -55,7 +68,7 @@ function DeptOfficeOptions({ value }) {
 const PERMISSIONS_TABLE = [
   { role: 'Department Staff',    create: true,  upload: true,  metadata: true,  reference: true,  monitor: false, admin: false },
   { role: 'Institutional Office',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: false },
-  { role: 'Accred. Coordinator', create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: false },
+  { role: 'Chairperson',         create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
   { role: 'Accreditor (Link)',   create: false, upload: false, metadata: false, reference: true,  monitor: false, admin: false },
   { role: 'System Administrator',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
 ];
@@ -71,6 +84,8 @@ function formatDate(iso) {
 export default function UserManagementPage() {
   const { user: currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const isChairperson = currentUser?.role === ROLES.ACCRED_COORDINATOR;
+  const chairOffice = currentUser?.office || '';
 
   const handleLogout = async () => {
     await logout();
@@ -85,14 +100,14 @@ export default function UserManagementPage() {
   const [showTempPwModal, setShowTempPwModal]     = useState(false);
   const [newUserResult, setNewUserResult]         = useState(null);
 
-  const [createForm, setCreateForm] = useState({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
+  const [createForm, setCreateForm] = useState({ name: '', email: '', office: isChairperson ? chairOffice : '', role: ROLES.DEPT_STAFF });
   const [createError, setCreateError] = useState('');
   const [createFieldErrors, setCreateFieldErrors] = useState({});
   const [isCreating, setIsCreating]   = useState(false);
 
   const [showBulkModal, setShowBulkModal]   = useState(false);
   const [bulkRows, setBulkRows]             = useState([{ name: '', email: '' }]);
-  const [bulkShared, setBulkShared]         = useState({ office: '', role: ROLES.DEPT_STAFF });
+  const [bulkShared, setBulkShared]         = useState({ office: isChairperson ? chairOffice : '', role: ROLES.DEPT_STAFF });
   const [bulkError, setBulkError]           = useState('');
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [bulkResults, setBulkResults]       = useState(null);
@@ -114,6 +129,14 @@ export default function UserManagementPage() {
   const [isResettingPw, setIsResettingPw] = useState(false);
   const [isForcingLogout, setIsForcingLogout] = useState(false);
 
+  const roleFilterOptions = isChairperson
+    ? ['ALL', ...CHAIRPERSON_ASSIGNABLE_ROLES]
+    : ROLE_FILTER_OPTIONS;
+
+  const orgUnitFilterOptions = isChairperson
+    ? [{ value: 'ALL', label: `Org unit: ${formatUserOffice(chairOffice) || chairOffice || 'My Department'}` }]
+    : ORG_UNIT_FILTER_OPTIONS;
+
   const loadUsers = useCallback(async () => {
     try {
       const { data } = await listUsers();
@@ -129,11 +152,16 @@ export default function UserManagementPage() {
     editForm.name !== selectedUser.name
     || editForm.email !== selectedUser.email
     || editForm.role !== selectedUser.role
-    || editForm.office !== (selectedUser.office || '')
+    || (!isChairperson && editForm.office !== (selectedUser.office || ''))
     || editForm.active !== selectedUser.active
   );
 
   const filteredUsers = users.filter((u) => {
+    if (isChairperson) {
+      const matchOffice = chairOffice && (u.office || '').toLowerCase() === chairOffice.toLowerCase();
+      const matchCreatedBy = u.createdBy && currentUser?.id && u.createdBy === currentUser?.id;
+      if (!matchOffice && !matchCreatedBy) return false;
+    }
     const q = searchQuery.toLowerCase();
     const matchSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
     const matchRole   = roleFilter === 'ALL' || u.role === roleFilter;
@@ -176,6 +204,10 @@ export default function UserManagementPage() {
       setActionError('You cannot delete your own account.');
       return;
     }
+    if (isChairperson && selectedUser.role === ROLES.ADMIN) {
+      setActionError('Chairpersons cannot delete Administrator accounts.');
+      return;
+    }
     setActionError('');
     setDeleteConfirmOpen(true);
   };
@@ -184,6 +216,10 @@ export default function UserManagementPage() {
     if (!selectedUser) return;
     if (selectedUser.id === currentUser.id) {
       setActionError('You cannot force logout your own account.');
+      return;
+    }
+    if (isChairperson && selectedUser.role === ROLES.ADMIN) {
+      setActionError('Chairpersons cannot force logout Administrator accounts.');
       return;
     }
     setActionError('');
@@ -205,18 +241,40 @@ export default function UserManagementPage() {
     }
   };
 
+  const handleOpenCreateModal = () => {
+    setCreateError('');
+    setCreateFieldErrors({});
+    setCreateForm({
+      name: '',
+      email: '',
+      office: isChairperson ? chairOffice : '',
+      role: ROLES.DEPT_STAFF,
+    });
+    setShowCreateModal(true);
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setCreateError('');
     setCreateFieldErrors({});
     setIsCreating(true);
     try {
-      const request = { name: createForm.name, email: createForm.email, office: createForm.office || null, role: createForm.role };
+      const request = {
+        name: createForm.name,
+        email: createForm.email,
+        office: (isChairperson ? chairOffice : createForm.office) || null,
+        role: createForm.role,
+      };
       const { data } = await createUser(request);
       setNewUserResult(data);
       setShowCreateModal(false);
       setShowTempPwModal(true);
-      setCreateForm({ name: '', email: '', office: '', role: ROLES.DEPT_STAFF });
+      setCreateForm({
+        name: '',
+        email: '',
+        office: isChairperson ? chairOffice : '',
+        role: ROLES.DEPT_STAFF,
+      });
       loadUsers();
     } catch (err) {
       setCreateFieldErrors(err.response?.data?.details || {});
@@ -230,6 +288,16 @@ export default function UserManagementPage() {
   const removeBulkRow = (index) => setBulkRows((rows) => rows.filter((_, i) => i !== index));
   const updateBulkRow = (index, field, value) =>
     setBulkRows((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const handleOpenBulkModal = () => {
+    setBulkError('');
+    setBulkRows([{ name: '', email: '' }]);
+    setBulkShared({
+      office: isChairperson ? chairOffice : '',
+      role: ROLES.DEPT_STAFF,
+    });
+    setShowBulkModal(true);
+  };
 
   const handleBulkCreate = async (e) => {
     e.preventDefault();
@@ -249,14 +317,17 @@ export default function UserManagementPage() {
     try {
       const request = {
         users: rows.map((r) => ({ name: r.name.trim(), email: r.email.trim() })),
-        office: bulkShared.office || null,
+        office: (isChairperson ? chairOffice : bulkShared.office) || null,
         role: bulkShared.role,
       };
       const { data } = await createUsersBatch(request);
       setBulkResults(data);
       setShowBulkModal(false);
       setBulkRows([{ name: '', email: '' }]);
-      setBulkShared({ office: '', role: ROLES.DEPT_STAFF });
+      setBulkShared({
+        office: isChairperson ? chairOffice : '',
+        role: ROLES.DEPT_STAFF,
+      });
       loadUsers();
     } catch (err) {
       setBulkError(err.response?.data?.error || 'Failed to create users');
@@ -277,14 +348,14 @@ export default function UserManagementPage() {
       if (editForm.role !== selectedUser.role) {
         await updateUserRole(selectedUser.id, editForm.role);
       }
-      if (editForm.office !== (selectedUser.office || '')) {
+      if (!isChairperson && editForm.office !== (selectedUser.office || '')) {
         await updateUserOffice(selectedUser.id, editForm.office);
       }
       if (editForm.active !== selectedUser.active) {
         await updateUserStatus(selectedUser.id, editForm.active);
       }
       await loadUsers();
-      setSelectedUser({ ...selectedUser, ...editForm });
+      setSelectedUser({ ...selectedUser, ...editForm, ...(isChairperson ? { office: selectedUser.office } : {}) });
     } catch (err) {
       setActionError(err.response?.data?.error || 'Failed to save changes. Please try again.');
     } finally {
@@ -387,7 +458,7 @@ export default function UserManagementPage() {
         {/* ════════════ MAIN ════════════ */}
         <main className="ump-main">
           <div className="ump-main-inner">
-            <p className="ump-breadcrumb">Access Management › Users</p>
+            <p className="ump-breadcrumb">Access Management › Users{isChairperson && chairOffice ? ` (${formatUserOffice(chairOffice) || chairOffice})` : ''}</p>
 
             <div className="ump-perms-section">
               <p className="ump-section-label">Permissions by Role</p>
@@ -422,10 +493,10 @@ export default function UserManagementPage() {
             <div className="ump-page-header">
               <h1 className="ump-page-title">Users &amp; Roles</h1>
               <div className="ump-page-actions">
-                <button className="ump-btn-primary" onClick={() => setShowCreateModal(true)}>
+                <button className="ump-btn-primary" onClick={handleOpenCreateModal}>
                   + Invite User
                 </button>
-                <button className="ump-btn-secondary" onClick={() => setShowBulkModal(true)}>
+                <button className="ump-btn-secondary" onClick={handleOpenBulkModal}>
                   + Bulk Invite
                 </button>
                 <button
@@ -446,7 +517,7 @@ export default function UserManagementPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <select className="ump-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                {ROLE_FILTER_OPTIONS.map((r) => (
+                {roleFilterOptions.map((r) => (
                   <option key={r} value={r}>{r === 'ALL' ? 'Role: All' : ROLE_LABELS[r] ?? r}</option>
                 ))}
               </select>
@@ -455,8 +526,8 @@ export default function UserManagementPage() {
                   <option key={s} value={s}>{s === 'ALL' ? 'Status: All' : s}</option>
                 ))}
               </select>
-              <select className="ump-select" value={orgUnitFilter} onChange={(e) => setOrgUnitFilter(e.target.value)}>
-                {ORG_UNIT_FILTER_OPTIONS.map((orgUnit) => (
+              <select className="ump-select" value={orgUnitFilter} onChange={(e) => setOrgUnitFilter(e.target.value)} disabled={isChairperson}>
+                {orgUnitFilterOptions.map((orgUnit) => (
                   <option key={orgUnit.value || 'UNASSIGNED'} value={orgUnit.value}>{orgUnit.label}</option>
                 ))}
               </select>
@@ -577,13 +648,22 @@ export default function UserManagementPage() {
             </div>
             <div className="ump-detail-field">
               <label className="ump-detail-label">Department / Office</label>
-              <select
-                className="ump-detail-select"
-                value={editForm.office}
-                onChange={(e) => setEditForm((f) => ({ ...f, office: e.target.value }))}
-              >
-                <DeptOfficeOptions value={editForm.office} />
-              </select>
+              {isChairperson ? (
+                <input
+                  className="ump-detail-input"
+                  value={formatUserOffice(chairOffice) || chairOffice}
+                  disabled
+                  readOnly
+                />
+              ) : (
+                <select
+                  className="ump-detail-select"
+                  value={editForm.office}
+                  onChange={(e) => setEditForm((f) => ({ ...f, office: e.target.value }))}
+                >
+                  <DeptOfficeOptions value={editForm.office} />
+                </select>
+              )}
             </div>
             <div className="ump-detail-field">
               <label className="ump-detail-label">Role</label>
@@ -591,8 +671,9 @@ export default function UserManagementPage() {
                 className="ump-detail-select"
                 value={editForm.role}
                 onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
+                disabled={isChairperson && selectedUser?.role === ROLES.ADMIN}
               >
-                {Object.keys(ROLES).map((r) => (
+                {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
                   <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
                 ))}
               </select>
@@ -679,21 +760,27 @@ export default function UserManagementPage() {
           </div>
           <div className="ump-modal-field">
             <label className="ump-modal-label">Department / Office</label>
-            <select className="ump-modal-select" value={createForm.office}
-              onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value }))}>
-              <DeptOfficeOptions />
-            </select>
+            {isChairperson ? (
+              <input
+                className="ump-modal-input"
+                value={formatUserOffice(chairOffice) || chairOffice}
+                disabled
+                readOnly
+              />
+            ) : (
+              <select className="ump-modal-select" value={createForm.office}
+                onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value }))}>
+                <DeptOfficeOptions />
+              </select>
+            )}
           </div>
           <div className="ump-modal-field">
             <label className="ump-modal-label">Role</label>
             <select className="ump-modal-select" value={createForm.role}
               onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}>
-              {/* NOTE: Add new roles here when extending beyond MVP */}
-              <option value={ROLES.DEPT_STAFF}>{ROLE_LABELS[ROLES.DEPT_STAFF]}</option>
-              <option value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</option>
-              <option value={ROLES.ACCRED_COORDINATOR}>{ROLE_LABELS[ROLES.ACCRED_COORDINATOR]}</option>
-              <option value={ROLES.INSTITUTIONAL_OFFICE}>{ROLE_LABELS[ROLES.INSTITUTIONAL_OFFICE]}</option>
-              <option value={ROLES.ACCREDITOR_LINK}>{ROLE_LABELS[ROLES.ACCREDITOR_LINK]}</option>
+              {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
+              ))}
             </select>
           </div>
           <button type="submit" className="ump-modal-submit" disabled={isCreating}>
@@ -728,20 +815,27 @@ export default function UserManagementPage() {
           <div className="ump-bulk-shared">
             <div className="ump-modal-field">
               <label className="ump-modal-label">Department / Office</label>
-              <select className="ump-modal-select" value={bulkShared.office}
-                onChange={(e) => setBulkShared((f) => ({ ...f, office: e.target.value }))}>
-                <DeptOfficeOptions />
-              </select>
+              {isChairperson ? (
+                <input
+                  className="ump-modal-input"
+                  value={formatUserOffice(chairOffice) || chairOffice}
+                  disabled
+                  readOnly
+                />
+              ) : (
+                <select className="ump-modal-select" value={bulkShared.office}
+                  onChange={(e) => setBulkShared((f) => ({ ...f, office: e.target.value }))}>
+                  <DeptOfficeOptions />
+                </select>
+              )}
             </div>
             <div className="ump-modal-field">
               <label className="ump-modal-label">Role</label>
               <select className="ump-modal-select" value={bulkShared.role}
                 onChange={(e) => setBulkShared((f) => ({ ...f, role: e.target.value }))}>
-                <option value={ROLES.DEPT_STAFF}>{ROLE_LABELS[ROLES.DEPT_STAFF]}</option>
-                <option value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</option>
-                <option value={ROLES.ACCRED_COORDINATOR}>{ROLE_LABELS[ROLES.ACCRED_COORDINATOR]}</option>
-                <option value={ROLES.INSTITUTIONAL_OFFICE}>{ROLE_LABELS[ROLES.INSTITUTIONAL_OFFICE]}</option>
-                <option value={ROLES.ACCREDITOR_LINK}>{ROLE_LABELS[ROLES.ACCREDITOR_LINK]}</option>
+                {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
+                  <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
+                ))}
               </select>
             </div>
             <p className="ump-bulk-shared-note">Applied to every user added below.</p>

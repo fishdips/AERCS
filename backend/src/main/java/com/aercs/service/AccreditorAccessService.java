@@ -302,11 +302,18 @@ public class AccreditorAccessService {
     }
 
     private boolean canModifyAll(User user) {
-        return user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.ACCRED_COORDINATOR;
+        return user.getRole() == UserRole.ADMIN;
     }
 
     private boolean canEdit(User user, AccreditorAccess access) {
         if (canModifyAll(user)) return true;
+        if (user.getRole() == UserRole.ACCRED_COORDINATOR) {
+            String userOffice = user.getOffice();
+            User createdBy = access.getCreatedBy();
+            if (userOffice != null && createdBy != null && userOffice.equalsIgnoreCase(createdBy.getOffice())) {
+                return true;
+            }
+        }
         User createdBy = access.getCreatedBy();
         return createdBy != null && createdBy.getId().equals(user.getId());
     }

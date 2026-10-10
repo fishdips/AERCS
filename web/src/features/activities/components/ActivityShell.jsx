@@ -5,7 +5,7 @@ import '../pages/ActivityManagementPage.css';
 
 export default function ActivityShell({ children }) {
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === ROLES.ADMIN;
+  const canAccessAdmin = user?.role === ROLES.ADMIN || user?.role === ROLES.ACCRED_COORDINATOR;
   const isAccreditor = user?.role === ROLES.ACCREDITOR_LINK;
   const navClass = ({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`;
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ export default function ActivityShell({ children }) {
                 <NavLink to="/shared-evidence" className={navClass}>Shared Evidence</NavLink>
               </>
             )}
-            {isAdmin && (
+            {canAccessAdmin && (
               <>
                 <p className="am-nav-section">Administration</p>
                 <NavLink to="/admin/users" className={navClass}>Access Management</NavLink>

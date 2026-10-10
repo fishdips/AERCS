@@ -385,9 +385,20 @@ public class EvidenceService {
         User currentUser = userRepository.findByIdentifier(userIdOrIdentifier).orElse(null);
         if (currentUser == null) throw new ForbiddenException("User not found");
 
-        boolean isAdmin = currentUser.getRole() == com.aercs.entity.UserRole.ADMIN
-                || currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR;
-        if (isAdmin) return;
+        if (currentUser.getRole() == com.aercs.entity.UserRole.ADMIN) return;
+
+        if (currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR) {
+            com.aercs.entity.Department userDept = currentUser.resolveDepartment();
+            Activity act = evidence.getActivity();
+            if (userDept != null && act != null && act.getDepartment() == userDept) {
+                return;
+            }
+            String userOffice = currentUser.getOffice();
+            if (userOffice != null && act != null && userOffice.equalsIgnoreCase(act.getOffice())) {
+                return;
+            }
+            throw new ForbiddenException("Chairperson can only modify evidence within their department");
+        }
 
         User uploader = evidence.getUploadedBy();
         if (uploader == null || !uploader.getId().equals(currentUser.getId())) {

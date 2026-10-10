@@ -108,10 +108,17 @@ export default function ActivityDetailPage() {
     )
   );
 
+  const isSameDeptOrOffice = Boolean(
+    user && activity && (
+      (user.department && activity.department && String(user.department).toUpperCase() === String(activity.department).toUpperCase()) ||
+      (user.office && activity.office && String(user.office).toUpperCase() === String(activity.office).toUpperCase())
+    )
+  );
+
   const canEditRecord = Boolean(
     isCreator ||
     user?.role === ROLES.ADMIN ||
-    user?.role === ROLES.ACCRED_COORDINATOR
+    (user?.role === ROLES.ACCRED_COORDINATOR && isSameDeptOrOffice)
   );
 
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);

@@ -138,7 +138,6 @@ public class ActivityService {
 
     private boolean canViewAll(UserRole role) {
         return role == UserRole.ADMIN
-                || role == UserRole.ACCRED_COORDINATOR
                 || role == UserRole.INSTITUTIONAL_OFFICE;
     }
 
@@ -151,10 +150,10 @@ public class ActivityService {
             User user = userRepository.findByIdentifier(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
-            boolean isAdminOrCoord = user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.ACCRED_COORDINATOR;
+            boolean isAdmin = user.getRole() == UserRole.ADMIN;
             boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
             boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
-            if (!isCreator && !isAdminOrCoord && !isSameDept && !isSameOffice) {
+            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
                 throw new ForbiddenException("You are not authorized to edit this activity");
             }
         }
@@ -172,12 +171,28 @@ public class ActivityService {
     }
 
     @Transactional
-    public void deleteActivity(UUID id) {
+    public void deleteActivity(UUID id, String userId) {
         Activity activity = findActivity(id);
+        if (userId != null) {
+            User user = userRepository.findByIdentifier(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() == UserRole.ADMIN;
+            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
+            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
+            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
+                throw new ForbiddenException("You are not authorized to delete this activity");
+            }
+        }
         if (evidenceRepository.existsByActivityId(id)) {
             throw new BadRequestException("Activity has attached evidence and cannot be deleted");
         }
         activityRepository.delete(activity);
+    }
+
+    @Transactional
+    public void deleteActivity(UUID id) {
+        deleteActivity(id, null);
     }
 
     private Activity findActivity(UUID id) {

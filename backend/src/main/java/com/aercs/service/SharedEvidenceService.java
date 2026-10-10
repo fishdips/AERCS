@@ -194,10 +194,10 @@ public class SharedEvidenceService {
         boolean isOwner = ref.getReferencedBy() != null && ref.getReferencedBy().getId().equals(currentUserId);
         String userOrgUnit = currentUser.getOffice();
         boolean isSameOffice = userOrgUnit != null && userOrgUnit.equalsIgnoreCase(ref.getReferencedByOffice());
-        boolean isAdmin = currentUserRole == UserRole.ADMIN || currentUserRole == UserRole.ACCRED_COORDINATOR;
+        boolean isAdmin = currentUserRole == UserRole.ADMIN;
 
         if (!isOwner && !isSameOffice && !isAdmin) {
-            throw new BadRequestException("Only the referencing user, accreditation coordinator, or administrator can delete it");
+            throw new BadRequestException("Only the referencing user, department colleague, or administrator can delete it");
         }
 
         referenceRepository.delete(ref);
@@ -230,7 +230,8 @@ public class SharedEvidenceService {
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        boolean isDeptStaff = currentUser.getRole() == UserRole.DEPT_STAFF;
+        boolean isDeptStaff = currentUser.getRole() == UserRole.DEPT_STAFF
+                || currentUser.getRole() == UserRole.ACCRED_COORDINATOR;
         Department viewerDept = isDeptStaff ? currentUser.resolveDepartment() : null;
         Office viewerOffice = isDeptStaff ? currentUser.resolveOffice() : null;
         RelatedOffice viewerRelatedOffice = viewerDept != null ? DEPARTMENT_TO_RELATED.get(viewerDept)

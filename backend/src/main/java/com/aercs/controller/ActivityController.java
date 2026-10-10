@@ -58,8 +58,9 @@ public class ActivityController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
-    public ResponseEntity<Void> deleteActivity(@PathVariable UUID id) {
-        activityService.deleteActivity(id);
+    public ResponseEntity<Void> deleteActivity(@PathVariable UUID id,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
+        activityService.deleteActivity(id, userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.noContent().build();
     }
 }
