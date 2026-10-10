@@ -538,7 +538,7 @@ npm test -- --watchAll=false
 AERCS was conceptualized and developed as a Bachelor of Science in Information Technology (BSIT) Capstone Project.
 
 * **Repository**: [https://github.com/fishdips/AERCS](https://github.com/fishdips/AERCS)
-* **Academic Year**: 2024 – 2026
+* **Academic Year**: 2025 – 2026
 
 ---
 
