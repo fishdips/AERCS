@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import React from 'react';
 import {
   createLinkEvidence,
@@ -16,7 +16,21 @@ import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
-import { Check, ChevronDown, ChevronUp, Download, ExternalLink, Eye, Link2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ExternalLink,
+  Eye,
+  FolderUp,
+  Link2,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  Upload,
+  UploadCloud,
+} from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -50,6 +64,76 @@ function validateFiles(files) {
     }
   }
   return '';
+}
+
+function classifyFile(file) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  if (!ALLOWED_EXTENSIONS.includes(extension)) {
+    return { ok: false, reason: 'Unsupported file type' };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { ok: false, reason: 'Exceeds 10 MB size limit' };
+  }
+  return { ok: true };
+}
+
+// --- Folder / drag-and-drop traversal helpers -------------------------------
+// Dropped folders expose a FileSystemDirectoryEntry tree (webkitGetAsEntry)
+// rather than a flat FileList, so we have to walk it ourselves.
+
+function readEntryAsFile(entry) {
+  return new Promise((resolve) => {
+    entry.file(resolve, () => resolve(null));
+  });
+}
+
+function readAllDirectoryEntries(reader) {
+  return new Promise((resolve) => {
+    const collected = [];
+    const readBatch = () => {
+      reader.readEntries((batch) => {
+        if (!batch.length) {
+          resolve(collected);
+          return;
+        }
+        collected.push(...batch);
+        readBatch();
+      }, () => resolve(collected));
+    };
+    readBatch();
+  });
+}
+
+async function collectFilesFromEntry(entry, files) {
+  if (!entry) return;
+  if (entry.isFile) {
+    const file = await readEntryAsFile(entry);
+    if (file) files.push(file);
+  } else if (entry.isDirectory) {
+    const entries = await readAllDirectoryEntries(entry.createReader());
+    for (const child of entries) {
+      await collectFilesFromEntry(child, files);
+    }
+  }
+}
+
+async function getFilesFromDataTransfer(dataTransfer) {
+  const items = dataTransfer?.items ? Array.from(dataTransfer.items) : [];
+  const supportsEntries = items.length > 0 && typeof items[0].webkitGetAsEntry === 'function';
+  if (!supportsEntries) {
+    return Array.from(dataTransfer?.files || []);
+  }
+  const files = [];
+  for (const item of items) {
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    if (entry) {
+      await collectFilesFromEntry(entry, files);
+    } else if (item.getAsFile) {
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    }
+  }
+  return files;
 }
 
 function saveBlob(blob, fileName) {
@@ -114,6 +198,9 @@ export default function EvidencePanel({
   const [pendingReplaceIndex, setPendingReplaceIndex] = useState(null);
   const [metadataEvidence, setMetadataEvidence] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [pendingUnsupported, setPendingUnsupported] = useState(null); // { valid: File[], invalid: {name, reason}[] }
+  const dragCounterRef = useRef(0);
 
   const loadEvidence = useCallback(async () => {
     setLoading(true);
@@ -149,16 +236,79 @@ export default function EvidencePanel({
   const managementLocked = lockManagementActions || isUploading;
   const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
 
+  // Adds incoming files (from the file picker, folder picker, or a drag-and-drop
+  // drop of files/folders) to the staging list. Files that fail validation are
+  // held back and surfaced in a confirmation prompt instead of silently
+  // blocking the whole batch.
+  const addIncomingFiles = useCallback((incoming) => {
+    if (!incoming || incoming.length === 0) return;
+    const existingKeys = new Set(selectedFiles.map(fileKey));
+    const localSeen = new Set();
+    const valid = [];
+    const invalid = [];
+    incoming.forEach((file) => {
+      const key = fileKey(file);
+      if (existingKeys.has(key) || localSeen.has(key)) return;
+      localSeen.add(key);
+      const result = classifyFile(file);
+      if (result.ok) valid.push(file);
+      else invalid.push({ name: file.name, reason: result.reason });
+    });
+    if (invalid.length > 0) {
+      setPendingUnsupported({ valid, invalid });
+      return;
+    }
+    if (valid.length === 0) return;
+    setError('');
+    setSelectedFiles((current) => [...current, ...valid]);
+  }, [selectedFiles]);
+
   const handleSelectFiles = (event) => {
     const files = Array.from(event.target.files || []);
-    const validationError = validateFiles(files);
     event.target.value = '';
-    setError(validationError);
-    if (validationError) return;
-    setSelectedFiles((current) => {
-      const existingKeys = new Set(current.map(fileKey));
-      return [...current, ...files.filter((f) => !existingKeys.has(fileKey(f)))];
-    });
+    addIncomingFiles(files);
+  };
+
+  const handleSelectFolder = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    addIncomingFiles(files);
+  };
+
+  const handleConfirmSkipUnsupported = () => {
+    if (pendingUnsupported?.valid?.length) {
+      setError('');
+      setSelectedFiles((current) => [...current, ...pendingUnsupported.valid]);
+    }
+    setPendingUnsupported(null);
+  };
+
+  const handleCancelUnsupported = () => setPendingUnsupported(null);
+
+  const handleDragEnter = (event) => {
+    event.preventDefault();
+    if (isUploading) return;
+    dragCounterRef.current += 1;
+    setIsDraggingOver(true);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (event) => {
+    event.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+    if (isUploading) return;
+    const files = await getFilesFromDataTransfer(event.dataTransfer);
+    addIncomingFiles(files);
   };
 
   const handleRemoveSelectedFile = (index) => {
@@ -365,13 +515,46 @@ export default function EvidencePanel({
 
           {uploadMode === 'file' ? (
             <>
-              <input
-                className="am-input"
-                type="file"
-                multiple
-                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                onChange={handleSelectFiles}
-              />
+              <div
+                className={[
+                  'am-dropzone',
+                  isDraggingOver ? 'am-dropzone-active' : '',
+                  isUploading ? 'am-dropzone-disabled' : '',
+                ].filter(Boolean).join(' ')}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Icon as={UploadCloud} size={22} />
+                <p className="am-dropzone-text">Drag and drop files or a folder here</p>
+                <div className="am-dropzone-buttons">
+                  <label className={isUploading ? 'am-btn-secondary am-link-disabled' : 'am-btn-secondary'}>
+                    <Icon as={Upload} /> Browse Files
+                    <input
+                      className="am-hidden-input"
+                      type="file"
+                      multiple
+                      accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                      disabled={isUploading}
+                      onChange={handleSelectFiles}
+                    />
+                  </label>
+                  <label className={isUploading ? 'am-btn-secondary am-link-disabled' : 'am-btn-secondary'}>
+                    <Icon as={FolderUp} /> Browse Folder
+                    <input
+                      className="am-hidden-input"
+                      type="file"
+                      multiple
+                      webkitdirectory=""
+                      directory=""
+                      disabled={isUploading}
+                      onChange={handleSelectFolder}
+                    />
+                  </label>
+                </div>
+                <p className="am-dropzone-hint">PDF, DOCX, XLSX, JPG, JPEG, PNG &middot; up to 10 MB each</p>
+              </div>
               {selectedFiles.length > 0 && (
                 <div className="am-selected-files">
                   {selectedFiles.map((file, index) => (
@@ -578,6 +761,39 @@ export default function EvidencePanel({
           </tbody>
         </table>
       )}
+
+      {/* Unsupported Files Modal */}
+      <Modal
+        isOpen={Boolean(pendingUnsupported)}
+        onClose={handleCancelUnsupported}
+        title="Unsupported Files Detected"
+      >
+        <div className="am-replace-modal">
+          <p className="am-replace-copy">
+            {pendingUnsupported?.valid.length > 0
+              ? `${pendingUnsupported.invalid.length} file(s) can't be added. Skip them and continue with the other ${pendingUnsupported.valid.length} file(s)?`
+              : "None of the selected files can be added."}
+          </p>
+          <ul className="am-unsupported-list">
+            {pendingUnsupported?.invalid.map((entry, index) => (
+              <li key={`${entry.name}-${index}`}>
+                <span className="am-unsupported-name">{entry.name}</span>
+                <span className="am-unsupported-reason">{entry.reason}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="am-form-actions am-replace-actions">
+            <button className="am-btn-secondary" type="button" onClick={handleCancelUnsupported}>
+              Cancel
+            </button>
+            {pendingUnsupported?.valid.length > 0 && (
+              <button className="am-btn-primary" type="button" onClick={handleConfirmSkipUnsupported}>
+                Skip &amp; Add {pendingUnsupported.valid.length} File(s)
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* Replace File Modal */}
       <Modal

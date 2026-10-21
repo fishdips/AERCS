@@ -67,7 +67,6 @@ function DeptOfficeOptions({ value }) {
 // Static permissions reference table (display-only in MVP)
 const PERMISSIONS_TABLE = [
   { role: 'Department Staff',    create: true,  upload: true,  metadata: true,  reference: true,  monitor: false, admin: false },
-  { role: 'Institutional Office',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: false },
   { role: 'Chairperson',         create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
   { role: 'Accreditor (Link)',   create: false, upload: false, metadata: false, reference: true,  monitor: false, admin: false },
   { role: 'System Administrator',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
