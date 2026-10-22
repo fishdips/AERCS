@@ -230,7 +230,7 @@ export default function EvidencePanel({
 
   const canManageItem = (item) => {
     if (!user) return false;
-    if (user.role === 'ADMIN' || user.role === 'ACCRED_COORDINATOR') return true;
+    if (user.role === 'ADMIN') return true;
     return item.uploadedById != null && String(item.uploadedById) === String(user.id);
   };
   const managementLocked = lockManagementActions || isUploading;

@@ -104,17 +104,9 @@ export default function ActivityDetailPage() {
 
   const isCreator = Boolean(isUserActivity(activity, user));
 
-  const isSameDeptOrOffice = Boolean(
-    user && activity && (
-      (user.department && activity.department && String(user.department).toUpperCase() === String(activity.department).toUpperCase()) ||
-      (user.office && activity.office && String(user.office).toUpperCase() === String(activity.office).toUpperCase())
-    )
-  );
-
   const canEditRecord = Boolean(
     isCreator ||
-    user?.role === ROLES.ADMIN ||
-    (user?.role === ROLES.ACCRED_COORDINATOR && isSameDeptOrOffice)
+    user?.role === ROLES.ADMIN
   );
 
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);
@@ -247,13 +239,15 @@ export default function ActivityDetailPage() {
                 ...(canEditRecord
                   ? [{ icon: Pencil, label: 'Edit Activity', onClick: handleStartEdit }]
                   : []),
-                {
-                  icon: Trash2,
-                  label: isDeleting ? 'Deleting...' : 'Delete Activity',
-                  danger: true,
-                  disabled: isDeleting,
-                  onClick: () => setDeleteConfirmOpen(true),
-                },
+                ...(canEditRecord
+                  ? [{
+                      icon: Trash2,
+                      label: isDeleting ? 'Deleting...' : 'Delete Activity',
+                      danger: true,
+                      disabled: isDeleting,
+                      onClick: () => setDeleteConfirmOpen(true),
+                    }]
+                  : []),
               ]}
             />
           )}
