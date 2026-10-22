@@ -169,3 +169,15 @@ export const EVIDENCE_TYPES = [
   'Evaluation',
   'Other'
 ];
+
+export function isUserActivity(activity, user) {
+  if (!activity || !user) return false;
+  const userId = user.id ? String(user.id).toLowerCase() : null;
+  const userName = user.name ? user.name.trim().toLowerCase() : null;
+  const actCreatorId = activity.createdById ? String(activity.createdById).toLowerCase() : null;
+  const actCreatorName = activity.createdByName ? activity.createdByName.trim().toLowerCase() : null;
+
+  if (userId && actCreatorId && userId === actCreatorId) return true;
+  if (userName && actCreatorName && userName === actCreatorName) return true;
+  return false;
+}

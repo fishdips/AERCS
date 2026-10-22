@@ -16,6 +16,7 @@ import {
   SERVICE_OFFICES,
   formatActivityType,
   formatDeptOrOffice,
+  isUserActivity,
 } from '../constants';
 
 const ORGANIZATION_UNITS = [
@@ -71,10 +72,12 @@ export default function ActivitiesListPage() {
       const department = activity.department || '';
       const office = activity.office || '';
 
+      const isMine = isUserActivity(activity, user);
       const matchesSearch = !q || name.toLowerCase().includes(q)
         || academicYear.toLowerCase().includes(q)
         || department.toLowerCase().includes(q)
-        || office.toLowerCase().includes(q);
+        || office.toLowerCase().includes(q)
+        || (isMine && (q === 'you' || q === '(you)'));
       const matchesType = !activityTypeFilter || activity.activityType === activityTypeFilter;
       const matchesOrganization = !organizationFilter
         || department === organizationFilter
@@ -96,6 +99,7 @@ export default function ActivitiesListPage() {
     organizationFilter,
     academicYearFilter,
     accreditationAreaFilter,
+    user,
   ]);
 
   const academicYears = useMemo(() => (
@@ -201,18 +205,24 @@ export default function ActivitiesListPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredActivities.map((activity) => (
-              <tr key={activity.id}>
-                <td className="am-td am-td-title">{activity.activityName}</td>
-                <td className="am-td"><span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span></td>
-                <td className="am-td">{formatDeptOrOffice(activity.department, activity.office)}</td>
-                <td className="am-td">{activity.academicYear}</td>
-                <td className="am-td">{formatDate(activity.activityDate)}</td>
-                <td className="am-td am-td-action">
-                  <Link className="am-link-button" to={`/activities/${activity.id}`}>View Details</Link>
-                </td>
-              </tr>
-            ))}
+            {filteredActivities.map((activity) => {
+              const isMine = isUserActivity(activity, user);
+              return (
+                <tr key={activity.id}>
+                  <td className="am-td am-td-title">
+                    <span>{activity.activityName}</span>
+                    {isMine && <span className="am-badge-you">You</span>}
+                  </td>
+                  <td className="am-td"><span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span></td>
+                  <td className="am-td">{formatDeptOrOffice(activity.department, activity.office)}</td>
+                  <td className="am-td">{activity.academicYear}</td>
+                  <td className="am-td">{formatDate(activity.activityDate)}</td>
+                  <td className="am-td am-td-action">
+                    <Link className="am-link-button" to={`/activities/${activity.id}`}>View Details</Link>
+                  </td>
+                </tr>
+              );
+            })}
             {!loading && filteredActivities.length === 0 && (
               <tr><td className="am-empty" colSpan={6}>No activities found</td></tr>
             )}

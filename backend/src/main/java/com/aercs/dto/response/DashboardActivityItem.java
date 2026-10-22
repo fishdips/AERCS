@@ -9,5 +9,7 @@ public record DashboardActivityItem(
         String activityType,
         String department,
         LocalDate activityDate,
-        long evidenceCount
+        long evidenceCount,
+        UUID createdById,
+        String createdByName
 ) {}
