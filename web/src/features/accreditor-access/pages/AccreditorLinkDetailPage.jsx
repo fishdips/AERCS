@@ -9,7 +9,7 @@ import {
 import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
 import '../AccreditorAccess.css';
-import { ExternalLink } from 'lucide-react';
+import { Download, Eye, ExternalLink } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
@@ -123,14 +123,23 @@ export default function AccreditorLinkDetailPage() {
                     <td>
                       <div className="aa-row-actions">
                         {(item.fileType === 'LINK' || item.linkUrl) && (
-                          <a href={item.linkUrl} target="_blank" rel="noreferrer"><Icon as={ExternalLink} /> Open Link</a>
+                          <a className="am-link-button" href={item.linkUrl} target="_blank" rel="noreferrer">
+                            <Icon as={ExternalLink} /> Open Link
+                          </a>
                         )}
                         {PREVIEW_TYPES.includes(item.fileType) && (
-                          <a href={getAccreditorEvidenceViewUrl(id, item.id)} target="_blank" rel="noreferrer">View</a>
+                          <a className="am-link-button" href={getAccreditorEvidenceViewUrl(id, item.id)} target="_blank" rel="noreferrer">
+                            <Icon as={Eye} /> View
+                          </a>
                         )}
                         {item.fileType !== 'LINK' && !item.linkUrl && (
-                          <button type="button" onClick={() => handleDownload(item)} disabled={busyId === item.id}>
-                            {busyId === item.id ? 'Downloading...' : 'Download'}
+                          <button
+                            className="am-link-button"
+                            type="button"
+                            onClick={() => handleDownload(item)}
+                            disabled={busyId === item.id}
+                          >
+                            <Icon as={Download} /> {busyId === item.id ? 'Downloading...' : 'Download'}
                           </button>
                         )}
                       </div>

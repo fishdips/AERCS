@@ -30,8 +30,9 @@ import {
 } from '../../evidence/constants';
 import { searchRepository } from '../api';
 import '../Repository.css';
-import { ExternalLink, FileText, Link2 } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
@@ -387,29 +388,13 @@ export default function RepositoryPage() {
                 </div>
 
                 <div className="repo-preview-body">
-                  {detail.fileType === 'PDF' ? (
-                    <iframe
-                      className="repo-preview-frame"
-                      src={getEvidenceViewUrl(detail.id)}
-                      title={detail.originalFileName}
-                    />
-                  ) : PREVIEW_TYPES.includes(detail.fileType) ? (
-                    <img
-                      className="repo-preview-img"
-                      src={getEvidenceViewUrl(detail.id)}
-                      alt={detail.originalFileName}
-                    />
-                  ) : detail.fileType === 'LINK' || detail.linkUrl ? (
-                    <div className="repo-preview-placeholder">
-                      <span className="repo-preview-icon"><Icon as={Link2} size={32} /></span>
-                      <p>External link — use Open Link to view</p>
-                    </div>
-                  ) : (
-                    <div className="repo-preview-placeholder">
-                      <span className="repo-preview-icon"><Icon as={FileText} size={32} /></span>
-                      <p>No preview available for this file type</p>
-                    </div>
-                  )}
+                  <EvidencePreview
+                    fileType={detail.fileType}
+                    linkUrl={detail.linkUrl}
+                    viewUrl={PREVIEW_TYPES.includes(detail.fileType) ? getEvidenceViewUrl(detail.id) : undefined}
+                    fileName={detail.originalFileName}
+                    iconSize={32}
+                  />
                 </div>
 
                 <h2 className="repo-details-title">{detail.originalFileName}</h2>

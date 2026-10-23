@@ -3,14 +3,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getActivity } from '../../activities/api';
 import { searchSharedEvidence } from '../api';
+import { getEvidenceViewUrl } from '../../evidence/api';
 import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
 import api from '../../../shared/api/config';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
 import '../SharedEvidence.css';
 import { ArrowRight } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'JPG', 'PNG'];
+const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatFileSize(size) {
   if (!size) return '-';
@@ -324,7 +327,15 @@ export default function ReferenceEvidencePage() {
             <div className="se-preview-row">
               <div>
                 <p className="am-section-label" style={{ marginBottom: '0.5rem' }}>Preview</p>
-                <div className="se-preview-box">[ {preview.fileType} PREVIEW ]</div>
+                <div className="se-preview-box">
+                  <EvidencePreview
+                    fileType={preview.fileType}
+                    linkUrl={preview.linkUrl}
+                    viewUrl={PREVIEW_TYPES.includes(preview.fileType) ? getEvidenceViewUrl(preview.id) : undefined}
+                    fileName={preview.originalFileName}
+                    iconSize={22}
+                  />
+                </div>
                 <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.4rem' }}>
                   {preview.originalFileName} · {formatFileSize(preview.fileSize)}
                 </div>

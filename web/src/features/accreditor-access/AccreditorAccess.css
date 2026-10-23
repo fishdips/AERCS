@@ -41,18 +41,6 @@
   flex-wrap: wrap;
 }
 
-.aa-row-actions a,
-.aa-row-actions button {
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111827;
-  cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.28rem 0.55rem;
-  text-decoration: none;
-}
-
 .aa-empty,
 .aa-error,
 .aa-notes {

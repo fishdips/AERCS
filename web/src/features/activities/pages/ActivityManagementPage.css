@@ -264,6 +264,10 @@
 }
 
 /* Dropdown Animation */
+.am-dropdown-wrap {
+  position: relative;
+}
+
 .am-dropdown-menu {
   position: absolute;
   top: 100%;
@@ -276,7 +280,7 @@
   min-width: 160px;
   z-index: 50;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  
+
   /* Bidirectional Transition */
   opacity: 0;
   transform: translateY(-8px);
@@ -307,37 +311,13 @@
   background: #f3f4f6;
 }
 
-/* Upload Modal Styles */
-.am-upload-dropzone {
-  border: 2px dashed #d1d5db;
-  border-radius: 6px;
-  padding: 3rem 2rem;
-  text-align: center;
-  background: #f9fafb;
+.am-dropdown-item-button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  margin-bottom: 1.5rem;
-  transition: all 0.2s ease;
-}
-
-.am-upload-dropzone:hover {
-  border-color: #111;
-  background: #f3f4f6;
-}
-
-.am-upload-dropzone p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.am-upload-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  font-family: inherit;
 }
 
 .am-filters {

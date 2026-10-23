@@ -2,14 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { deleteReference, getReferences } from '../api';
-import { getEvidence } from '../../evidence/api';
+import { getEvidence, getEvidenceViewUrl } from '../../evidence/api';
 import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import api from '../../../shared/api/config';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
 import '../SharedEvidence.css';
 import { Trash2 } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+
+const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatDate(value) {
   if (!value) return '-';
@@ -120,7 +123,15 @@ export default function EvidenceReferencesPage() {
                   <span className="se-owner-badge">You uploaded this</span>
                 )}
 
-                <div className="se-ref-preview">[ {evidence.fileType} PREVIEW ]</div>
+                <div className="se-ref-preview">
+                  <EvidencePreview
+                    fileType={evidence.fileType}
+                    linkUrl={evidence.linkUrl}
+                    viewUrl={PREVIEW_TYPES.includes(evidence.fileType) ? getEvidenceViewUrl(evidenceId) : undefined}
+                    fileName={evidence.originalFileName}
+                    iconSize={22}
+                  />
+                </div>
 
                 <p className="se-ref-fname">{evidence.originalFileName}</p>
                 <p className="se-ref-fmeta">

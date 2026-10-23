@@ -206,15 +206,13 @@
 }
 
 .se-preview-box {
-  border: 1px dashed #d1d5db;
+  border: 1px solid #e5e7eb;
   background: #f9fafb;
-  color: #9ca3af;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 160px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
+  overflow: hidden;
 }
 
 .se-meta-list {
@@ -318,15 +316,13 @@
 }
 
 .se-ref-preview {
-  border: 1px dashed #d1d5db;
+  border: 1px solid #e5e7eb;
   background: #f9fafb;
-  color: #9ca3af;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 120px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
+  height: 160px;
+  overflow: hidden;
   margin: 0.6rem 0;
 }
 
