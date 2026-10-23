@@ -4,8 +4,11 @@ import { AdminRoute } from './shared/routes/AdminRoute';
 import { ProtectedRoute } from './shared/routes/ProtectedRoute';
 import { RoleProtectedRoute } from './shared/routes/RoleProtectedRoute';
 import LoginPage from './features/auth/pages/LoginPage';
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage';
+import ResetPasswordPage from './features/auth/pages/ResetPasswordPage';
 import ChangePasswordPage from './features/auth/pages/ChangePasswordPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
+import DashboardPage from './features/dashboard/pages/DashboardPage';
 import ActivitiesListPage from './features/activities/pages/ActivitiesListPage';
 import CreateActivityPage from './features/activities/pages/CreateActivityPage';
 import UploadEvidencePage from './features/activities/pages/UploadEvidencePage';
@@ -16,8 +19,10 @@ import RepositoryPage from './features/repository/pages/RepositoryPage';
 import SharedEvidencePage from './features/shared-evidence/pages/SharedEvidencePage';
 import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvidencePage';
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
-import AccreditorAccessPage from './features/accreditor-access/pages/AccreditorAccessPage';
-import { ACTIVITY_WRITE_ROLES } from './features/activities/constants';
+import AccreditorLinksPage from './features/accreditor-access/pages/AccreditorLinksPage';
+import AccreditorLinkDetailPage from './features/accreditor-access/pages/AccreditorLinkDetailPage';
+import { ROLES } from './shared/constants/roles';
+import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES } from './features/activities/constants';
 
 function App() {
   return (
@@ -26,8 +31,30 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
-          <Route path="/accreditor-access/:token" element={<AccreditorAccessPage />} />
+          {/* Old public token links no longer grant access - accreditors sign in instead. */}
+          <Route path="/accreditor-access/:token" element={<Navigate to="/accreditor" replace />} />
+          <Route path="/a/:token" element={<Navigate to="/accreditor" replace />} />
+
+          {/* Accreditor accounts: only the evidence links assigned to them */}
+          <Route
+            path="/accreditor"
+            element={
+              <RoleProtectedRoute allowedRoles={[ROLES.ACCREDITOR_LINK]}>
+                <AccreditorLinksPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/accreditor/links/:id"
+            element={
+              <RoleProtectedRoute allowedRoles={[ROLES.ACCREDITOR_LINK]}>
+                <AccreditorLinkDetailPage />
+              </RoleProtectedRoute>
+            }
+          />
 
           {/* Admin only */}
           <Route
@@ -39,7 +66,14 @@ function App() {
             }
           />
 
-          <Route path="/dashboard" element={<Navigate to="/activities" replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/repository"
@@ -62,7 +96,7 @@ function App() {
           <Route
             path="/activities/new"
             element={
-              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+              <RoleProtectedRoute allowedRoles={ACTIVITY_CREATE_ROLES}>
                 <CreateActivityPage />
               </RoleProtectedRoute>
             }
@@ -71,7 +105,7 @@ function App() {
           <Route
             path="/activities/:id/evidence"
             element={
-              <RoleProtectedRoute allowedRoles={ACTIVITY_WRITE_ROLES}>
+              <RoleProtectedRoute allowedRoles={ACTIVITY_CREATE_ROLES}>
                 <UploadEvidencePage />
               </RoleProtectedRoute>
             }

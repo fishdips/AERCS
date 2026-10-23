@@ -1,30 +1,32 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
 import {
-  ACCREDITATION_AREAS,
-  DEPARTMENTS,
-  OFFICES,
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
+  formatUserOffice,
 } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { createReference } from '../api';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
 
 export default function ReferenceConfirmModal({ evidence, activity, isOpen, onClose, onSuccess }) {
   const { user } = useAuth();
-  const [area, setArea] = useState(activity?.accreditationArea ?? '');
-  const [office, setOffice] = useState(user?.department || activity?.office || activity?.department || '');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setArea(activity?.accreditationArea ?? '');
-    setOffice(user?.department || activity?.office || activity?.department || '');
-  }, [activity, isOpen, user]);
+    setError('');
+  }, [isOpen]);
+
+  // Always the target activity's own office and accreditation area - not a
+  // choice the user makes here, so staff can't reference a file in under a
+  // different office/area than where it's actually being used.
+  const referencingOffice = user?.office || activity?.office || activity?.department || null;
+  const referencingArea = activity?.accreditationArea || null;
 
   const handleClose = () => {
     setNote('');
@@ -38,12 +40,12 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
     try {
       await createReference(evidence.id, {
         activityId: activity.id,
-        referencedByOffice: office || null,
-        accreditationArea: area || null,
+        referencedByOffice: referencingOffice,
+        accreditationArea: referencingArea,
         note: note || null,
       });
       setNote('');
-      onSuccess();
+      onSuccess(evidence);
       handleClose();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create reference.');
@@ -54,12 +56,10 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
 
   if (!evidence || !activity) return null;
 
-  const officeOptions = [...DEPARTMENTS, ...OFFICES];
-
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Confirm Reference">
       <div className="se-confirm-body">
-        {error && <p className="am-alert am-alert-error">{error}</p>}
+        <Alert type="error" message={error} onDismiss={() => setError('')} />
 
         <dl className="se-confirm-dl">
           <div>
@@ -82,37 +82,15 @@ export default function ReferenceConfirmModal({ evidence, activity, isOpen, onCl
             <dt>Target Activity</dt>
             <dd>{activity.activityName}</dd>
           </div>
+          <div>
+            <dt>Referencing Office</dt>
+            <dd>{formatUserOffice(referencingOffice)}</dd>
+          </div>
+          <div>
+            <dt>Area Used In</dt>
+            <dd>{formatAccreditationArea(referencingArea)}</dd>
+          </div>
         </dl>
-
-        <div className="am-form-field">
-          <label className="am-form-label se-filter-label" htmlFor="ref-office">Referencing Office</label>
-          <select
-            id="ref-office"
-            className="am-select"
-            value={office}
-            onChange={(e) => setOffice(e.target.value)}
-          >
-            <option value="">Use my office</option>
-            {officeOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="am-form-field">
-          <label className="am-form-label se-filter-label" htmlFor="ref-area">Area Used In</label>
-          <select
-            id="ref-area"
-            className="am-select"
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-          >
-            <option value="">Same as activity</option>
-            {ACCREDITATION_AREAS.map((a) => (
-              <option key={a.value} value={a.value}>{a.label}</option>
-            ))}
-          </select>
-        </div>
 
         <div className="am-form-field">
           <label className="am-form-label se-filter-label" htmlFor="ref-note">Note (optional)</label>

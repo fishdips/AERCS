@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import {
   ACTIVITY_WRITE_ROLES,
   ACCREDITATION_AREAS,
   DEPARTMENTS,
   OFFICES,
+  SERVICE_OFFICES,
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
+  formatUserOffice,
 } from '../../activities/constants';
 import { listActivities } from '../../activities/api';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import Modal from '../../../shared/components/Modal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import InfoTooltip from '../../../shared/components/InfoTooltip';
 import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import {
@@ -27,9 +31,12 @@ import {
 } from '../../evidence/constants';
 import { searchRepository } from '../api';
 import '../Repository.css';
+import { ArrowRight, ExternalLink } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
+import Alert from '../../../shared/components/Alert';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
-const ALL_OFFICES = [...DEPARTMENTS, ...OFFICES];
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatFileSize(size, fileType) {
@@ -40,9 +47,7 @@ function formatFileSize(size, fileType) {
 }
 
 function ownerOffice(item) {
-  if (item?.office) return formatOffice(item.office);
-  if (item?.department) return formatDepartment(item.department);
-  return '-';
+  return formatUserOffice(item?.uploadedByOffice || item?.office || item?.department);
 }
 
 function activityOwnerLabel(activity) {
@@ -135,7 +140,7 @@ export default function RepositoryPage() {
     setEvidenceType('');
   };
 
-  const openDetails = async (item, openReference = false) => {
+  const openDetails = async (item) => {
     setSelectedEvidence(item);
     setEvidenceDetails(null);
     setTargetActivityId('');
@@ -147,12 +152,6 @@ export default function RepositoryPage() {
       setEvidenceDetails(null);
     } finally {
       setDetailsLoading(false);
-    }
-    if (openReference) {
-      window.setTimeout(() => {
-        const el = document.getElementById('repo-reference-target');
-        el?.focus();
-      }, 0);
     }
   };
 
@@ -192,23 +191,23 @@ export default function RepositoryPage() {
   const pageStart = totalElements === 0 ? 0 : currentPage * 20 + 1;
   const pageEnd = Math.min((currentPage + 1) * 20, totalElements);
 
-  const isDeptStaff = user?.role === 'DEPT_STAFF';
+  const isDeptStaff = user?.role === 'DEPT_STAFF' || user?.role === 'ACCRED_COORDINATOR';
 
   return (
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Repository</p>
       <div className="am-page-header">
-        <div>
+        <div className="am-page-header-left">
           <h1 className="am-page-title">Repository</h1>
-          <p className="repo-page-context">
-            {isDeptStaff
+          <InfoTooltip
+            text={isDeptStaff
               ? 'Showing your department’s uploads and files referenced to your department.'
               : 'Global evidence explorer for finding reusable evidence before uploading duplicates.'}
-          </p>
+          />
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       <div className="repo-layout">
         <aside className="repo-filter-panel">
@@ -235,17 +234,27 @@ export default function RepositoryPage() {
               </select>
             </div>
 
-            {!isDeptStaff && (
-              <div className="repo-filter-section">
-                <p className="repo-filter-label">Owner Office</p>
-                <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
-                  <option value="">All offices</option>
-                  {ALL_OFFICES.map((option) => (
+            <div className="repo-filter-section">
+              <p className="repo-filter-label">Owner Office</p>
+              <select className="am-select" value={office} onChange={(e) => setOffice(e.target.value)}>
+                <option value="">All offices</option>
+                <optgroup label="Department">
+                  {DEPARTMENTS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
-              </div>
-            )}
+                </optgroup>
+                <optgroup label="Office">
+                  {OFFICES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Service Office">
+                  {SERVICE_OFFICES.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
 
             <div className="repo-filter-section">
               <p className="repo-filter-label">Academic Year</p>
@@ -332,14 +341,6 @@ export default function RepositoryPage() {
                       <button className="am-link-button" type="button" onClick={() => openDetails(item)}>
                         View Details
                       </button>
-                      <ActionMenu
-                        items={[
-                          canReference && {
-                            label: 'Reference Evidence',
-                            onClick: () => openDetails(item, true),
-                          },
-                        ]}
-                      />
                     </div>
                   </td>
                 </tr>
@@ -365,35 +366,18 @@ export default function RepositoryPage() {
           <div className="repo-details">
             {detailsLoading && <p className="am-empty am-empty-plain">Loading details...</p>}
 
-            <div className="repo-details-main">
-              <div>
-                <p className="am-section-label">File</p>
-                <h2 className="repo-details-title">{detail.originalFileName}</h2>
-                <p className="repo-details-sub">
-                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
-                </p>
+            {detail.activityId && (
+              <div className="repo-details-topbar">
+                <Link className="am-btn-secondary" to={`/activities/${detail.activityId}`} onClick={closeDetails}>
+                  Go to Activity <Icon as={ArrowRight} />
+                </Link>
+              </div>
+            )}
 
-                <div className="repo-details-actions">
-                  {(detail.fileType === 'LINK' || detail.linkUrl) && (
-                    <a
-                      className="am-btn-primary"
-                      href={detail.linkUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      🔗 Open Link
-                    </a>
-                  )}
-                  {PREVIEW_TYPES.includes(detail.fileType) && (
-                    <a
-                      className="am-btn-secondary"
-                      href={getEvidenceViewUrl(detail.id)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View Details
-                    </a>
-                  )}
+            <div className="repo-details-main">
+              <div className="repo-preview-panel">
+                <div className="repo-preview-header">
+                  <p className="am-section-label">File</p>
                   <ActionMenu
                     items={[
                       (detail.fileType === 'LINK' || detail.linkUrl) && {
@@ -412,6 +396,34 @@ export default function RepositoryPage() {
                     ]}
                   />
                 </div>
+
+                <div className="repo-preview-body">
+                  <EvidencePreview
+                    fileType={detail.fileType}
+                    linkUrl={detail.linkUrl}
+                    viewUrl={PREVIEW_TYPES.includes(detail.fileType) ? getEvidenceViewUrl(detail.id) : undefined}
+                    fileName={detail.originalFileName}
+                    iconSize={32}
+                  />
+                </div>
+
+                <h2 className="repo-details-title">{detail.originalFileName}</h2>
+                <p className="repo-details-sub">
+                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
+                </p>
+
+                {(detail.fileType === 'LINK' || detail.linkUrl) && (
+                  <div className="repo-details-actions">
+                    <a
+                      className="am-btn-primary"
+                      href={detail.linkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Icon as={ExternalLink} /> Open Link
+                    </a>
+                  </div>
+                )}
               </div>
 
               <dl className="repo-details-list">
@@ -506,7 +518,7 @@ export default function RepositoryPage() {
         <GenerateAccreditorAccessModal
           isOpen={accreditorAccessOpen}
           onClose={() => setAccreditorAccessOpen(false)}
-          evidenceIds={[detail.id]}
+          activityId={detail.activityId}
         />
       )}
     </ActivityShell>

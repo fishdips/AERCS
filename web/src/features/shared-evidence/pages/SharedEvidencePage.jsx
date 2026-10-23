@@ -2,20 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { searchSharedEvidence } from '../api';
-import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
+import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatUserOffice, resolveUserDepartment } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import InfoTooltip from '../../../shared/components/InfoTooltip';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
+import { Search } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 function ownerOffice(item) {
-  if (item.office) return formatOffice(item.office);
-  if (item.department) return formatDepartment(item.department);
-  return '-';
+  return formatUserOffice(item?.uploadedByOffice);
 }
 
 export default function SharedEvidencePage() {
   const { user } = useAuth();
+  const userDepartment = resolveUserDepartment(user);
   const [results, setResults] = useState([]);
   const [totalElements, setTotalElements] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
@@ -63,22 +66,21 @@ export default function SharedEvidencePage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Shared Evidence</p>
       <div className="am-page-header">
-        <div>
+        <div className="am-page-header-left">
           <h1 className="am-page-title">Shared Evidence</h1>
-          <p className="se-page-context">
-            Office-owned evidence reused by other activities.
-            {user?.department ? ` Showing ${formatDepartment(user.department)} evidence only.` : ''}
-          </p>
+          <InfoTooltip
+            text={`Office-owned evidence reused by other activities.${userDepartment ? ` Showing ${formatDepartment(userDepartment)} evidence only.` : ''}`}
+          />
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       <div className="se-layout">
         <form className="se-filter-panel" onSubmit={handleSearch}>
           <div className="se-filter-group">
             <span className="se-filter-label">Owner Office</span>
-            <div className="se-scope-box">{user?.department ? formatDepartment(user.department) : 'No office assigned'}</div>
+            <div className="se-scope-box">{userDepartment ? formatDepartment(userDepartment) : 'No office assigned'}</div>
           </div>
 
           <div className="se-filter-group">
@@ -112,7 +114,7 @@ export default function SharedEvidencePage() {
           </div>
 
           <button className="am-btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? 'Searching...' : <><Icon as={Search} /> Search</>}
           </button>
         </form>
 

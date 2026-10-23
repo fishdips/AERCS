@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../api';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLES } from '../../../shared/constants/roles';
+import { getPostLoginPath } from '../../../shared/constants/roles';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const { user, loading, setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Set by the route guards when a signed-out user opened a protected page directly
+  // (e.g. an accreditor following a link to /accreditor/links/:id).
+  const requestedPath = location.state?.from?.pathname;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,9 +23,8 @@ export default function LoginPage() {
     if (loading) return;
     if (!user) return;
     if (user.mustChangePw) navigate('/change-password', { replace: true });
-    else if (user.role === ROLES.ADMIN) navigate('/admin/users', { replace: true });
-    else navigate('/activities', { replace: true });
-  }, [user, loading, navigate]);
+    else navigate(getPostLoginPath(user.role, requestedPath), { replace: true });
+  }, [user, loading, navigate, requestedPath]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,10 +34,13 @@ export default function LoginPage() {
       const { data } = await login(email, password);
       setUser(data);
       if (data.mustChangePw) navigate('/change-password');
-      else if (data.role === ROLES.ADMIN) navigate('/admin/users');
-      else navigate('/activities');
+      else navigate(getPostLoginPath(data.role, requestedPath), { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid email or password');
+      if (err.response) {
+        setError(err.response.data?.error || 'Invalid email or password');
+      } else {
+        setError('Could not reach the server. Check your connection and try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -84,24 +91,45 @@ export default function LoginPage() {
 
             <div className="login-field">
               <label className="login-label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                className="login-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
+              <div className="login-password-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="login-input login-password-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="login-password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="login-options">
               <label className="login-remember">
                 <input type="checkbox" /> Remember device
               </label>
-              <button type="button" className="login-forgot" tabIndex={-1} disabled>
+              <Link className="login-forgot" to="/forgot-password">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             <button type="submit" className="login-btn" disabled={submitting}>

@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import ActivityShell from '../../activities/components/ActivityShell';
 import {
-  downloadPublicEvidenceBlob,
-  getPublicAccreditorAccess,
-  getPublicEvidenceViewUrl,
+  downloadAccreditorEvidenceBlob,
+  getAccreditorEvidenceViewUrl,
+  getMyAccreditorLink,
 } from '../api';
 import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
 import '../AccreditorAccess.css';
+import { Download, Eye, ExternalLink } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
@@ -35,8 +39,8 @@ function formatOwnerOffice(value) {
   return formatDepartment(value);
 }
 
-export default function AccreditorAccessPage() {
-  const { token } = useParams();
+export default function AccreditorLinkDetailPage() {
+  const { id } = useParams();
   const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,17 +49,17 @@ export default function AccreditorAccessPage() {
   useEffect(() => {
     setLoading(true);
     setError('');
-    getPublicAccreditorAccess(token)
+    getMyAccreditorLink(id)
       .then(({ data }) => setAccess(data))
-      .catch(() => setError('Access link is invalid or expired.'))
+      .catch(() => setError('This evidence link is unavailable. It may have expired or was not shared with your account.'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [id]);
 
   const handleDownload = async (item) => {
     setBusyId(item.id);
     setError('');
     try {
-      const { data } = await downloadPublicEvidenceBlob(token, item.id);
+      const { data } = await downloadAccreditorEvidenceBlob(id, item.id);
       saveBlob(data, item.originalFileName);
     } catch {
       setError('Unable to download this evidence file.');
@@ -65,26 +69,31 @@ export default function AccreditorAccessPage() {
   };
 
   return (
-    <div className="aa-public-shell">
-      <header className="aa-public-header">
-        <div>
-          <div className="aa-logo">AERCS</div>
-          <h1>Accreditor Evidence Access</h1>
-          <p>Read-only evidence files shared for accreditation review.</p>
+    <ActivityShell>
+      <div className="am-breadcrumb">
+        <Link to="/accreditor">Evidence Links</Link> / {access?.name || 'Link'}
+      </div>
+
+      <div className="am-page-header">
+        <div className="am-page-header-left">
+          <h1 className="am-page-title">{access?.name || 'Evidence Link'}</h1>
+          {access && (
+            <p className="am-description">
+              {access.sharedBy ? `Shared by ${access.sharedBy} · ` : ''}
+              Expires {new Date(access.expiresAt).toLocaleString()}
+            </p>
+          )}
         </div>
-        {access?.expiresAt && (
-          <span className="aa-expiry">Expires {new Date(access.expiresAt).toLocaleString()}</span>
-        )}
-      </header>
+      </div>
 
-      <main className="aa-public-main">
-        {loading && <div className="aa-empty">Loading access link...</div>}
-        {error && <div className="aa-error">{error}</div>}
+      {loading && <p className="am-empty am-empty-plain">Loading evidence...</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
-        {!loading && !error && access && (
-          <>
-            {access.notes && <p className="aa-notes">{access.notes}</p>}
+      {!loading && access && (
+        <>
+          {access.notes && <p className="aa-notes">{access.notes}</p>}
 
+          <div className="aa-table-wrap">
             <table className="aa-table">
               <thead>
                 <tr>
@@ -99,7 +108,7 @@ export default function AccreditorAccessPage() {
               </thead>
               <tbody>
                 {access.evidence.length === 0 && (
-                  <tr><td colSpan={7} className="aa-empty">No evidence is available for this access link.</td></tr>
+                  <tr><td colSpan={7} className="aa-empty">No evidence is available for this link.</td></tr>
                 )}
                 {access.evidence.map((item) => (
                   <tr key={item.id}>
@@ -115,26 +124,23 @@ export default function AccreditorAccessPage() {
                     <td>
                       <div className="aa-row-actions">
                         {(item.fileType === 'LINK' || item.linkUrl) && (
-                          <a
-                            href={item.linkUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            🔗 Open Link
+                          <a className="am-link-button" href={item.linkUrl} target="_blank" rel="noreferrer">
+                            <Icon as={ExternalLink} /> Open Link
                           </a>
                         )}
                         {PREVIEW_TYPES.includes(item.fileType) && (
-                          <a
-                            href={getPublicEvidenceViewUrl(token, item.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View
+                          <a className="am-link-button" href={getAccreditorEvidenceViewUrl(id, item.id)} target="_blank" rel="noreferrer">
+                            <Icon as={Eye} /> View
                           </a>
                         )}
                         {item.fileType !== 'LINK' && !item.linkUrl && (
-                          <button type="button" onClick={() => handleDownload(item)} disabled={busyId === item.id}>
-                            Download
+                          <button
+                            className="am-link-button"
+                            type="button"
+                            onClick={() => handleDownload(item)}
+                            disabled={busyId === item.id}
+                          >
+                            <Icon as={Download} /> {busyId === item.id ? 'Downloading...' : 'Download'}
                           </button>
                         )}
                       </div>
@@ -143,9 +149,9 @@ export default function AccreditorAccessPage() {
                 ))}
               </tbody>
             </table>
-          </>
-        )}
-      </main>
-    </div>
+          </div>
+        </>
+      )}
+    </ActivityShell>
   );
 }

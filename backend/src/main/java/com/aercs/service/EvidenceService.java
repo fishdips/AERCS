@@ -26,6 +26,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -47,17 +49,60 @@ public class EvidenceService {
         if (files == null || files.isEmpty()) {
             throw new BadRequestException("Select at least one evidence file");
         }
-        User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
         return files.stream()
-                .map(file -> saveEvidenceFile(activity, file, uploadedBy))
-                .map(this::toResponse)
+                .map(file -> saveEvidenceFileWithDuplicateCheck(activity, file, uploadedBy))
                 .toList();
+    }
+
+    // Looks for an existing file with identical content anywhere in the repository
+    // (any activity, office or department) before saving the new upload, so the
+    // response can flag it - the goal is fewer duplicate files across offices, not
+    // just within one activity.
+    private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy) {
+        validateFile(file);
+        String fileHash = computeFileHash(file);
+        Evidence existingDuplicate = fileHash == null
+                ? null
+                : evidenceRepository.findFirstByFileHashOrderByUploadedAtAsc(fileHash).orElse(null);
+
+        Evidence saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
+
+        EvidenceResponse.DuplicateWarning duplicateWarning = existingDuplicate == null ? null
+                : new EvidenceResponse.DuplicateWarning(
+                        existingDuplicate.getId(),
+                        existingDuplicate.getActivity().getId(),
+                        existingDuplicate.getOriginalFileName(),
+                        existingDuplicate.getActivity().getActivityName(),
+                        resolveOwnerOffice(existingDuplicate),
+                        existingDuplicate.getUploadedBy() == null ? null : existingDuplicate.getUploadedBy().getName(),
+                        existingDuplicate.getUploadedAt()
+                );
+
+        return toResponse(saved, duplicateWarning);
+    }
+
+    // Best-effort: if hashing fails for some reason, skip the duplicate check
+    // rather than block the upload over it.
+    private String computeFileHash(MultipartFile file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(file.getBytes());
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16));
+                hex.append(Character.forDigit(b & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (IOException | NoSuchAlgorithmException e) {
+            return null;
+        }
     }
 
     @Transactional
     public EvidenceResponse createLinkEvidence(UUID activityId, CreateLinkEvidenceRequest request, String userId) {
         Activity activity = findActivity(activityId);
-        User uploadedBy = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
 
         Evidence evidence = new Evidence();
         evidence.setActivity(activity);
@@ -75,7 +120,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse updateLinkEvidence(UUID evidenceId, UpdateLinkEvidenceRequest request, String userId) {
         Evidence evidence = findEvidence(evidenceId);
-        assertCanModify(evidence, UUID.fromString(userId));
+        assertCanModify(evidence, userId);
 
         evidence.setOriginalFileName(trimToNull(request.title()) != null ? request.title().trim() : "Google Drive Link");
         evidence.setLinkUrl(request.linkUrl().trim());
@@ -122,9 +167,6 @@ public class EvidenceService {
                 .toList();
 
         selectedEvidence.forEach(evidence -> assertCanModify(evidence, currentUserId));
-        if (selectedEvidence.stream().anyMatch(this::hasMetadata)) {
-            throw new BadRequestException("One or more selected evidence files already have metadata");
-        }
 
         return selectedEvidence.stream()
                 .map(evidence -> {
@@ -174,7 +216,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String userId) {
         Evidence evidence = findEvidence(evidenceId);
-        assertCanModify(evidence, UUID.fromString(userId));
+        assertCanModify(evidence, userId);
         validateFile(file);
 
         String oldPath = evidence.getFilePath();
@@ -195,7 +237,7 @@ public class EvidenceService {
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
         evidence.setUpdatedAt(OffsetDateTime.now());
-        userRepository.findById(UUID.fromString(userId)).ifPresent(evidence::setUploadedBy);
+        userRepository.findByIdentifier(userId).ifPresent(evidence::setUploadedBy);
 
         Evidence saved = evidenceRepository.save(evidence);
         if (oldPath != null && !oldPath.isBlank()) {
@@ -215,7 +257,7 @@ public class EvidenceService {
         }
     }
 
-    private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy) {
+    private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy, String fileHash) {
         validateFile(file);
         String extension = getExtension(file.getOriginalFilename());
         String storedFileName = UUID.randomUUID() + "." + extension;
@@ -234,6 +276,7 @@ public class EvidenceService {
         evidence.setFilePath(objectPath);
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
+        evidence.setFileHash(fileHash);
         evidence.setUploadedBy(uploadedBy);
         return evidenceRepository.save(evidence);
     }
@@ -294,6 +337,10 @@ public class EvidenceService {
     }
 
     private EvidenceResponse toResponse(Evidence evidence) {
+        return toResponse(evidence, null);
+    }
+
+    private EvidenceResponse toResponse(Evidence evidence, EvidenceResponse.DuplicateWarning duplicateWarning) {
         User uploadedBy = evidence.getUploadedBy();
         return new EvidenceResponse(
                 evidence.getId(),
@@ -306,23 +353,27 @@ public class EvidenceService {
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
-                firstNonBlank(
-                        evidence.getActivity().getOffice(),
-                        evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
-                        uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
-                                : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null)),
+                resolveOwnerOffice(evidence),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
                 evidence.getNotes(),
                 uploadedBy == null ? null : uploadedBy.getId(),
                 uploadedBy == null ? null : uploadedBy.getName(),
-                uploadedBy == null ? null : (uploadedBy.getDepartment() != null ? uploadedBy.getDepartment().name()
-                        : uploadedBy.getOffice() != null ? uploadedBy.getOffice().name() : null),
+                uploadedBy == null ? null : uploadedBy.getOffice(),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
-                evidence.getUpdatedAt()
+                evidence.getUpdatedAt(),
+                duplicateWarning
         );
+    }
+
+    private String resolveOwnerOffice(Evidence evidence) {
+        User uploadedBy = evidence.getUploadedBy();
+        return firstNonBlank(
+                evidence.getActivity().getOffice(),
+                evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
+                uploadedBy == null ? null : uploadedBy.getOffice());
     }
 
     private EvidenceMetadataResponse toMetadataResponse(Evidence evidence) {
@@ -357,13 +408,6 @@ public class EvidenceService {
         evidence.setNotes(trimToNull(notes));
     }
 
-    private boolean hasMetadata(Evidence evidence) {
-        return evidence.getEvidenceType() != null
-                || (evidence.getRelatedOffices() != null && !evidence.getRelatedOffices().isBlank())
-                || (evidence.getTags() != null && !evidence.getTags().isBlank())
-                || (evidence.getNotes() != null && !evidence.getNotes().isBlank());
-    }
-
     private String joinStrings(List<String> values) {
         if (values == null || values.isEmpty()) return null;
         return values.stream().filter(v -> v != null && !v.trim().isEmpty()).map(String::trim).distinct()
@@ -393,18 +437,33 @@ public class EvidenceService {
         return null;
     }
 
-    private void assertCanModify(Evidence evidence, UUID currentUserId) {
-        User currentUser = userRepository.findById(currentUserId).orElse(null);
+    private void assertCanModify(Evidence evidence, String userIdOrIdentifier) {
+        User currentUser = userRepository.findByIdentifier(userIdOrIdentifier).orElse(null);
         if (currentUser == null) throw new ForbiddenException("User not found");
 
-        boolean isAdmin = currentUser.getRole() == com.aercs.entity.UserRole.ADMIN
-                || currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR;
-        if (isAdmin) return;
+        if (currentUser.getRole() == com.aercs.entity.UserRole.ADMIN) return;
+
+        if (currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR) {
+            com.aercs.entity.Department userDept = currentUser.resolveDepartment();
+            Activity act = evidence.getActivity();
+            if (userDept != null && act != null && act.getDepartment() == userDept) {
+                return;
+            }
+            String userOffice = currentUser.getOffice();
+            if (userOffice != null && act != null && userOffice.equalsIgnoreCase(act.getOffice())) {
+                return;
+            }
+            throw new ForbiddenException("Chairperson can only modify evidence within their department");
+        }
 
         User uploader = evidence.getUploadedBy();
-        if (uploader == null || !uploader.getId().equals(currentUserId)) {
+        if (uploader == null || !uploader.getId().equals(currentUser.getId())) {
             throw new ForbiddenException("Only the uploader can modify this evidence");
         }
+    }
+
+    private void assertCanModify(Evidence evidence, UUID currentUserId) {
+        assertCanModify(evidence, currentUserId != null ? currentUserId.toString() : null);
     }
 
     public record EvidenceDownload(String originalFileName, String fileType, long fileSize, MediaType mediaType, Resource resource) {}

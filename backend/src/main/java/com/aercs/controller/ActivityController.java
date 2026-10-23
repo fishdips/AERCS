@@ -20,10 +20,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ActivityController {
 
+    // Admin manages accounts/access, not content - excluded here so the audit
+    // trail (who actually authored an activity) stays meaningful. Admin can
+    // still update/delete below, for moderation/cleanup.
+    private static final String CREATE_ROLES = "hasAnyRole('DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
+
     private final ActivityService activityService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
+    @PreAuthorize(CREATE_ROLES)
     public ResponseEntity<ActivityResponse> createActivity(@Valid @RequestBody ActivityRequest request,
                                                             @AuthenticationPrincipal UserDetails userDetails) {
         ActivityResponse response = activityService.createActivity(request, userDetails.getUsername());
@@ -46,14 +51,16 @@ public class ActivityController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
     public ResponseEntity<ActivityResponse> updateActivity(@PathVariable UUID id,
-                                                            @Valid @RequestBody ActivityRequest request) {
-        return ResponseEntity.ok(activityService.updateActivity(id, request));
+                                                            @Valid @RequestBody ActivityRequest request,
+                                                            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(activityService.updateActivity(id, request, userDetails.getUsername()));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
-    public ResponseEntity<Void> deleteActivity(@PathVariable UUID id) {
-        activityService.deleteActivity(id);
+    public ResponseEntity<Void> deleteActivity(@PathVariable UUID id,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
+        activityService.deleteActivity(id, userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.noContent().build();
     }
 }

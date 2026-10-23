@@ -15,8 +15,12 @@ import org.springframework.web.multipart.MultipartException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException e) {
@@ -26,6 +30,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<Map<String, String>> handleDisabled(DisabledException e) {
         return error(HttpStatus.UNAUTHORIZED, "Account is inactive");
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<Map<String, String>> handleAccountLocked(AccountLockedException e) {
+        return error(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -59,8 +68,16 @@ public class GlobalExceptionHandler {
         e.getBindingResult().getFieldErrors()
                 .forEach(fe -> fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
 
+        // The top-level "error" is shown as-is by forms that don't render per-field
+        // "details", so it needs to name the actual problem rather than just say
+        // "Validation failed" - which told the user nothing was wrong except that
+        // something was.
+        String topMessage = fieldErrors.size() == 1
+                ? fieldErrors.values().iterator().next()
+                : "Please fix the following: " + String.join("; ", fieldErrors.values());
+
         Map<String, Object> body = new HashMap<>();
-        body.put("error", "Validation failed");
+        body.put("error", topMessage);
         body.put("details", fieldErrors);
         return ResponseEntity.badRequest().body(body);
     }
@@ -72,6 +89,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<Map<String, String>> handleDataAccess(DataAccessException e) {
+        log.error("DataAccessException occurred: ", e);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to save or retrieve record. Please try again.");
     }
 
@@ -87,7 +105,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception e) {
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+        log.error("Unhandled exception: ", e);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage() != null ? e.getMessage() : "An unexpected error occurred");
     }
 
     private ResponseEntity<Map<String, String>> error(HttpStatus status, String message) {

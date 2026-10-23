@@ -23,7 +23,7 @@ public record SharedEvidenceResponse(
         List<String> tags,
         String notes,
         String uploadedByName,
-        String uploadedByDepartment,
+        String uploadedByOffice,
         OffsetDateTime uploadedAt,
         long referenceCount,
         List<String> referencingOffices

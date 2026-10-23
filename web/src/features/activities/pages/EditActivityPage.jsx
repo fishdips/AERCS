@@ -1,8 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
-import { ACCREDITATION_AREAS, ACTIVITY_TYPES, OFFICES, formatDepartment } from '../constants';
+import {
+  ACCREDITATION_AREAS,
+  ACTIVITY_TYPES,
+  ALL_OFFICES,
+  OFFICES,
+  SERVICE_OFFICES,
+  academicYearOptions,
+  formatDepartment,
+  todayLocalISO,
+} from '../constants';
+import { Check } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 const initialForm = {
   activityName: '',
@@ -18,7 +30,25 @@ const initialForm = {
 };
 
 function isKnownOffice(value) {
-  return OFFICES.some((office) => office.value === value);
+  return ALL_OFFICES.some((office) => office.value === value);
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '-';
+  const dateStr = d.toLocaleDateString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timeStr = d.toLocaleTimeString('en-PH', {
+    timeZone: 'Asia/Manila',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${dateStr} · ${timeStr}`;
 }
 
 export default function EditActivityPage() {
@@ -30,12 +60,22 @@ export default function EditActivityPage() {
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastEdited, setLastEdited] = useState(null);
+
+  // Keep the record's existing academic year selectable even if it falls
+  // outside the normal dropdown window (e.g. an older activity), so editing
+  // never silently drops that value.
+  const academicYearSelectOptions = useMemo(
+    () => academicYearOptions({ extra: [form.academicYear] }),
+    [form.academicYear]
+  );
 
   const loadActivity = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
       const { data } = await getActivity(id);
+      setLastEdited(data.updatedAt);
       const officeIsKnown = !data.office || isKnownOffice(data.office);
       setForm({
         activityName: data.activityName || '',
@@ -73,7 +113,7 @@ export default function EditActivityPage() {
       nextErrors.customActivityType = 'Custom activity type is required';
     }
     if (!form.activityDate) nextErrors.activityDate = 'Activity date is required';
-    if (form.activityDate && form.activityDate > new Date().toISOString().slice(0, 10)) {
+    if (form.activityDate && form.activityDate > todayLocalISO()) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
     if (!form.department) nextErrors.department = 'Department is required';
@@ -122,7 +162,14 @@ export default function EditActivityPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Edit</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Edit Activity</h1>
+        <div>
+          <h1 className="am-page-title">Edit Activity</h1>
+          {lastEdited && (
+            <p className="am-breadcrumb" style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.72rem' }}>
+              Last Edited: {formatDateTime(lastEdited)}
+            </p>
+          )}
+        </div>
         <Link className="am-btn-secondary" to={`/activities/${id}`}>Cancel</Link>
       </div>
 
@@ -131,7 +178,7 @@ export default function EditActivityPage() {
 
       {!loading && !loadError && (
         <form className="am-form" onSubmit={handleSubmit} noValidate>
-          {submitError && <p className="am-alert am-alert-error">{submitError}</p>}
+          <Alert type="error" message={submitError} onDismiss={() => setSubmitError('')} />
 
           <div className="am-form-grid">
             <label className="am-form-field am-form-field-wide">
@@ -196,8 +243,8 @@ export default function EditActivityPage() {
             </label>
 
             <label className="am-form-field">
-              <span className="am-form-label">Department <span className="am-required">*</span></span>
-              <input className="am-input" value={formatDepartment(form.department)} readOnly disabled />
+              <span className="am-form-label">Department/Office Owner <span className="am-required">*</span></span>
+              <input className="am-input" value={formatDepartment(form.office || form.department)} readOnly disabled />
               {errors.department && <span className="am-field-error">{errors.department}</span>}
             </label>
 
@@ -212,9 +259,17 @@ export default function EditActivityPage() {
                 }}
               >
                 <option value="">Select office</option>
-                {OFFICES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
+                <optgroup label="Office">
+                  {OFFICES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Service Office">
+                  {SERVICE_OFFICES.map((so) => (
+                    <option key={so.value} value={so.value}>{so.label}</option>
+                  ))}
+                </optgroup>
+                <option value="OTHER">Other</option>
               </select>
               {errors.office && <span className="am-field-error">{errors.office}</span>}
             </label>
@@ -248,21 +303,25 @@ export default function EditActivityPage() {
 
             <label className="am-form-field">
               <span className="am-form-label">Academic Year <span className="am-required">*</span></span>
-              <input
-                className="am-input"
-                placeholder="2025-2026"
+              <select
+                className="am-select"
                 value={form.academicYear}
                 onChange={(e) => updateField('academicYear', e.target.value)}
-              />
+              >
+                <option value="">Select academic year</option>
+                {academicYearSelectOptions.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
               {errors.academicYear && <span className="am-field-error">{errors.academicYear}</span>}
             </label>
           </div>
 
-          <div className="am-form-actions">
-            <button className="am-btn-primary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </button>
+          <div className="am-form-actions am-workflow-actions">
             <Link className="am-btn-secondary" to={`/activities/${id}`}>Cancel</Link>
+            <button className="am-btn-primary" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : <><Icon as={Check} /> Save Changes</>}
+            </button>
           </div>
         </form>
       )}

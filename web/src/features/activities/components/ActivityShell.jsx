@@ -5,12 +5,14 @@ import '../pages/ActivityManagementPage.css';
 
 export default function ActivityShell({ children }) {
   const { user, logout } = useAuth();
-  const isAdmin = user?.role === ROLES.ADMIN;
+  const canAccessAdmin = user?.role === ROLES.ADMIN || user?.role === ROLES.ACCRED_COORDINATOR;
+  const isAccreditor = user?.role === ROLES.ACCREDITOR_LINK;
+  const navClass = ({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`;
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -23,11 +25,8 @@ export default function ActivityShell({ children }) {
             <span className="am-logo-sub">EVIDENCE REPOSITORY</span>
           </div>
         </div>
-        <div className="am-header-search">
-          <input className="am-search-global" placeholder="Search activities, evidence, offices..." readOnly />
-        </div>
         <div className="am-header-right">
-          <span className="am-badge">AY 2025-2026</span>
+          <span className="am-badge">AY 2026-2027</span>
           <div className="am-avatar">{user?.name?.charAt(0) ?? 'A'}</div>
           <div className="am-user-info">
             <span className="am-user-name">{user?.name}</span>
@@ -39,17 +38,24 @@ export default function ActivityShell({ children }) {
       <div className="am-body">
         <aside className="am-sidebar">
           <nav className="am-nav">
-            <p className="am-nav-section">Workspace</p>
-            <span className="am-nav-link am-nav-disabled">Dashboard</span>
-            <NavLink to="/activities" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Documentation</NavLink>
-            <NavLink to="/repository" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Repository</NavLink>
-            <NavLink to="/shared-evidence" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Shared Evidence</NavLink>
-            <span className="am-nav-link am-nav-disabled">Monitoring</span>
-            {isAdmin && (
+            {isAccreditor ? (
+              <>
+                <p className="am-nav-section">Accreditation Review</p>
+                <NavLink to="/accreditor" className={navClass}>Evidence Links</NavLink>
+              </>
+            ) : (
+              <>
+                <p className="am-nav-section">Workspace</p>
+                <NavLink to="/dashboard" className={navClass}>Dashboard</NavLink>
+                <NavLink to="/activities" className={navClass}>Documentation</NavLink>
+                <NavLink to="/repository" className={navClass}>Repository</NavLink>
+                <NavLink to="/shared-evidence" className={navClass}>Shared Evidence</NavLink>
+              </>
+            )}
+            {canAccessAdmin && (
               <>
                 <p className="am-nav-section">Administration</p>
-                <NavLink to="/admin/users" className={({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`}>Access Management</NavLink>
-                <span className="am-nav-link am-nav-disabled">Audit Logs</span>
+                <NavLink to="/admin/users" className={navClass}>Access Management</NavLink>
               </>
             )}
           </nav>

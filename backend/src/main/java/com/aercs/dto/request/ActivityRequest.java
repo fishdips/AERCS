@@ -29,7 +29,6 @@ public record ActivityRequest(
 
         Department department,
 
-        @NotBlank(message = "Office is required")
         @Size(max = 100, message = "Office must be 100 characters or fewer")
         String office,
 

@@ -8,7 +8,6 @@ public record UserResponse(
         String name,
         String email,
         String role,
-        String department,
         String office,
         boolean active,
         boolean mustChangePw,

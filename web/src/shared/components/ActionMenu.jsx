@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { EllipsisVertical } from 'lucide-react';
+import Icon from './Icon';
 
 export default function ActionMenu({ items = [], label = 'More actions', align = 'right' }) {
   const [open, setOpen] = useState(false);
@@ -47,7 +49,7 @@ export default function ActionMenu({ items = [], label = 'More actions', align =
           setOpen((current) => !current);
         }}
       >
-        ⋮
+        <Icon as={EllipsisVertical} size={16} />
       </button>
 
       {open && (
@@ -81,6 +83,7 @@ export default function ActionMenu({ items = [], label = 'More actions', align =
                     else setOpen(false);
                   }}
                 >
+                  {item.icon && <Icon as={item.icon} />}
                   {item.label}
                 </Link>
               );
@@ -98,6 +101,7 @@ export default function ActionMenu({ items = [], label = 'More actions', align =
                   handleItemClick(item);
                 }}
               >
+                {item.icon && <Icon as={item.icon} />}
                 {item.label}
               </button>
             );

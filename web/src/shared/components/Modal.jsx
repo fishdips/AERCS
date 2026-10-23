@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import './Modal.css';
+import { X } from 'lucide-react';
+import Icon from './Icon';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'default' }) {
   useEffect(() => {
@@ -16,7 +18,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'defaul
       <div className={`modal-box ${size === 'wide' ? 'modal-box-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><Icon as={X} /></button>
         </div>
         <div className="modal-body">{children}</div>
       </div>

@@ -31,6 +31,7 @@ public class JwtUtil {
                 .subject(user.getId().toString())
                 .claim("role", user.getRole().name())
                 .claim("mustChangePw", user.isMustChangePw())
+                .claim("tv", user.getTokenVersion())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiryMs))
                 .signWith(signingKey())
@@ -47,6 +48,13 @@ public class JwtUtil {
 
     public String extractUserId(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    // Absent on tokens issued before this claim existed - treat those as version 0
+    // rather than rejecting every outstanding session on deploy.
+    public int extractTokenVersion(String token) {
+        Object tv = extractAllClaims(token).get("tv");
+        return tv == null ? 0 : ((Number) tv).intValue();
     }
 
     public boolean isTokenValid(String token) {

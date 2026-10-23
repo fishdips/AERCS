@@ -12,7 +12,7 @@ export function AdminRoute({ children }) {
   if (user.mustChangePw) return <Navigate to="/change-password" replace />;
 
   // NOTE: When adding new roles that should access admin routes, update this check
-  if (user.role !== ROLES.ADMIN) return <Navigate to="/access-denied" replace />;
+  if (user.role !== ROLES.ADMIN && user.role !== ROLES.ACCRED_COORDINATOR) return <Navigate to="/access-denied" replace />;
 
   return children;
 }

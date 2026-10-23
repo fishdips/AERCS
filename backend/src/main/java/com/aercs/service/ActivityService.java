@@ -4,9 +4,12 @@ import com.aercs.dto.request.ActivityRequest;
 import com.aercs.dto.response.ActivityResponse;
 import com.aercs.entity.Activity;
 import com.aercs.entity.ActivityType;
+import com.aercs.entity.Department;
+import com.aercs.entity.Office;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
@@ -30,15 +33,19 @@ public class ActivityService {
     public ActivityResponse createActivity(ActivityRequest request, String userId) {
         validateRequest(request);
 
-        User creator = userRepository.findById(UUID.fromString(userId))
+        User creator = userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (creator.getDepartment() == null) {
-            throw new BadRequestException("Your account must have an assigned department before creating activities");
+        Department creatorDepartment = creator.resolveDepartment();
+        if (creatorDepartment == null && (creator.getOffice() == null || creator.getOffice().isBlank())) {
+            throw new BadRequestException("Your account must have an assigned department or office before creating activities");
         }
 
         Activity activity = new Activity();
         applyRequest(activity, request);
-        activity.setDepartment(creator.getDepartment());
+        activity.setDepartment(creatorDepartment);
+        if (activity.getOffice() == null || activity.getOffice().isBlank()) {
+            activity.setOffice(creator.getOffice());
+        }
         activity.setCreatedBy(creator);
 
         return toResponse(activityRepository.save(activity));
@@ -46,60 +53,146 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public List<ActivityResponse> listActivities(String userId) {
-        User user = userRepository.findById(UUID.fromString(userId))
+        User user = userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (canViewAll(user.getRole())) {
             return activityRepository.findAll().stream().map(this::toResponse).toList();
         }
 
-        if (user.getDepartment() == null) {
-            return List.of();
-        }
-
-        return activityRepository.findByDepartment(user.getDepartment())
-                .stream().map(this::toResponse).toList();
+        return activityRepository.findAll().stream()
+                .filter(activity -> isVisibleToUser(activity, user))
+                .map(this::toResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public ActivityResponse getActivity(UUID id, String userId) {
         Activity activity = findActivity(id);
-        User user = userRepository.findById(UUID.fromString(userId))
+        User user = userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (!canViewAll(user.getRole())) {
-            if (user.getDepartment() == null || user.getDepartment() != activity.getDepartment()) {
-                throw new ResourceNotFoundException("Activity not found");
-            }
+        if (!canViewAll(user.getRole()) && !isVisibleToUser(activity, user)) {
+            throw new ResourceNotFoundException("Activity not found");
         }
 
         return toResponse(activity);
     }
 
+    private boolean isVisibleToUser(Activity activity, User user) {
+        if (activity == null || user == null) {
+            return false;
+        }
+        if (canViewAll(user.getRole())) {
+            return true;
+        }
+
+        Office serviceOffice = resolveServiceOffice(activity);
+        if (serviceOffice != null) {
+            if (user.resolveDepartment() != null) {
+                return true;
+            }
+            Office userOffice = user.resolveOffice();
+            if (userOffice != null && userOffice == serviceOffice) {
+                return true;
+            }
+            String userOfficeStr = user.getOffice();
+            String actOfficeStr = activity.getOffice();
+            if (userOfficeStr != null && actOfficeStr != null && userOfficeStr.equalsIgnoreCase(actOfficeStr)) {
+                return true;
+            }
+            return false;
+        }
+
+        Department userDept = user.resolveDepartment();
+        if (userDept != null && userDept == activity.getDepartment()) {
+            return true;
+        }
+        String userOffice = user.getOffice();
+        if (userOffice != null && activity.getOffice() != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+            return true;
+        }
+        return false;
+    }
+
+    private Office resolveServiceOffice(Activity activity) {
+        if (activity == null) return null;
+        if (activity.getOffice() != null) {
+            try {
+                Office officeEnum = Office.valueOf(activity.getOffice());
+                if (officeEnum != null && officeEnum.isServiceOffice()) {
+                    return officeEnum;
+                }
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        try {
+            User creator = activity.getCreatedBy();
+            if (creator != null && creator.isServiceOfficeUser()) {
+                return creator.resolveOffice();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     private boolean canViewAll(UserRole role) {
         return role == UserRole.ADMIN
-                || role == UserRole.ACCRED_COORDINATOR
                 || role == UserRole.INSTITUTIONAL_OFFICE;
     }
 
     @Transactional
-    public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
+    public ActivityResponse updateActivity(UUID id, ActivityRequest request, String userId) {
         validateRequest(request);
 
         Activity activity = findActivity(id);
+        if (userId != null) {
+            User user = userRepository.findByIdentifier(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() == UserRole.ADMIN;
+            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
+            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
+            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
+                throw new ForbiddenException("You are not authorized to edit this activity");
+            }
+        }
+
         var existingDepartment = activity.getDepartment();
         applyRequest(activity, request);
         activity.setDepartment(existingDepartment);
+        activity.setUpdatedAt(java.time.OffsetDateTime.now(java.time.ZoneId.of("Asia/Manila")));
         return toResponse(activityRepository.save(activity));
     }
 
     @Transactional
-    public void deleteActivity(UUID id) {
+    public ActivityResponse updateActivity(UUID id, ActivityRequest request) {
+        return updateActivity(id, request, null);
+    }
+
+    @Transactional
+    public void deleteActivity(UUID id, String userId) {
         Activity activity = findActivity(id);
+        if (userId != null) {
+            User user = userRepository.findByIdentifier(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
+            boolean isAdmin = user.getRole() == UserRole.ADMIN;
+            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
+            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
+            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
+                throw new ForbiddenException("You are not authorized to delete this activity");
+            }
+        }
         if (evidenceRepository.existsByActivityId(id)) {
             throw new BadRequestException("Activity has attached evidence and cannot be deleted");
         }
         activityRepository.delete(activity);
+    }
+
+    @Transactional
+    public void deleteActivity(UUID id) {
+        deleteActivity(id, null);
     }
 
     private Activity findActivity(UUID id) {
@@ -108,9 +201,6 @@ public class ActivityService {
     }
 
     private void validateRequest(ActivityRequest request) {
-        if (trimToNull(request.office()) == null) {
-            throw new BadRequestException("Office is required");
-        }
         if (request.activityType() == ActivityType.OTHER && trimToNull(request.customActivityType()) == null) {
             throw new BadRequestException("Custom activity type is required when Other is selected");
         }
@@ -130,7 +220,24 @@ public class ActivityService {
     }
 
     private ActivityResponse toResponse(Activity activity) {
-        User createdBy = activity.getCreatedBy();
+        User createdBy = null;
+        try {
+            createdBy = activity.getCreatedBy();
+        } catch (Exception ignored) {
+        }
+        UUID createdById = null;
+        String createdByName = null;
+        String createdByRole = null;
+        String createdByOffice = null;
+        if (createdBy != null) {
+            try {
+                createdById = createdBy.getId();
+                createdByName = createdBy.getName();
+                createdByRole = createdBy.getRole() != null ? createdBy.getRole().name() : null;
+                createdByOffice = createdBy.getOffice();
+            } catch (Exception ignored) {
+            }
+        }
         return new ActivityResponse(
                 activity.getId(),
                 activity.getActivityName(),
@@ -142,9 +249,10 @@ public class ActivityService {
                 activity.getOffice(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
-                createdBy == null ? null : createdBy.getId(),
-                createdBy == null ? null : createdBy.getName(),
-                createdBy == null ? null : createdBy.getRole().name(),
+                createdById,
+                createdByName,
+                createdByRole,
+                createdByOffice,
                 activity.getCreatedAt(),
                 activity.getUpdatedAt(),
                 List.of()

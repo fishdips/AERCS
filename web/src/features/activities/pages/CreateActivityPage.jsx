@@ -7,14 +7,21 @@ import { createActivity } from '../api';
 import {
   ACCREDITATION_AREAS,
   ACTIVITY_TYPES,
-  OFFICES,
+  CURRENT_ACADEMIC_YEAR,
+  academicYearOptions,
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
-  formatOffice,
+  resolveUserDepartment,
+  todayLocalISO,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
+import { ArrowLeft, Check, Plus } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
+
+const ACADEMIC_YEAR_OPTIONS = academicYearOptions();
 
 const initialForm = {
   activityName: '',
@@ -22,10 +29,8 @@ const initialForm = {
   activityType: '',
   customActivityType: '',
   activityDate: '',
-  office: '',
-  customOffice: '',
   accreditationArea: '',
-  academicYear: '',
+  academicYear: CURRENT_ACADEMIC_YEAR,
 };
 
 function hasMetadata(item) {
@@ -48,6 +53,7 @@ function summaryValue(value, formatter) {
 
 export default function CreateActivityPage() {
   const { user } = useAuth();
+  const userDepartment = resolveUserDepartment(user);
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
@@ -65,24 +71,9 @@ export default function CreateActivityPage() {
     }
   }, [form.activityType, form.customActivityType]);
 
-  useEffect(() => {
-    if (form.office !== 'OTHER' && form.customOffice) {
-      setForm((current) => ({ ...current, customOffice: '' }));
-    }
-  }, [form.office, form.customOffice]);
-
-  const selectedOffice = form.office === 'OTHER' ? form.customOffice.trim() : form.office;
   const canUpload = Boolean(createdActivity);
   const canAssignMetadata = evidenceItems.length > 0 && !isUploading;
   const metadataComplete = evidenceItems.length > 0 && evidenceItems.every(hasMetadata);
-
-  const completedSteps = useMemo(() => {
-    const steps = [];
-    if (createdActivity) steps.push('create');
-    if (evidenceItems.length > 0) steps.push('upload');
-    if (metadataComplete) steps.push('metadata');
-    return steps;
-  }, [createdActivity, evidenceItems, metadataComplete]);
 
   const disabledSteps = useMemo(() => {
     const steps = [];
@@ -104,14 +95,10 @@ export default function CreateActivityPage() {
       nextErrors.customActivityType = 'Custom activity type is required';
     }
     if (!form.activityDate) nextErrors.activityDate = 'Activity date is required';
-    if (form.activityDate && form.activityDate > new Date().toISOString().slice(0, 10)) {
+    if (form.activityDate && form.activityDate > todayLocalISO()) {
       nextErrors.activityDate = 'Activity date cannot be in the future';
     }
-    if (!form.office) nextErrors.office = 'Office is required';
-    if (form.office === 'OTHER' && !form.customOffice.trim()) {
-      nextErrors.customOffice = 'Custom office is required';
-    }
-    if (!user?.department) nextErrors.department = 'Your account has no assigned department';
+    if (!userDepartment) nextErrors.department = 'Your account has no assigned department or office';
     if (!form.accreditationArea) nextErrors.accreditationArea = 'Accreditation area is required';
     if (!form.academicYear.trim()) nextErrors.academicYear = 'Academic year is required';
     setErrors(nextErrors);
@@ -132,7 +119,6 @@ export default function CreateActivityPage() {
         activityType: form.activityType,
         customActivityType: form.activityType === 'OTHER' ? form.customActivityType.trim() : null,
         activityDate: form.activityDate,
-        office: selectedOffice,
         accreditationArea: form.accreditationArea,
         academicYear: form.academicYear.trim(),
       };
@@ -150,7 +136,11 @@ export default function CreateActivityPage() {
 
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceItems(items);
-    setBatchSelectedIds((current) => current.filter((id) => items.some((item) => item.id === id && !hasMetadata(item))));
+    setBatchSelectedIds((current) => {
+      const validCurrent = current.filter((id) => items.some((item) => item.id === id));
+      if (validCurrent.length > 0) return validCurrent;
+      return items.filter((item) => !hasMetadata(item)).map((item) => item.id);
+    });
   }, []);
 
   const handleSelectAllBatchEligible = (items) => {
@@ -162,7 +152,7 @@ export default function CreateActivityPage() {
   };
 
   const handleToggleBatchSelection = (item) => {
-    if (!item || hasMetadata(item)) return;
+    if (!item) return;
     setBatchSelectedIds((current) => (
       current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]
     ));
@@ -183,8 +173,8 @@ export default function CreateActivityPage() {
 
   const activitySummary = createdActivity || {
     activityName: form.activityName,
-    office: selectedOffice,
-    department: user?.department,
+    owner: user?.name,
+    department: userDepartment,
     activityType: form.activityType,
     customActivityType: form.customActivityType,
     academicYear: form.academicYear,
@@ -195,9 +185,9 @@ export default function CreateActivityPage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Create</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Evidence Workflow</h1>
-        <div className="am-page-actions">
-          <Link className="am-btn-secondary" to="/activities">Back</Link>
+        <div className="am-page-header-left">
+          <Link className="am-btn-secondary" to="/activities"><Icon as={ArrowLeft} /> Back</Link>
+          <h1 className="am-page-title">Evidence Workflow</h1>
         </div>
       </div>
 
@@ -217,42 +207,17 @@ export default function CreateActivityPage() {
             </div>
 
             <form id="create-activity-form" className="am-form am-create-form am-form-embedded" onSubmit={handleSubmit} noValidate>
-              {submitError && <p className="am-alert am-alert-error">{submitError}</p>}
+              <Alert type="error" message={submitError} onDismiss={() => setSubmitError('')} />
 
               <div className="am-form-grid">
                 <label className="am-form-field">
-                  <span className="am-form-label">Office <span className="am-required">*</span></span>
-                  <select
-                    className="am-select"
-                    value={form.office}
-                    onChange={(e) => updateField('office', e.target.value)}
-                    disabled={Boolean(createdActivity)}
-                  >
-                    <option value="">Select office</option>
-                    {OFFICES.map((office) => (
-                      <option key={office.value} value={office.value}>{office.label}</option>
-                    ))}
-                  </select>
-                  {errors.office && <span className="am-field-error">{errors.office}</span>}
+                  <span className="am-form-label">Owner</span>
+                  <input className="am-input" value={user?.name || ''} readOnly disabled />
                 </label>
 
-                {form.office === 'OTHER' && (
-                  <label className="am-form-field">
-                    <span className="am-form-label">Custom Office <span className="am-required">*</span></span>
-                    <input
-                      className="am-input"
-                      placeholder="Enter office name"
-                      value={form.customOffice}
-                      onChange={(e) => updateField('customOffice', e.target.value)}
-                      disabled={Boolean(createdActivity)}
-                    />
-                    {errors.customOffice && <span className="am-field-error">{errors.customOffice}</span>}
-                  </label>
-                )}
-
                 <label className="am-form-field">
-                  <span className="am-form-label">Department Owner <span className="am-required">*</span></span>
-                  <input className="am-input" value={formatDepartment(user?.department)} readOnly disabled />
+                  <span className="am-form-label">Department/Office Owner <span className="am-required">*</span></span>
+                  <input className="am-input" value={formatDepartment(userDepartment)} readOnly disabled />
                   {errors.department && <span className="am-field-error">{errors.department}</span>}
                 </label>
 
@@ -328,13 +293,17 @@ export default function CreateActivityPage() {
 
                 <label className="am-form-field">
                   <span className="am-form-label">Academic Year <span className="am-required">*</span></span>
-                  <input
-                    className="am-input"
-                    placeholder="2025-2026"
+                  <select
+                    className="am-select"
                     value={form.academicYear}
                     onChange={(e) => updateField('academicYear', e.target.value)}
                     disabled={Boolean(createdActivity)}
-                  />
+                  >
+                    <option value="">Select academic year</option>
+                    {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
                   {errors.academicYear && <span className="am-field-error">{errors.academicYear}</span>}
                 </label>
 
@@ -353,7 +322,7 @@ export default function CreateActivityPage() {
 
               <div className="am-form-actions">
                 <button className="am-btn-primary" type="submit" disabled={isSubmitting || Boolean(createdActivity)}>
-                  {createdActivity ? 'Activity Created' : isSubmitting ? 'Saving...' : 'Create Activity'}
+                  {createdActivity ? <><Icon as={Check} /> Activity Created</> : isSubmitting ? 'Saving...' : <><Icon as={Plus} /> Create Activity</>}
                 </button>
               </div>
             </form>
@@ -366,8 +335,7 @@ export default function CreateActivityPage() {
           >
             <div className="am-section-heading-row">
               <div>
-                <p className="am-section-label">Upload Evidence</p>
-                <h2 className="am-section-title">Uploaded evidence files</h2>
+                <h2 className="am-section-title">Upload Evidence</h2>
               </div>
               {evidenceItems.length > 0 && <span className="am-status-pill">{evidenceItems.length} uploaded</span>}
             </div>
@@ -376,8 +344,8 @@ export default function CreateActivityPage() {
               <section className="am-panel am-summary-panel">
                 <dl className="am-summary-list">
                   <div><dt>Activity Name</dt><dd>{summaryValue(activitySummary.activityName)}</dd></div>
-                  <div><dt>Office</dt><dd>{summaryValue(activitySummary.office, formatOffice)}</dd></div>
-                  <div><dt>Department</dt><dd>{summaryValue(activitySummary.department, formatDepartment)}</dd></div>
+                  <div><dt>Owner</dt><dd>{summaryValue(activitySummary.createdByName || activitySummary.owner)}</dd></div>
+                  <div><dt>Department/Office Owner</dt><dd>{summaryValue(activitySummary.office || activitySummary.department, formatDepartment)}</dd></div>
                   <div><dt>Activity Type</dt><dd>{formatActivityType(activitySummary.activityType, activitySummary.customActivityType)}</dd></div>
                   <div><dt>Academic Year</dt><dd>{summaryValue(activitySummary.academicYear)}</dd></div>
                   <div><dt>Accreditation Area</dt><dd>{summaryValue(activitySummary.accreditationArea, formatAccreditationArea)}</dd></div>
@@ -413,8 +381,7 @@ export default function CreateActivityPage() {
           >
             <div className="am-section-heading-row">
               <div>
-                <p className="am-section-label">Assign Metadata</p>
-                <h2 className="am-section-title">Assign metadata to selected evidence files</h2>
+                <h2 className="am-section-title">Assign Metadata</h2>
               </div>
               {metadataComplete && <span className="am-status-pill">Complete</span>}
             </div>
@@ -439,7 +406,6 @@ export default function CreateActivityPage() {
         <ActivityWorkflowSidebar
           activeStep={activeSection}
           activityId={createdActivity?.id}
-          completedSteps={completedSteps}
           disabledSteps={disabledSteps}
           onStepSelect={handleStepSelect}
         />

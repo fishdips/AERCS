@@ -1,13 +1,17 @@
 package com.aercs.controller;
 
 import com.aercs.dto.request.ChangePasswordRequest;
+import com.aercs.dto.request.ForgotPasswordRequest;
 import com.aercs.dto.request.LoginRequest;
+import com.aercs.dto.request.ResetPasswordRequest;
 import com.aercs.dto.response.AuthMeResponse;
 import com.aercs.security.JwtUtil;
 import com.aercs.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +29,17 @@ public class AuthController {
     private final AuthService authService;
     private final JwtUtil jwtUtil;
 
+    // Defaults assume a cross-origin HTTPS deployment (frontend and API on different
+    // hosts/subdomains), which requires Secure + SameSite=None together or browsers
+    // drop the cookie. Override with COOKIE_SECURE=false / COOKIE_SAME_SITE=Strict|Lax
+    // if frontend and backend end up sharing a site, or COOKIE_SECURE=false for plain
+    // HTTP local/LAN testing (see application-local.properties).
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:None}")
+    private String cookieSameSite;
+
     @PostMapping("/login")
     public ResponseEntity<AuthMeResponse> login(@Valid @RequestBody LoginRequest request,
                                                  HttpServletResponse response) {
@@ -33,6 +48,19 @@ public class AuthController {
         AuthMeResponse me = authService.getMe(userId);
         addJwtCookie(response, token);
         return ResponseEntity.ok(me);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                HttpServletRequest servletRequest) {
+        authService.forgotPassword(request.email(), servletRequest.getHeader("Origin"));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")
@@ -62,8 +90,8 @@ public class AuthController {
     private void addJwtCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("aercs_token", token)
                 .httpOnly(true)
-                .secure(false)      // TODO: set to true when deployed over HTTPS
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(Duration.ofHours(8))
                 .build();
@@ -73,8 +101,8 @@ public class AuthController {
     private void clearJwtCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("aercs_token", "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(Duration.ZERO)
                 .build();

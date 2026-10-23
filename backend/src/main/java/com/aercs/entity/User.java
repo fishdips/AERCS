@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -33,13 +35,11 @@ public class User {
     @Column(name = "role", nullable = false, length = 50)
     private UserRole role;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "department", length = 50)
-    private Department department;
-
-    @Enumerated(EnumType.STRING)
+    // Holds either a Department enum name or an Office enum name (a user belongs
+    // to exactly one org unit, never both) — resolveDepartment()/resolveOffice()
+    // below tell you which one it is.
     @Column(name = "office", length = 50)
-    private Office office;
+    private String office;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
@@ -47,8 +47,21 @@ public class User {
     @Column(name = "must_change_pw", nullable = false)
     private boolean mustChangePw = true;
 
+    // Bumped whenever an admin needs to invalidate this user's outstanding JWTs
+    // (force logout, password reset) without waiting for natural expiry - a
+    // token is only accepted while its embedded "tv" claim matches this value.
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
+    @Column(name = "reset_token", length = 64, unique = true)
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private OffsetDateTime resetTokenExpiresAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User createdBy;
 
     @Column(name = "created_at", nullable = false)
@@ -59,5 +72,28 @@ public class User {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }
+    }
+
+    public Department resolveDepartment() {
+        if (office == null) return null;
+        try {
+            return Department.valueOf(office);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public Office resolveOffice() {
+        if (office == null) return null;
+        try {
+            return Office.valueOf(office);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public boolean isServiceOfficeUser() {
+        Office o = resolveOffice();
+        return o != null && o.isServiceOffice();
     }
 }

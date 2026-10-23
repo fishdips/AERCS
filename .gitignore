@@ -12,6 +12,7 @@ desktop.ini
 .idea/
 .vscode/
 .gradle/
+.claude/
 
 # GitHub workflows / secrets (if not ready to publish)
 .github/

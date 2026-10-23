@@ -50,7 +50,7 @@ public class SharedEvidenceController {
     ) {
         AccreditationArea areaEnum = parseArea(area);
         Pageable pageable = PageRequest.of(page, size);
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
 
         return ResponseEntity.ok(sharedEvidenceService.searchEvidence(
                 areaEnum, academicYear, keyword, currentUserId, pageable
@@ -64,7 +64,7 @@ public class SharedEvidenceController {
             @Valid @RequestBody ReferenceRequest request,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(sharedEvidenceService.createReference(evidenceId, request, currentUserId));
     }
 
@@ -92,8 +92,8 @@ public class SharedEvidenceController {
             @PathVariable UUID referenceId,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
-        UserRole currentUserRole = resolveRole(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
+        UserRole currentUserRole = resolveRole(userDetails != null ? userDetails.getUsername() : null);
         sharedEvidenceService.deleteReference(referenceId, currentUserId, currentUserRole);
         return ResponseEntity.noContent().build();
     }
@@ -125,7 +125,7 @@ public class SharedEvidenceController {
         List<String> fileTypeList = parseStringList(fileTypes);
         List<EvidenceType> evidenceTypeList = parseEvidenceTypeList(evidenceTypes);
         Pageable pageable = PageRequest.of(page, size);
-        UUID currentUserId = UUID.fromString(userDetails.getUsername());
+        UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(sharedEvidenceService.searchRepository(
                 keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList,
                 dateFrom, dateTo, currentUserId, pageable
@@ -173,8 +173,16 @@ public class SharedEvidenceController {
         }
     }
 
-    private UserRole resolveRole(String userId) {
-        return userRepository.findById(UUID.fromString(userId))
+    private UUID resolveUserId(UserDetails userDetails) {
+        if (userDetails == null || userDetails.getUsername() == null) return null;
+        return userRepository.findByIdentifier(userDetails.getUsername())
+                .map(u -> u.getId())
+                .orElse(null);
+    }
+
+    private UserRole resolveRole(String identifier) {
+        if (identifier == null) return UserRole.DEPT_STAFF;
+        return userRepository.findByIdentifier(identifier)
                 .map(u -> u.getRole())
                 .orElse(UserRole.DEPT_STAFF);
     }

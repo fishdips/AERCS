@@ -9,7 +9,6 @@ const steps = [
 export default function ActivityWorkflowSidebar({
   activeStep,
   activityId,
-  completedSteps = [],
   disabledSteps = [],
   onStepSelect,
 }) {
@@ -26,7 +25,6 @@ export default function ActivityWorkflowSidebar({
       <ol className="am-workflow-stepper">
         {steps.map((step, index) => {
           const active = step.key === activeStep;
-          const completed = completedSteps.includes(step.key);
           const disabled = disabledSteps.includes(step.key);
           const href = stepHref(step.key);
           const content = (
@@ -41,7 +39,6 @@ export default function ActivityWorkflowSidebar({
               className={[
                 'am-workflow-step',
                 active ? 'am-workflow-step-active' : '',
-                completed ? 'am-workflow-step-completed' : '',
                 disabled ? 'am-workflow-step-disabled' : '',
               ].filter(Boolean).join(' ')}
               key={step.key}

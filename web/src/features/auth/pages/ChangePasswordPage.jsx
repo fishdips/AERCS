@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../api';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLES } from '../../../shared/constants/roles';
+import { getHomePath } from '../../../shared/constants/roles';
 import './ChangePasswordPage.css';
 
 export default function ChangePasswordPage() {
@@ -32,8 +32,7 @@ export default function ChangePasswordPage() {
     try {
       await changePassword(currentPassword, newPassword);
       setUser({ ...user, mustChangePw: false });
-      if (user.role === ROLES.ADMIN) navigate('/admin/users');
-      else navigate('/dashboard');
+      navigate(getHomePath(user.role, '/dashboard'));
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update password');
     } finally {
@@ -53,9 +52,7 @@ export default function ChangePasswordPage() {
         </div>
 
         <div className="cp-brand-center">
-          <div className="cp-crest-placeholder">
-            <span>[ INSTITUTIONAL CREST / SEAL ]</span>
-          </div>
+          <img src="/cit_logo.png" alt="CIT-U Logo" className="cp-crest-img" />
           <p className="cp-system-name">
             Accreditation Evidence Repository &amp; Coordination System
           </p>

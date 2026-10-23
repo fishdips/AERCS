@@ -26,8 +26,23 @@ public record EvidenceResponse(
         String notes,
         UUID uploadedById,
         String uploadedByName,
-        String uploadedByDepartment,
+        String uploadedByOffice,
         String uploadedByRole,
         OffsetDateTime uploadedAt,
-        OffsetDateTime updatedAt
-) {}
+        OffsetDateTime updatedAt,
+        // Set only on the response to an upload that just created a file whose
+        // content exactly matches one already in the repository - possibly from
+        // a different activity, office or department. Null otherwise (existing
+        // reads of evidence don't re-check this on every call).
+        DuplicateWarning duplicateWarning
+) {
+    public record DuplicateWarning(
+            UUID evidenceId,
+            UUID activityId,
+            String originalFileName,
+            String activityName,
+            String ownerOffice,
+            String uploadedByName,
+            OffsetDateTime uploadedAt
+    ) {}
+}

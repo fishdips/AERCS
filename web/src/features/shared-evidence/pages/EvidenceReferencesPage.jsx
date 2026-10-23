@@ -2,10 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { deleteReference, getReferences } from '../api';
-import { getEvidence } from '../../evidence/api';
-import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, formatAccreditationArea } from '../../activities/constants';
+import { getEvidence, getEvidenceViewUrl } from '../../evidence/api';
+import { ACCREDITATION_AREAS, ACTIVITY_WRITE_ROLES, DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatAccreditationArea } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
+import api from '../../../shared/api/config';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
+import { Trash2 } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+
+const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatDate(value) {
   if (!value) return '-';
@@ -35,6 +43,8 @@ export default function EvidenceReferencesPage() {
 
   const [filterDept, setFilterDept] = useState('');
   const [filterArea, setFilterArea] = useState('');
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     getEvidence(evidenceId)
@@ -76,7 +86,7 @@ export default function EvidenceReferencesPage() {
 
   const uniqueOffices = [...new Set(refs.map((r) => r.referencedByOffice || r.referencedByDepartment).filter(Boolean))].length;
   const uniqueAreas = [...new Set(refs.map((r) => r.accreditationArea).filter(Boolean))].length;
-  const officeOptions = [...DEPARTMENTS, ...OFFICES];
+  const officeOptions = [...DEPARTMENTS, ...OFFICES, ...SERVICE_OFFICES];
 
   return (
     <ActivityShell>
@@ -93,8 +103,8 @@ export default function EvidenceReferencesPage() {
         </div>
       </div>
 
-      {evidenceError && <p className="am-alert am-alert-error">{evidenceError}</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={evidenceError} onDismiss={() => setEvidenceError('')} />
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {accessDenied && (
         <p className="am-alert am-alert-error">
@@ -114,7 +124,15 @@ export default function EvidenceReferencesPage() {
                   <span className="se-owner-badge">You uploaded this</span>
                 )}
 
-                <div className="se-ref-preview">[ {evidence.fileType} PREVIEW ]</div>
+                <div className="se-ref-preview">
+                  <EvidencePreview
+                    fileType={evidence.fileType}
+                    linkUrl={evidence.linkUrl}
+                    viewUrl={PREVIEW_TYPES.includes(evidence.fileType) ? getEvidenceViewUrl(evidenceId) : undefined}
+                    fileName={evidence.originalFileName}
+                    iconSize={22}
+                  />
+                </div>
 
                 <p className="se-ref-fname">{evidence.originalFileName}</p>
                 <p className="se-ref-fmeta">
@@ -124,7 +142,7 @@ export default function EvidenceReferencesPage() {
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${evidenceId}/view`}
+                    href={`${api.defaults.baseURL}/api/evidence/${evidenceId}/view`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -132,7 +150,7 @@ export default function EvidenceReferencesPage() {
                   </a>
                   <a
                     className="am-btn-secondary"
-                    href={`http://localhost:8080/api/evidence/${evidenceId}/download`}
+                    href={`${api.defaults.baseURL}/api/evidence/${evidenceId}/download`}
                   >
                     Download
                   </a>
@@ -145,7 +163,7 @@ export default function EvidenceReferencesPage() {
                   </div>
                   <div className="se-meta-row">
                     <span className="se-meta-key">Office</span>
-                    <span className="se-meta-val">{evidence.ownerOffice || evidence.uploadedByDepartment || '-'}</span>
+                    <span className="se-meta-val">{evidence.ownerOffice || evidence.uploadedByOffice || '-'}</span>
                   </div>
                   <div className="se-meta-row">
                     <span className="se-meta-key">Area</span>
@@ -248,6 +266,7 @@ export default function EvidenceReferencesPage() {
                   <th className="se-th">Office</th>
                   <th className="se-th">Related Activity</th>
                   <th className="se-th">Area Used</th>
+                  <th className="se-th">Reason</th>
                   <th className="se-th">Date Referenced</th>
                   <th className="se-th">By User</th>
                   <th className="se-th"></th>
@@ -255,11 +274,11 @@ export default function EvidenceReferencesPage() {
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td className="am-empty" colSpan={6}>Loading references…</td></tr>
+                  <tr><td className="am-empty" colSpan={7}>Loading references…</td></tr>
                 )}
                 {!loading && refs.length === 0 && (
                   <tr>
-                    <td className="am-empty" colSpan={6}>
+                    <td className="am-empty" colSpan={7}>
                       Not yet referenced by any activity.
                     </td>
                   </tr>
@@ -273,28 +292,27 @@ export default function EvidenceReferencesPage() {
                         ? <span className="am-type-badge">{formatAccreditationArea(ref.accreditationArea)}</span>
                         : '-'}
                     </td>
+                    <td className="se-td se-td-reason">{ref.note || '-'}</td>
                     <td className="se-td">{formatDate(ref.createdAt)}</td>
                     <td className="se-td">{ref.referencedByName || '-'}</td>
                     <td className="se-td">
-                      <Link
-                        className="am-link-button"
-                        to={`/activities/${ref.activityId}`}
-                      >
-                        Activity
-                      </Link>
-                      {canRemoveReferences && (
-                        <button
-                          className="am-link-button am-link-danger"
-                          type="button"
-                          onClick={async () => {
-                            if (!window.confirm('Remove this reference? The original evidence file will remain.')) return;
-                            await deleteReference(ref.id);
-                            loadRefs(currentPage);
-                          }}
+                      <div className="se-row-actions">
+                        <Link
+                          className="am-link-button"
+                          to={`/activities/${ref.activityId}`}
                         >
-                          Remove
-                        </button>
-                      )}
+                          Activity
+                        </Link>
+                        {canRemoveReferences && (
+                          <button
+                            className="am-link-button am-link-danger"
+                            type="button"
+                            onClick={() => setRemoveTarget(ref)}
+                          >
+                            <Icon as={Trash2} /> Remove
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -327,6 +345,26 @@ export default function EvidenceReferencesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(removeTarget)}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={async () => {
+          setRemoving(true);
+          try {
+            await deleteReference(removeTarget.id);
+            setRemoveTarget(null);
+            await loadRefs(currentPage);
+          } finally {
+            setRemoving(false);
+          }
+        }}
+        title="Remove Reference"
+        message="Remove this reference? The original evidence file will remain."
+        confirmLabel="Remove"
+        danger
+        busy={removing}
+      />
     </ActivityShell>
   );
 }

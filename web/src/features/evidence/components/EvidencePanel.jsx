@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   createLinkEvidence,
   deleteEvidence,
@@ -11,10 +12,30 @@ import {
   uploadEvidence,
 } from '../api';
 import Modal from '../../../shared/components/Modal';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
+import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ExternalLink,
+  Eye,
+  FolderUp,
+  Link2,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  TriangleAlert,
+  Upload,
+  UploadCloud,
+} from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'jpeg', 'png'];
@@ -47,6 +68,76 @@ function validateFiles(files) {
     }
   }
   return '';
+}
+
+function classifyFile(file) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  if (!ALLOWED_EXTENSIONS.includes(extension)) {
+    return { ok: false, reason: 'Unsupported file type' };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { ok: false, reason: 'Exceeds 10 MB size limit' };
+  }
+  return { ok: true };
+}
+
+// --- Folder / drag-and-drop traversal helpers -------------------------------
+// Dropped folders expose a FileSystemDirectoryEntry tree (webkitGetAsEntry)
+// rather than a flat FileList, so we have to walk it ourselves.
+
+function readEntryAsFile(entry) {
+  return new Promise((resolve) => {
+    entry.file(resolve, () => resolve(null));
+  });
+}
+
+function readAllDirectoryEntries(reader) {
+  return new Promise((resolve) => {
+    const collected = [];
+    const readBatch = () => {
+      reader.readEntries((batch) => {
+        if (!batch.length) {
+          resolve(collected);
+          return;
+        }
+        collected.push(...batch);
+        readBatch();
+      }, () => resolve(collected));
+    };
+    readBatch();
+  });
+}
+
+async function collectFilesFromEntry(entry, files) {
+  if (!entry) return;
+  if (entry.isFile) {
+    const file = await readEntryAsFile(entry);
+    if (file) files.push(file);
+  } else if (entry.isDirectory) {
+    const entries = await readAllDirectoryEntries(entry.createReader());
+    for (const child of entries) {
+      await collectFilesFromEntry(child, files);
+    }
+  }
+}
+
+async function getFilesFromDataTransfer(dataTransfer) {
+  const items = dataTransfer?.items ? Array.from(dataTransfer.items) : [];
+  const supportsEntries = items.length > 0 && typeof items[0].webkitGetAsEntry === 'function';
+  if (!supportsEntries) {
+    return Array.from(dataTransfer?.files || []);
+  }
+  const files = [];
+  for (const item of items) {
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    if (entry) {
+      await collectFilesFromEntry(entry, files);
+    } else if (item.getAsFile) {
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    }
+  }
+  return files;
 }
 
 function saveBlob(blob, fileName) {
@@ -110,6 +201,11 @@ export default function EvidencePanel({
   const [busyEvidenceId, setBusyEvidenceId] = useState('');
   const [pendingReplaceIndex, setPendingReplaceIndex] = useState(null);
   const [metadataEvidence, setMetadataEvidence] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [duplicateWarnings, setDuplicateWarnings] = useState([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [pendingUnsupported, setPendingUnsupported] = useState(null); // { valid: File[], invalid: {name, reason}[] }
+  const dragCounterRef = useRef(0);
 
   const loadEvidence = useCallback(async () => {
     setLoading(true);
@@ -145,16 +241,79 @@ export default function EvidencePanel({
   const managementLocked = lockManagementActions || isUploading;
   const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
 
+  // Adds incoming files (from the file picker, folder picker, or a drag-and-drop
+  // drop of files/folders) to the staging list. Files that fail validation are
+  // held back and surfaced in a confirmation prompt instead of silently
+  // blocking the whole batch.
+  const addIncomingFiles = useCallback((incoming) => {
+    if (!incoming || incoming.length === 0) return;
+    const existingKeys = new Set(selectedFiles.map(fileKey));
+    const localSeen = new Set();
+    const valid = [];
+    const invalid = [];
+    incoming.forEach((file) => {
+      const key = fileKey(file);
+      if (existingKeys.has(key) || localSeen.has(key)) return;
+      localSeen.add(key);
+      const result = classifyFile(file);
+      if (result.ok) valid.push(file);
+      else invalid.push({ name: file.name, reason: result.reason });
+    });
+    if (invalid.length > 0) {
+      setPendingUnsupported({ valid, invalid });
+      return;
+    }
+    if (valid.length === 0) return;
+    setError('');
+    setSelectedFiles((current) => [...current, ...valid]);
+  }, [selectedFiles]);
+
   const handleSelectFiles = (event) => {
     const files = Array.from(event.target.files || []);
-    const validationError = validateFiles(files);
     event.target.value = '';
-    setError(validationError);
-    if (validationError) return;
-    setSelectedFiles((current) => {
-      const existingKeys = new Set(current.map(fileKey));
-      return [...current, ...files.filter((f) => !existingKeys.has(fileKey(f)))];
-    });
+    addIncomingFiles(files);
+  };
+
+  const handleSelectFolder = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    addIncomingFiles(files);
+  };
+
+  const handleConfirmSkipUnsupported = () => {
+    if (pendingUnsupported?.valid?.length) {
+      setError('');
+      setSelectedFiles((current) => [...current, ...pendingUnsupported.valid]);
+    }
+    setPendingUnsupported(null);
+  };
+
+  const handleCancelUnsupported = () => setPendingUnsupported(null);
+
+  const handleDragEnter = (event) => {
+    event.preventDefault();
+    if (isUploading) return;
+    dragCounterRef.current += 1;
+    setIsDraggingOver(true);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (event) => {
+    event.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+    if (isUploading) return;
+    const files = await getFilesFromDataTransfer(event.dataTransfer);
+    addIncomingFiles(files);
   };
 
   const handleRemoveSelectedFile = (index) => {
@@ -191,6 +350,10 @@ export default function EvidencePanel({
       const { data } = await uploadEvidence(activityId, selectedFiles);
       setSelectedFiles([]);
       await loadEvidence();
+      const duplicates = (data || [])
+        .filter((item) => item.duplicateWarning)
+        .map((item) => ({ ...item.duplicateWarning, newFileName: item.originalFileName }));
+      if (duplicates.length > 0) setDuplicateWarnings(duplicates);
       if (onUploaded) onUploaded(data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload evidence.');
@@ -302,13 +465,17 @@ export default function EvidencePanel({
     }
   };
 
-  const handleDelete = async (item) => {
-    if (!window.confirm('Are you sure you want to remove this evidence?')) return;
+  const handleDelete = (item) => setDeleteTarget(item);
+
+  const confirmDelete = async () => {
+    const item = deleteTarget;
+    if (!item) return;
     setBusyEvidenceId(item.id);
     setError('');
     try {
       await deleteEvidence(item.id);
       await loadEvidence();
+      setDeleteTarget(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete evidence.');
     } finally {
@@ -332,7 +499,7 @@ export default function EvidencePanel({
         )}
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {canManageEvidence && (
         <div className="am-evidence-upload">
@@ -357,13 +524,46 @@ export default function EvidencePanel({
 
           {uploadMode === 'file' ? (
             <>
-              <input
-                className="am-input"
-                type="file"
-                multiple
-                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
-                onChange={handleSelectFiles}
-              />
+              <div
+                className={[
+                  'am-dropzone',
+                  isDraggingOver ? 'am-dropzone-active' : '',
+                  isUploading ? 'am-dropzone-disabled' : '',
+                ].filter(Boolean).join(' ')}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Icon as={UploadCloud} size={22} />
+                <p className="am-dropzone-text">Drag and drop files or a folder here</p>
+                <div className="am-dropzone-buttons">
+                  <label className={isUploading ? 'am-btn-secondary am-link-disabled' : 'am-btn-secondary'}>
+                    <Icon as={Upload} /> Browse Files
+                    <input
+                      className="am-hidden-input"
+                      type="file"
+                      multiple
+                      accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                      disabled={isUploading}
+                      onChange={handleSelectFiles}
+                    />
+                  </label>
+                  <label className={isUploading ? 'am-btn-secondary am-link-disabled' : 'am-btn-secondary'}>
+                    <Icon as={FolderUp} /> Browse Folder
+                    <input
+                      className="am-hidden-input"
+                      type="file"
+                      multiple
+                      webkitdirectory=""
+                      directory=""
+                      disabled={isUploading}
+                      onChange={handleSelectFolder}
+                    />
+                  </label>
+                </div>
+                <p className="am-dropzone-hint">PDF, DOCX, XLSX, JPG, JPEG, PNG &middot; up to 10 MB each</p>
+              </div>
               {selectedFiles.length > 0 && (
                 <div className="am-selected-files">
                   {selectedFiles.map((file, index) => (
@@ -406,7 +606,7 @@ export default function EvidencePanel({
               )}
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
-                  {isUploading ? 'Uploading...' : 'Upload Files'}
+                  {isUploading ? 'Uploading...' : <><Icon as={Upload} /> Upload Files</>}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => setSelectedFiles([])} disabled={isUploading || selectedFiles.length === 0}>
                   Cancel
@@ -438,7 +638,7 @@ export default function EvidencePanel({
               </label>
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
-                  {isUploading ? 'Saving Link...' : 'Add Drive Link'}
+                  {isUploading ? 'Saving Link...' : <><Icon as={Link2} /> Add Drive Link</>}
                 </button>
                 <button className="am-btn-secondary" type="button" onClick={() => { setLinkTitle(''); setLinkUrl(''); }} disabled={isUploading}>
                   Clear
@@ -466,7 +666,7 @@ export default function EvidencePanel({
               <th>Size</th>
               <th>Uploaded By</th>
               <th>Date</th>
-              <th className="am-ev-toggle-th">Actions</th>
+              <th className="am-ev-toggle-th"></th>
             </tr>
           </thead>
           <tbody>
@@ -478,26 +678,26 @@ export default function EvidencePanel({
                       {batchSelectionEnabled && (
                         <input
                           type="checkbox"
-                          checked={!hasMetadata(item) && batchSelectedIds.includes(item.id)}
-                          disabled={hasMetadata(item)}
+                          checked={batchSelectedIds.includes(item.id)}
                           onClick={(event) => event.stopPropagation()}
                           onChange={() => onToggleBatchSelection(item)}
-                          title={hasMetadata(item) ? 'Metadata Assigned' : 'Select for batch metadata'}
+                          title={hasMetadata(item) ? 'Already has metadata — select to edit' : 'Select for batch metadata'}
                         />
                       )}
                       <div>
                         <span className="am-evidence-name">{item.originalFileName}</span>
+                        {hasMetadata(item) && (
+                          <span className="am-evidence-meta am-evidence-meta-assigned">
+                            <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
+                            {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata assigned'}
+                            {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
+                            {item.relatedOffices?.length
+                              ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
+                              : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {hasMetadata(item) && (
-                      <span className="am-evidence-meta">
-                        Metadata Assigned{item.evidenceType ? ` · ${formatEvidenceType(item.evidenceType)}` : ''}
-                        {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
-                        {item.relatedOffices?.length
-                          ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
-                          : ''}
-                      </span>
-                    )}
                   </td>
                   <td>{item.fileType === 'LINK' ? 'LINK' : item.fileType}</td>
                   <td>{formatFileSize(item.fileSize, item.fileType)}</td>
@@ -507,16 +707,19 @@ export default function EvidencePanel({
                     <ActionMenu
                       items={[
                         canManageItem(item) && !hideMetadataActions && {
+                          icon: Eye,
                           label: 'View Details',
                           disabled: managementLocked,
                           onClick: () => setMetadataEvidence(item),
                         },
                         (item.fileType === 'LINK' || item.linkUrl) && {
+                          icon: ExternalLink,
                           label: 'Open Link',
                           disabled: managementLocked,
                           onClick: () => handleView(item),
                         },
                         canManageItem(item) && (item.fileType === 'LINK' || item.linkUrl) && {
+                          icon: Pencil,
                           label: 'Edit Link',
                           disabled: managementLocked,
                           onClick: () => setEditLinkModal({
@@ -526,12 +729,8 @@ export default function EvidencePanel({
                             linkUrl: item.linkUrl || '',
                           }),
                         },
-                        PREVIEW_TYPES.includes(item.fileType) && {
-                          label: 'Open Preview',
-                          disabled: managementLocked || busyEvidenceId === item.id,
-                          onClick: () => handleView(item),
-                        },
                         item.fileType !== 'LINK' && !item.linkUrl && {
+                          icon: Download,
                           label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
                           disabled: managementLocked || busyEvidenceId === item.id,
                           onClick: () => handleDownload(item),
@@ -540,7 +739,7 @@ export default function EvidencePanel({
                           key: 'replace',
                           render: ({ className, close }) => (
                             <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
-                              Replace File
+                              <Icon as={RefreshCw} /> Replace File
                               <input
                                 className="am-hidden-input"
                                 type="file"
@@ -555,6 +754,7 @@ export default function EvidencePanel({
                           ),
                         },
                         canManageItem(item) && {
+                          icon: Trash2,
                           label: 'Delete',
                           danger: true,
                           disabled: managementLocked || busyEvidenceId === item.id,
@@ -562,7 +762,7 @@ export default function EvidencePanel({
                         },
                       ]}
                     />
-                    <span className="am-ev-chevron">{expandedId === item.id ? '▴' : '▾'}</span>
+                    <span className="am-ev-chevron"><Icon as={expandedId === item.id ? ChevronUp : ChevronDown} /></span>
                   </td>
                 </tr>
               </React.Fragment>
@@ -570,6 +770,81 @@ export default function EvidencePanel({
           </tbody>
         </table>
       )}
+
+      {/* Unsupported Files Modal */}
+      <Modal
+        isOpen={Boolean(pendingUnsupported)}
+        onClose={handleCancelUnsupported}
+        title="Unsupported Files Detected"
+      >
+        <div className="am-replace-modal">
+          <p className="am-replace-copy">
+            {pendingUnsupported?.valid.length > 0
+              ? `${pendingUnsupported.invalid.length} file(s) can't be added. Skip them and continue with the other ${pendingUnsupported.valid.length} file(s)?`
+              : "None of the selected files can be added."}
+          </p>
+          <ul className="am-unsupported-list">
+            {pendingUnsupported?.invalid.map((entry, index) => (
+              <li key={`${entry.name}-${index}`}>
+                <span className="am-unsupported-name">{entry.name}</span>
+                <span className="am-unsupported-reason">{entry.reason}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="am-form-actions am-replace-actions">
+            <button className="am-btn-secondary" type="button" onClick={handleCancelUnsupported}>
+              Cancel
+            </button>
+            {pendingUnsupported?.valid.length > 0 && (
+              <button className="am-btn-primary" type="button" onClick={handleConfirmSkipUnsupported}>
+                Skip &amp; Add {pendingUnsupported.valid.length} File(s)
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Duplicate File Warning Modal */}
+      <Modal
+        isOpen={duplicateWarnings.length > 0}
+        onClose={() => setDuplicateWarnings([])}
+        title="Possible Duplicate Evidence"
+      >
+        <div className="am-replace-modal">
+          <p className="am-replace-copy">
+            {duplicateWarnings.length === 1
+              ? 'The file you just uploaded already exists elsewhere in the repository:'
+              : `${duplicateWarnings.length} of the files you just uploaded already exist elsewhere in the repository:`}
+          </p>
+          <ul className="am-duplicate-list">
+            {duplicateWarnings.map((dup, index) => (
+              <li key={`${dup.evidenceId}-${index}`} className="am-duplicate-item">
+                <Icon as={TriangleAlert} size={16} />
+                <div>
+                  <p className="am-duplicate-name">{dup.newFileName}</p>
+                  <p className="am-duplicate-detail">
+                    Already uploaded as <strong>{dup.originalFileName}</strong> in{' '}
+                    <Link to={`/activities/${dup.activityId}`} onClick={() => setDuplicateWarnings([])}>
+                      {dup.activityName}
+                    </Link>
+                    {dup.ownerOffice ? ` (${formatUserOffice(dup.ownerOffice)})` : ''}
+                    {dup.uploadedByName ? ` · uploaded by ${dup.uploadedByName}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="am-replace-copy">
+            Both copies are kept for now. To avoid storing the same file twice, consider removing
+            the new upload and using <strong>Reference Evidence</strong> on the existing file instead.
+          </p>
+          <div className="am-form-actions am-replace-actions">
+            <button className="am-btn-primary" type="button" onClick={() => setDuplicateWarnings([])}>
+              Got it
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Replace File Modal */}
       <Modal
@@ -658,6 +933,17 @@ export default function EvidencePanel({
         isOpen={Boolean(metadataEvidence)}
         onClose={() => setMetadataEvidence(null)}
         onSaved={loadEvidence}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Remove Evidence"
+        message={`Remove "${deleteTarget?.originalFileName || ''}"? This cannot be undone.`}
+        confirmLabel="Remove"
+        danger
+        busy={Boolean(busyEvidenceId)}
       />
     </aside>
   );

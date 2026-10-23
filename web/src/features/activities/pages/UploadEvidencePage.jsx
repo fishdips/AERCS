@@ -5,13 +5,15 @@ import ActivityShell from '../components/ActivityShell';
 import ActivityWorkflowSidebar from '../components/ActivityWorkflowSidebar';
 import { getActivity } from '../api';
 import {
-  ACTIVITY_WRITE_ROLES,
+  ACTIVITY_CREATE_ROLES,
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
-  formatOffice,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 function ActivitySummary({ activity }) {
   return (
@@ -19,8 +21,7 @@ function ActivitySummary({ activity }) {
       <p className="am-section-label">Activity Summary</p>
       <dl className="am-summary-list">
         <div><dt>Activity Name</dt><dd>{activity.activityName}</dd></div>
-        <div><dt>Office</dt><dd>{activity.office ? formatOffice(activity.office) : '-'}</dd></div>
-        <div><dt>Department</dt><dd>{activity.department ? formatDepartment(activity.department) : '-'}</dd></div>
+        <div><dt>Department/Office Owner</dt><dd>{formatDepartment(activity.office || activity.department)}</dd></div>
         <div><dt>Activity Type</dt><dd>{formatActivityType(activity.activityType, activity.customActivityType)}</dd></div>
         <div><dt>Academic Year</dt><dd>{activity.academicYear}</dd></div>
         <div><dt>Accreditation Area</dt><dd>{formatAccreditationArea(activity.accreditationArea)}</dd></div>
@@ -56,7 +57,7 @@ export default function UploadEvidencePage() {
     loadActivity();
   }, [loadActivity]);
 
-  const canManageEvidence = user && ACTIVITY_WRITE_ROLES.includes(user.role);
+  const canManageEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
   const hasUploadedEvidence = evidenceCount > 0;
   const canProceedToMetadata = hasUploadedEvidence && !uploadInProgress;
   const handleEvidenceChange = useCallback((items) => {
@@ -70,13 +71,15 @@ export default function UploadEvidencePage() {
     <ActivityShell>
       <p className="am-breadcrumb">Workspace / Activities / Upload Evidence</p>
       <div className="am-page-header">
-        <h1 className="am-page-title">Upload Evidence</h1>
-        <div className="am-page-actions">
+        <div className="am-page-header-left">
           {uploadInProgress ? (
-            <button className="am-btn-secondary" type="button" disabled>Back</button>
+            <button className="am-btn-secondary" type="button" disabled><Icon as={ArrowLeft} /> Back</button>
           ) : (
-            <Link className="am-btn-secondary" to={`/activities/${id}`}>Back</Link>
+            <Link className="am-btn-secondary" to={`/activities/${id}`}><Icon as={ArrowLeft} /> Back</Link>
           )}
+          <h1 className="am-page-title">Upload Evidence</h1>
+        </div>
+        <div className="am-page-actions">
           {canProceedToMetadata ? (
             <Link className="am-btn-primary" to={`/activities/${id}/metadata`}>Assign Metadata</Link>
           ) : (
@@ -86,7 +89,7 @@ export default function UploadEvidencePage() {
       </div>
 
       {location.state?.message && <p className="am-alert am-alert-success">{location.state.message}</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <p className="am-empty am-empty-plain">Loading activity...</p>}
 
       {activity && (
@@ -101,16 +104,16 @@ export default function UploadEvidencePage() {
               onUploadStateChange={handleUploadStateChange}
               title="Upload Evidence"
             />
-            <div className="am-form-actions am-workflow-actions">
+            <div className="am-form-actions am-workflow-actions-split">
               {uploadInProgress ? (
-                <button className="am-btn-secondary" type="button" disabled>Back</button>
+                <button className="am-btn-secondary" type="button" disabled><Icon as={ArrowLeft} /> Back</button>
               ) : (
-                <Link className="am-btn-secondary" to="/activities/new">Back</Link>
+                <Link className="am-btn-secondary" to="/activities/new"><Icon as={ArrowLeft} /> Back</Link>
               )}
               {canProceedToMetadata ? (
-                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step</Link>
+                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step <Icon as={ArrowRight} /></Link>
               ) : (
-                <button className="am-btn-primary" type="button" disabled>Next Step</button>
+                <button className="am-btn-primary" type="button" disabled>Next Step <Icon as={ArrowRight} /></button>
               )}
             </div>
           </div>
@@ -118,7 +121,6 @@ export default function UploadEvidencePage() {
           <ActivityWorkflowSidebar
             activeStep="upload"
             activityId={activity.id}
-            completedSteps={['create']}
             disabledSteps={[
               ...(!canProceedToMetadata ? ['metadata'] : []),
               ...(uploadInProgress ? ['create'] : []),

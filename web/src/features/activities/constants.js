@@ -1,10 +1,60 @@
 import { ROLES } from '../../shared/constants/roles';
 
+// Date.toISOString() reports the UTC date, which lags behind the local date for
+// any timezone ahead of UTC (e.g. PHT, UTC+8) during the first hours of the day —
+// so comparing a <input type="date"> value (always local) against it would wrongly
+// flag "today" as being in the future. Build today's date from local fields instead.
+export function todayLocalISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// The academic year rolls over around the start of the school year (June),
+// not the calendar year - so Oct 2026 is still "AY 2026-2027", not 2025-2026.
+export function currentAcademicYearStartYear() {
+  const d = new Date();
+  const month = d.getMonth(); // 0 = January
+  return month >= 5 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+export function formatAcademicYear(startYear) {
+  return `${startYear}-${startYear + 1}`;
+}
+
+export const CURRENT_ACADEMIC_YEAR = formatAcademicYear(currentAcademicYearStartYear());
+
+// A dropdown range around the current academic year, so staff pick instead of
+// typing it by hand. `extra` lets a caller splice in an out-of-range value
+// (e.g. an older activity's academic year) so editing it never loses data.
+export function academicYearOptions({ past = 2, future = 3, extra = [] } = {}) {
+  const currentStart = currentAcademicYearStartYear();
+  const years = [];
+  for (let offset = future; offset >= -past; offset -= 1) {
+    years.push(formatAcademicYear(currentStart + offset));
+  }
+  extra.filter(Boolean).forEach((year) => {
+    if (!years.includes(year)) years.unshift(year);
+  });
+  return years;
+}
+
 export const ACTIVITY_WRITE_ROLES = [
   ROLES.DEPT_STAFF,
   ROLES.INSTITUTIONAL_OFFICE,
   ROLES.ACCRED_COORDINATOR,
   ROLES.ADMIN,
+];
+
+// Admin manages accounts/access, not content - excluded here so an admin
+// never sees a create/upload entry point that the backend will now reject.
+// Admin keeps ACTIVITY_WRITE_ROLES for moderation (edit/delete/metadata).
+export const ACTIVITY_CREATE_ROLES = [
+  ROLES.DEPT_STAFF,
+  ROLES.INSTITUTIONAL_OFFICE,
+  ROLES.ACCRED_COORDINATOR,
 ];
 
 export const ACTIVITY_TYPES = [
@@ -18,6 +68,7 @@ export const ACTIVITY_TYPES = [
   { value: 'CONFERENCE', label: 'Conference' },
   { value: 'WEBINAR', label: 'Webinar' },
   { value: 'ADMINISTRATIVE', label: 'Administrative' },
+  { value: 'FACULTY', label: 'Faculty' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -51,27 +102,47 @@ export const DEPARTMENTS = [
   { value: 'CNAHS', label: 'CNAHS' },
   { value: 'CCS', label: 'CCS' },
   { value: 'CCJ', label: 'CCJ' },
+  { value: 'CES', label: 'CES' },
 ];
 
 export const OFFICES = [
   { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
   { value: 'RESEARCH_OFFICE', label: 'Research Office' },
-  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
+  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
+  { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
+];
+
+export const SERVICE_OFFICES = [
+  { value: 'STUDENT_SUCCESS_OFFICE', label: 'Student Success Office' },
   { value: 'REGISTRARS_OFFICE', label: 'Registrar\u2019s Office' },
   { value: 'LIBRARY', label: 'Library' },
+  { value: 'GUIDANCE_CENTER', label: 'Guidance Center' },
+  { value: 'MEDICAL_DENTAL_CLINIC', label: 'Medical-Dental Clinic' },
+  { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
+  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
+  { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
+  { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
+];
+
+export const ALL_OFFICES = [
+  ...OFFICES,
+  ...SERVICE_OFFICES,
+  { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
   { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
-  { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
-  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
   { value: 'OTHER', label: 'Other' },
 ];
 
 export function formatDepartment(value) {
-  const option = DEPARTMENTS.find((d) => d.value === value);
-  return option ? option.label : (value || '-');
+  if (!value) return '-';
+  const dept = DEPARTMENTS.find((d) => d.value === value);
+  if (dept) return dept.label;
+  const office = ALL_OFFICES.find((o) => o.value === value);
+  if (office) return office.label;
+  return value;
 }
 
 export function formatOffice(value) {
-  const option = OFFICES.find((o) => o.value === value);
+  const option = ALL_OFFICES.find((o) => o.value === value);
   return option ? option.label : (value || '-');
 }
 
@@ -79,6 +150,30 @@ export function formatDeptOrOffice(department, office) {
   if (office) return formatOffice(office);
   if (department) return formatDepartment(department);
   return '-';
+}
+
+// A user's org unit (users.office on the backend) holds either a Department or
+// an Office value — never both. These helpers work with that single merged field.
+export function isDepartmentValue(value) {
+  return DEPARTMENTS.some((d) => d.value === value);
+}
+
+export function isServiceOfficeValue(value) {
+  if (!value) return false;
+  return SERVICE_OFFICES.some((so) => so.value === value);
+}
+
+export function resolveUserDepartment(user) {
+  return user?.office || null;
+}
+
+export function formatUserOffice(value) {
+  if (!value) return '-';
+  const dept = DEPARTMENTS.find((d) => d.value === value);
+  if (dept) return dept.label;
+  const office = ALL_OFFICES.find((o) => o.value === value);
+  if (office) return office.label;
+  return value;
 }
 
 export function formatActivityType(value, customValue = '') {

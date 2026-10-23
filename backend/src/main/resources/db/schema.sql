@@ -20,16 +20,19 @@ CREATE TABLE IF NOT EXISTS users (
     email           VARCHAR(150) UNIQUE NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
     role            user_role NOT NULL DEFAULT 'DEPT_STAFF',
-    department      VARCHAR(50),
+    -- Holds either a department (college) name or an office name — a user belongs
+    -- to exactly one org unit, never both. See User.resolveDepartment()/resolveOffice().
     office          VARCHAR(50),
     is_active       BOOLEAN NOT NULL DEFAULT true,
     must_change_pw  BOOLEAN NOT NULL DEFAULT true,
+    -- Bumped to invalidate this user's outstanding JWTs (force logout, password reset).
+    token_version   INTEGER NOT NULL DEFAULT 0,
+    reset_token             VARCHAR(64) UNIQUE,
+    reset_token_expires_at  TIMESTAMPTZ,
     created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT chk_users_department
-        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
     CONSTRAINT chk_users_office
-        CHECK (office IS NULL OR office IN ('QUALITY_ASSURANCE_OFFICE', 'RESEARCH_OFFICE', 'EXTENSION_OFFICE', 'REGISTRARS_OFFICE', 'LIBRARY', 'STUDENT_AFFAIRS_OFFICE', 'FACILITIES_MANAGEMENT_OFFICE', 'HUMAN_RESOURCE_OFFICE'))
+        CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100)
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -50,9 +53,9 @@ CREATE TABLE IF NOT EXISTS activities (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_activities_activity_type
-        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'OTHER')),
+        CHECK (activity_type IN ('SEMINAR', 'TRAINING', 'WORKSHOP', 'RESEARCH', 'EXTENSION', 'OUTREACH', 'MEETING', 'CONFERENCE', 'WEBINAR', 'ADMINISTRATIVE', 'FACULTY', 'OTHER')),
     CONSTRAINT chk_activities_department
-        CHECK (department IS NULL OR department IN ('CEA', 'CMBA', 'CASE', 'CNAHS', 'CCS', 'CCJ')),
+        CHECK (department IS NULL OR LENGTH(TRIM(department)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_office
         CHECK (office IS NULL OR LENGTH(TRIM(office)) BETWEEN 1 AND 100),
     CONSTRAINT chk_activities_department_or_office
@@ -74,6 +77,10 @@ CREATE TABLE IF NOT EXISTS evidence (
     link_url            VARCHAR(1000),
     file_type           VARCHAR(20) NOT NULL,
     file_size           BIGINT NOT NULL DEFAULT 0,
+    -- SHA-256 of the file's bytes, hex-encoded. Null for LINK evidence. Used to
+    -- flag the same file already existing elsewhere in the repository (any
+    -- activity/office/department) when a new one is uploaded.
+    file_hash           VARCHAR(64),
     evidence_type       VARCHAR(50),
     related_offices     TEXT,
     tags                TEXT,
@@ -91,12 +98,13 @@ CREATE TABLE IF NOT EXISTS evidence (
 
 CREATE INDEX IF NOT EXISTS idx_evidence_activity_id ON evidence(activity_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_uploaded_by ON evidence(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_evidence_file_hash ON evidence(file_hash);
 
 CREATE TABLE IF NOT EXISTS evidence_references (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     evidence_id          UUID NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
     activity_id          UUID NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-    referenced_by_id     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    referenced_by_id     UUID REFERENCES users(id) ON DELETE SET NULL,
     referenced_by_office VARCHAR(100) NOT NULL,
     accreditation_area   VARCHAR(50),
     note                 TEXT,
@@ -113,6 +121,9 @@ CREATE INDEX IF NOT EXISTS idx_evidence_references_referenced_by_id ON evidence_
 CREATE TABLE IF NOT EXISTS accreditor_access (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     token       VARCHAR(128) NOT NULL UNIQUE,
+    name        VARCHAR(150),
+    -- Legacy: the address pre-account links were emailed to. New links use accreditor_access_users.
+    accreditor_email VARCHAR(150),
     created_by  UUID REFERENCES users(id) ON DELETE SET NULL,
     activity_id UUID REFERENCES activities(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -127,6 +138,14 @@ CREATE TABLE IF NOT EXISTS accreditor_access_evidence (
     PRIMARY KEY (access_id, evidence_id)
 );
 
+-- Registered accreditor accounts (role ACCREDITOR_LINK) a link is assigned to.
+CREATE TABLE IF NOT EXISTS accreditor_access_users (
+    access_id   UUID NOT NULL REFERENCES accreditor_access(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (access_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_accreditor_access_users_user_id ON accreditor_access_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_token ON accreditor_access(token);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_expires_at ON accreditor_access(expires_at);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_evidence_access_id ON accreditor_access_evidence(access_id);

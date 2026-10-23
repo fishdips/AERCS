@@ -24,7 +24,8 @@
 .login-logo-box {
   width: 36px;
   height: 36px;
-  border: 1.5px solid #111;
+  border: 1.5px solid var(--brand-600);
+  color: var(--brand-600);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,6 +133,19 @@
   letter-spacing: 0.02em;
 }
 
+.login-subheading {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.login-success-note {
+  font-size: 0.78rem;
+  color: #374151;
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+
 .login-divider {
   border: none;
   border-top: 1px solid #e5e7eb;
@@ -175,7 +189,36 @@
 }
 
 .login-input:focus {
-  border-color: #111;
+  border-color: var(--brand-600);
+}
+
+.login-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.login-password-input {
+  padding-right: 2.25rem;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 0.4rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.login-password-toggle:hover {
+  color: #111;
 }
 
 .login-options {
@@ -195,20 +238,15 @@
 }
 
 .login-forgot {
-  background: none;
-  border: none;
   font-size: 0.75rem;
   color: #555;
-  cursor: not-allowed;
   text-decoration: underline;
-  padding: 0;
-  opacity: 0.5;
 }
 
 .login-btn {
   width: 100%;
   padding: 0.65rem;
-  background: #111;
+  background: var(--brand-600);
   color: #fff;
   border: none;
   font-size: 0.78rem;
@@ -220,12 +258,19 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: #333;
+  background: var(--brand-700);
 }
 
 .login-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.login-btn-link {
+  display: block;
+  box-sizing: border-box;
+  text-align: center;
+  text-decoration: none;
 }
 
 .login-external-note {

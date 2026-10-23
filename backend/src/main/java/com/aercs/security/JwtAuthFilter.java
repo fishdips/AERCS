@@ -6,6 +6,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,6 +19,7 @@ import java.util.Arrays;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -32,13 +34,31 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (token != null && jwtUtil.isTokenValid(token)) {
             String userId = jwtUtil.extractUserId(token);
-            UserDetails userDetails = userDetailsService.loadUserById(userId);
+            try {
+                UserDetails userDetails = userDetailsService.loadUserById(userId);
+                int tokenVersion = jwtUtil.extractTokenVersion(token);
 
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities()
-            );
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                // isEnabled() reflects the account's current active flag and the
+                // token version guards against a stale JWT surviving a suspension,
+                // password reset, or an admin-forced logout - both are re-checked
+                // against the database on every request, not just at login.
+                boolean staleToken = !(userDetails instanceof AercsUserPrincipal principal)
+                        || principal.getTokenVersion() != tokenVersion;
+
+                if (userDetails.isEnabled() && !staleToken) {
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
+            } catch (Exception e) {
+                // Valid signature, but the account it points to no longer exists or
+                // could not be loaded (e.g. deleted since the cookie was issued).
+                // Treat the request as unauthenticated instead of crashing with a 500.
+                log.debug("JWT referenced a user that could not be loaded: {}", userId);
+                SecurityContextHolder.clearContext();
+            }
         }
 
         filterChain.doFilter(request, response);

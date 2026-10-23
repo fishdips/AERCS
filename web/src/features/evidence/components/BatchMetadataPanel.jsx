@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
+import { Check, TriangleAlert } from 'lucide-react';
+import Icon from '../../../shared/components/Icon';
 
 const initialForm = {
   evidenceType: '',
@@ -28,10 +32,34 @@ export default function BatchMetadataPanel({
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(!externalEvidence);
   const [saving, setSaving] = useState(false);
+  const [overwriteConfirm, setOverwriteConfirm] = useState(false);
 
   const effectiveEvidence = externalEvidence || evidence;
   const selectedIds = controlledSelectedIds || internalSelectedIds;
   const setSelectedIds = onSelectedIdsChange || setInternalSelectedIds;
+
+  const prefilledForId = useRef(null);
+
+  // Re-selecting a single evidence file that already has metadata loads its
+  // current values into the form instead of leaving it blank, so saving adds
+  // to what's there rather than silently wiping it out.
+  useEffect(() => {
+    if (selectedIds.length !== 1) {
+      prefilledForId.current = null;
+      return;
+    }
+    const id = selectedIds[0];
+    if (prefilledForId.current === id) return;
+    const item = effectiveEvidence.find((candidate) => candidate.id === id);
+    if (!item || !hasMetadata(item)) return;
+    setForm({
+      evidenceType: item.evidenceType || '',
+      relatedOffices: item.relatedOffices || [],
+      tags: (item.tags || []).join(', '),
+      notes: item.notes || '',
+    });
+    prefilledForId.current = id;
+  }, [selectedIds, effectiveEvidence]);
 
   const loadEvidence = useCallback(async () => {
     if (externalEvidence) {
@@ -78,12 +106,43 @@ export default function BatchMetadataPanel({
 
   const toggleEvidence = (evidenceId) => {
     const item = effectiveEvidence.find((candidate) => candidate.id === evidenceId);
-    if (!item || hasMetadata(item)) return;
+    if (!item) return;
 
     const nextIds = selectedIds.includes(evidenceId)
       ? selectedIds.filter((idValue) => idValue !== evidenceId)
       : [...selectedIds, evidenceId];
     setSelectedIds(nextIds);
+  };
+
+  const selectedAlreadyAssignedCount = useMemo(
+    () => selectedIds.filter((idValue) => {
+      const item = effectiveEvidence.find((candidate) => candidate.id === idValue);
+      return item && hasMetadata(item);
+    }).length,
+    [selectedIds, effectiveEvidence]
+  );
+
+  const performSave = async () => {
+    setSaving(true);
+    try {
+      await updateEvidenceMetadataBatch({
+        evidenceIds: selectedIds,
+        evidenceType: form.evidenceType,
+        relatedOffices: form.relatedOffices,
+        tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        notes: form.notes.trim(),
+      });
+      setSuccess('Metadata saved.');
+      setForm(initialForm);
+      if (!externalEvidence) await loadEvidence();
+      setSelectedIds([]);
+      setOverwriteConfirm(false);
+      if (onSaved) onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save metadata.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async (event) => {
@@ -99,30 +158,20 @@ export default function BatchMetadataPanel({
       return;
     }
 
-    setSaving(true);
-    try {
-      await updateEvidenceMetadataBatch({
-        evidenceIds: selectedIds,
-        evidenceType: form.evidenceType,
-        relatedOffices: form.relatedOffices,
-        tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        notes: form.notes.trim(),
-      });
-      setSuccess('Metadata saved.');
-      setForm(initialForm);
-      if (!externalEvidence) await loadEvidence();
-      setSelectedIds([]);
-      if (onSaved) onSaved();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save metadata.');
-    } finally {
-      setSaving(false);
+    if (selectedAlreadyAssignedCount > 0) {
+      setOverwriteConfirm(true);
+      return;
     }
+
+    await performSave();
   };
 
   return (
     <form className="am-batch-metadata-panel" onSubmit={handleSave} noValidate>
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      {/* While the overwrite modal is open, its own copy of this alert (below)
+          is the one actually visible to the user - showing it here too would
+          just be a hidden duplicate underneath the modal overlay. */}
+      {!overwriteConfirm && <Alert type="error" message={error} onDismiss={() => setError('')} />}
       {success && <p className="am-alert am-alert-success">{success}</p>}
       {loading && <p className="am-empty am-empty-plain">Loading evidence...</p>}
 
@@ -133,7 +182,6 @@ export default function BatchMetadataPanel({
               <div className="am-table-header-row">
                 <div>
                   <p className="am-section-label">Evidence Files <span className="am-count">{selectedCount} selected</span></p>
-                  <p className="am-helper-text">Assign metadata to selected evidence files.</p>
                 </div>
                 <button
                   className="am-btn-secondary am-btn-sm"
@@ -152,15 +200,21 @@ export default function BatchMetadataPanel({
                   {effectiveEvidence.map((item) => {
                     const assigned = hasMetadata(item);
                     return (
-                      <label className={assigned ? 'am-batch-file am-batch-file-disabled' : 'am-batch-file'} key={item.id}>
+                      <label className="am-batch-file" key={item.id}>
                         <input
                           type="checkbox"
-                          checked={!assigned && selectedIds.includes(item.id)}
-                          disabled={assigned}
+                          checked={selectedIds.includes(item.id)}
                           onChange={() => toggleEvidence(item.id)}
                         />
                         <span>{item.originalFileName}</span>
-                        <small>{assigned ? 'Metadata Assigned' : item.fileType}</small>
+                        <small className={assigned ? 'am-evidence-meta-assigned' : ''}>
+                          {assigned ? (
+                            <>
+                              <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
+                              Assigned — select to edit
+                            </>
+                          ) : item.fileType}
+                        </small>
                       </label>
                     );
                   })}
@@ -169,7 +223,7 @@ export default function BatchMetadataPanel({
 
               {selectedIds.length > 0 && (
                 <div className="am-selection-tools">
-                  <button className="am-tertiary-danger" type="button" onClick={() => setSelectedIds([])}>
+                  <button className="am-btn-secondary" type="button" onClick={() => setSelectedIds([])}>
                     Clear Selection
                   </button>
                 </div>
@@ -233,17 +287,45 @@ export default function BatchMetadataPanel({
           </section>
 
           <div className="am-form-actions am-workflow-actions">
+            {selectedIds.length === 0 && selectableEvidence.length > 0 && (
+              <span className="am-field-hint" style={{ color: '#d97706', alignSelf: 'center', marginRight: 'auto', fontWeight: 500 }}>
+                <Icon as={TriangleAlert} /> Check at least one evidence file in the table above to assign metadata.
+              </span>
+            )}
             {hideEvidenceSelection && selectedIds.length > 0 && (
-              <button className="am-tertiary-danger" type="button" onClick={() => setSelectedIds([])}>
+              <button className="am-btn-secondary" type="button" onClick={() => setSelectedIds([])}>
                 Clear Selection
               </button>
             )}
             <button className="am-btn-primary" type="submit" disabled={saving || effectiveEvidence.length === 0 || selectedIds.length === 0}>
-              {saving ? 'Saving...' : 'Assign Metadata'}
+              {saving ? 'Saving...' : <><Icon as={Check} /> Assign Metadata</>}
             </button>
           </div>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={overwriteConfirm}
+        onClose={() => setOverwriteConfirm(false)}
+        onConfirm={performSave}
+        title="Overwrite Existing Metadata"
+        message={(
+          <>
+            <p className="confirm-modal-message">
+              {`${selectedAlreadyAssignedCount} of the selected file${selectedAlreadyAssignedCount === 1 ? '' : 's'} already ${selectedAlreadyAssignedCount === 1 ? 'has' : 'have'} metadata assigned. Saving will replace ${selectedAlreadyAssignedCount === 1 ? 'it' : 'them'} with the values below. Continue?`}
+            </p>
+            {/* Shown here (not just in the page behind the modal) so a save
+                failure - e.g. a permission error - is actually visible while
+                this modal is open, instead of silently stuck. No onDismiss:
+                no close button/auto-dismiss timer - it already goes away
+                when the modal itself closes (Cancel, or a successful save). */}
+            <Alert type="error" message={error} />
+          </>
+        )}
+        confirmLabel="Overwrite"
+        danger
+        busy={saving}
+      />
     </form>
   );
 }
