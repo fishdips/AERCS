@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
+import Alert from '../../../shared/components/Alert';
 import { updateAccreditorAccess } from '../api';
 import AccreditorPicker from './AccreditorPicker';
 
@@ -55,7 +56,7 @@ export default function EditAccreditorLinkModal({ link, onClose, onSaved }) {
   return (
     <Modal isOpen={Boolean(link)} onClose={onClose} title="Edit Accreditor Link">
       <div className="aa-generate">
-        {error && <p className="am-alert am-alert-error">{error}</p>}
+        <Alert type="error" message={error} onDismiss={() => setError('')} />
 
         <div className="am-form-field">
           <label className="am-form-label" htmlFor="aa-edit-name">Link Name <span className="am-required">*</span></label>

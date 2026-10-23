@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
+import Alert from '../../../shared/components/Alert';
 import { generateAccreditorAccess } from '../api';
 import AccreditorPicker from './AccreditorPicker';
 import '../AccreditorAccess.css';
@@ -75,7 +76,7 @@ export default function GenerateAccreditorAccessModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={title}>
       <div className="aa-generate">
-        {error && <p className="am-alert am-alert-error">{error}</p>}
+        <Alert type="error" message={error} onDismiss={() => setError('')} />
 
         {generated ? (
           <div className="aa-generated-link">

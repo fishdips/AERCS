@@ -6,6 +6,7 @@ import { downloadEvidenceBlob, getEvidenceMetadata, updateEvidenceMetadata, view
 import { EVIDENCE_TYPES, RELATED_OFFICES, formatEvidenceType, formatRelatedOffice } from '../constants';
 import { Globe } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 const initialForm = {
   evidenceType: '',
@@ -166,7 +167,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
       {loading && <p className="am-empty am-empty-plain">Loading metadata...</p>}
       {!loading && (
         <form className="am-metadata-form am-metadata-workspace" onSubmit={handleSave} noValidate>
-          {error && <p className="am-alert am-alert-error">{error}</p>}
+          <Alert type="error" message={error} onDismiss={() => setError('')} />
 
           <div className="am-evidence-detail-layout">
             <section className="am-evidence-file-panel">

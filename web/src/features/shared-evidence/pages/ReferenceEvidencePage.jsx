@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getActivity } from '../../activities/api';
-import { searchSharedEvidence } from '../api';
+import { searchRepository } from '../../repository/api';
 import { getEvidenceViewUrl } from '../../evidence/api';
 import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
 import api from '../../../shared/api/config';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import EvidencePreview from '../../../shared/components/EvidencePreview';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
 import { ArrowRight } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -39,6 +40,7 @@ export default function ReferenceEvidencePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [referenceSuccess, setReferenceSuccess] = useState('');
 
   const [keyword, setKeyword] = useState('');
   const [area, setArea] = useState('');
@@ -56,22 +58,23 @@ export default function ReferenceEvidencePage() {
       .catch(() => setActivityError('Activity not found.'));
   }, [activityId]);
 
+  // Uses the institution-wide Repository search (not the department-scoped,
+  // already-referenced-only Shared Evidence search) - the point of this page is
+  // to find and reuse ANY existing evidence, from any office or department,
+  // including evidence that has never been referenced before.
   const runSearch = useCallback(async (page = 0) => {
     setLoading(true);
     setSearchError('');
     try {
       const params = { page, size: 10 };
       if (keyword) params.keyword = keyword;
-      if (area) params.area = area;
+      if (area) params.areas = area;
       if (department) params.department = department;
       if (academicYear) params.academicYear = academicYear;
+      if (activeFileTypes.length > 0) params.fileTypes = activeFileTypes.join(',');
 
-      const { data } = await searchSharedEvidence(params);
-      let content = data.content;
-      if (activeFileTypes.length > 0) {
-        content = content.filter((e) => activeFileTypes.includes(e.fileType));
-      }
-      setResults(content);
+      const { data } = await searchRepository(params);
+      setResults(data.content);
       setTotalElements(data.totalElements);
       setTotalPages(data.totalPages);
       setCurrentPage(data.number);
@@ -81,6 +84,11 @@ export default function ReferenceEvidencePage() {
       setLoading(false);
     }
   }, [keyword, area, department, academicYear, activeFileTypes]);
+
+  useEffect(() => {
+    runSearch(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -108,10 +116,14 @@ export default function ReferenceEvidencePage() {
     setConfirmOpen(true);
   };
 
-  const handleSuccess = () => {
+  const handleSuccess = (referencedEvidence) => {
+    setReferenceSuccess(`"${referencedEvidence?.originalFileName}" was successfully referenced to this activity.`);
+    // It's now referenced to this activity - drop it from the results instead
+    // of re-fetching, since re-referencing the same file here would just fail.
+    setResults((prev) => prev.filter((item) => item.id !== referencedEvidence?.id));
+    setTotalElements((prev) => Math.max(0, prev - 1));
     setSelected(null);
     setPreview(null);
-    runSearch(currentPage);
   };
 
   return (
@@ -139,8 +151,9 @@ export default function ReferenceEvidencePage() {
         </div>
       </div>
 
-      {activityError && <p className="am-alert am-alert-error">{activityError}</p>}
-      {searchError && <p className="am-alert am-alert-error">{searchError}</p>}
+      <Alert type="success" message={referenceSuccess} onDismiss={() => setReferenceSuccess('')} />
+      <Alert type="error" message={activityError} onDismiss={() => setActivityError('')} />
+      <Alert type="error" message={searchError} onDismiss={() => setSearchError('')} />
 
       <div className="se-layout">
         {/* Left: filters + target activity */}

@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import { getActivity, updateActivity } from '../api';
-import { ACCREDITATION_AREAS, ACTIVITY_TYPES, ALL_OFFICES, OFFICES, SERVICE_OFFICES, formatDepartment, todayLocalISO } from '../constants';
+import {
+  ACCREDITATION_AREAS,
+  ACTIVITY_TYPES,
+  ALL_OFFICES,
+  OFFICES,
+  SERVICE_OFFICES,
+  academicYearOptions,
+  formatDepartment,
+  todayLocalISO,
+} from '../constants';
 import { Check } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 const initialForm = {
   activityName: '',
@@ -51,6 +61,14 @@ export default function EditActivityPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastEdited, setLastEdited] = useState(null);
+
+  // Keep the record's existing academic year selectable even if it falls
+  // outside the normal dropdown window (e.g. an older activity), so editing
+  // never silently drops that value.
+  const academicYearSelectOptions = useMemo(
+    () => academicYearOptions({ extra: [form.academicYear] }),
+    [form.academicYear]
+  );
 
   const loadActivity = useCallback(async () => {
     setLoading(true);
@@ -160,7 +178,7 @@ export default function EditActivityPage() {
 
       {!loading && !loadError && (
         <form className="am-form" onSubmit={handleSubmit} noValidate>
-          {submitError && <p className="am-alert am-alert-error">{submitError}</p>}
+          <Alert type="error" message={submitError} onDismiss={() => setSubmitError('')} />
 
           <div className="am-form-grid">
             <label className="am-form-field am-form-field-wide">
@@ -285,12 +303,16 @@ export default function EditActivityPage() {
 
             <label className="am-form-field">
               <span className="am-form-label">Academic Year <span className="am-required">*</span></span>
-              <input
-                className="am-input"
-                placeholder="2025-2026"
+              <select
+                className="am-select"
                 value={form.academicYear}
                 onChange={(e) => updateField('academicYear', e.target.value)}
-              />
+              >
+                <option value="">Select academic year</option>
+                {academicYearSelectOptions.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
               {errors.academicYear && <span className="am-field-error">{errors.academicYear}</span>}
             </label>
           </div>

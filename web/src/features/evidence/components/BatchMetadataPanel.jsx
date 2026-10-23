@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
 import { Check, TriangleAlert } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
@@ -167,7 +168,10 @@ export default function BatchMetadataPanel({
 
   return (
     <form className="am-batch-metadata-panel" onSubmit={handleSave} noValidate>
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      {/* While the overwrite modal is open, its own copy of this alert (below)
+          is the one actually visible to the user - showing it here too would
+          just be a hidden duplicate underneath the modal overlay. */}
+      {!overwriteConfirm && <Alert type="error" message={error} onDismiss={() => setError('')} />}
       {success && <p className="am-alert am-alert-success">{success}</p>}
       {loading && <p className="am-empty am-empty-plain">Loading evidence...</p>}
 
@@ -305,7 +309,19 @@ export default function BatchMetadataPanel({
         onClose={() => setOverwriteConfirm(false)}
         onConfirm={performSave}
         title="Overwrite Existing Metadata"
-        message={`${selectedAlreadyAssignedCount} of the selected file${selectedAlreadyAssignedCount === 1 ? '' : 's'} already ${selectedAlreadyAssignedCount === 1 ? 'has' : 'have'} metadata assigned. Saving will replace ${selectedAlreadyAssignedCount === 1 ? 'it' : 'them'} with the values below. Continue?`}
+        message={(
+          <>
+            <p className="confirm-modal-message">
+              {`${selectedAlreadyAssignedCount} of the selected file${selectedAlreadyAssignedCount === 1 ? '' : 's'} already ${selectedAlreadyAssignedCount === 1 ? 'has' : 'have'} metadata assigned. Saving will replace ${selectedAlreadyAssignedCount === 1 ? 'it' : 'them'} with the values below. Continue?`}
+            </p>
+            {/* Shown here (not just in the page behind the modal) so a save
+                failure - e.g. a permission error - is actually visible while
+                this modal is open, instead of silently stuck. No onDismiss:
+                no close button/auto-dismiss timer - it already goes away
+                when the modal itself closes (Cancel, or a successful save). */}
+            <Alert type="error" message={error} />
+          </>
+        )}
         confirmLabel="Overwrite"
         danger
         busy={saving}

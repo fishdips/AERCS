@@ -11,6 +11,7 @@ import {
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import { ArrowLeft } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 function ActivitySummary({ activity }) {
   return (
@@ -63,7 +64,7 @@ export default function AssignMetadataPage() {
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <p className="am-empty am-empty-plain">Loading metadata workspace...</p>}
 
       {activity && !loading && (

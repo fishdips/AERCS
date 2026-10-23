@@ -8,6 +8,7 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import api from '../../../shared/api/config';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import EvidencePreview from '../../../shared/components/EvidencePreview';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
 import { Trash2 } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -102,8 +103,8 @@ export default function EvidenceReferencesPage() {
         </div>
       </div>
 
-      {evidenceError && <p className="am-alert am-alert-error">{evidenceError}</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={evidenceError} onDismiss={() => setEvidenceError('')} />
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {accessDenied && (
         <p className="am-alert am-alert-error">
@@ -265,6 +266,7 @@ export default function EvidenceReferencesPage() {
                   <th className="se-th">Office</th>
                   <th className="se-th">Related Activity</th>
                   <th className="se-th">Area Used</th>
+                  <th className="se-th">Reason</th>
                   <th className="se-th">Date Referenced</th>
                   <th className="se-th">By User</th>
                   <th className="se-th"></th>
@@ -272,11 +274,11 @@ export default function EvidenceReferencesPage() {
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td className="am-empty" colSpan={6}>Loading references…</td></tr>
+                  <tr><td className="am-empty" colSpan={7}>Loading references…</td></tr>
                 )}
                 {!loading && refs.length === 0 && (
                   <tr>
-                    <td className="am-empty" colSpan={6}>
+                    <td className="am-empty" colSpan={7}>
                       Not yet referenced by any activity.
                     </td>
                   </tr>
@@ -290,24 +292,27 @@ export default function EvidenceReferencesPage() {
                         ? <span className="am-type-badge">{formatAccreditationArea(ref.accreditationArea)}</span>
                         : '-'}
                     </td>
+                    <td className="se-td se-td-reason">{ref.note || '-'}</td>
                     <td className="se-td">{formatDate(ref.createdAt)}</td>
                     <td className="se-td">{ref.referencedByName || '-'}</td>
                     <td className="se-td">
-                      <Link
-                        className="am-link-button"
-                        to={`/activities/${ref.activityId}`}
-                      >
-                        Activity
-                      </Link>
-                      {canRemoveReferences && (
-                        <button
-                          className="am-link-button am-link-danger"
-                          type="button"
-                          onClick={() => setRemoveTarget(ref)}
+                      <div className="se-row-actions">
+                        <Link
+                          className="am-link-button"
+                          to={`/activities/${ref.activityId}`}
                         >
-                          <Icon as={Trash2} /> Remove
-                        </button>
-                      )}
+                          Activity
+                        </Link>
+                        {canRemoveReferences && (
+                          <button
+                            className="am-link-button am-link-danger"
+                            type="button"
+                            onClick={() => setRemoveTarget(ref)}
+                          >
+                            <Icon as={Trash2} /> Remove
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

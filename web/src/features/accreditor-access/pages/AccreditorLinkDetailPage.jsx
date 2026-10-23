@@ -11,6 +11,7 @@ import { formatEvidenceType } from '../../evidence/constants';
 import '../AccreditorAccess.css';
 import { Download, Eye, ExternalLink } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
@@ -86,7 +87,7 @@ export default function AccreditorLinkDetailPage() {
       </div>
 
       {loading && <p className="am-empty am-empty-plain">Loading evidence...</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {!loading && access && (
         <>

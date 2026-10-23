@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS evidence (
     link_url            VARCHAR(1000),
     file_type           VARCHAR(20) NOT NULL,
     file_size           BIGINT NOT NULL DEFAULT 0,
+    -- SHA-256 of the file's bytes, hex-encoded. Null for LINK evidence. Used to
+    -- flag the same file already existing elsewhere in the repository (any
+    -- activity/office/department) when a new one is uploaded.
+    file_hash           VARCHAR(64),
     evidence_type       VARCHAR(50),
     related_offices     TEXT,
     tags                TEXT,
@@ -94,6 +98,7 @@ CREATE TABLE IF NOT EXISTS evidence (
 
 CREATE INDEX IF NOT EXISTS idx_evidence_activity_id ON evidence(activity_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_uploaded_by ON evidence(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_evidence_file_hash ON evidence(file_hash);
 
 CREATE TABLE IF NOT EXISTS evidence_references (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),

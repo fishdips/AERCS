@@ -72,8 +72,12 @@ public class SharedEvidenceService {
     ) {
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // A user's org unit is a Department (college staff/chairperson) OR an
+        // Office (institutional/service office staff) - never both.
         Department deptScope = currentUser.resolveDepartment();
-        if (deptScope == null) {
+        Office officeScope = currentUser.resolveOffice();
+        String rawOrgUnit = currentUser.getOffice();
+        if (deptScope == null && officeScope == null) {
             return Page.empty(pageable);
         }
 
@@ -81,10 +85,17 @@ public class SharedEvidenceService {
         if (referencedIds.isEmpty()) {
             return Page.empty(pageable);
         }
+        // "Owned by my office" everywhere else in the app (Repository, Reference
+        // Evidence) is shown from the evidence's own uploader, not the activity
+        // it happens to be filed under - e.g. a service office like the
+        // Registrar's can upload evidence onto a department's activity. Match
+        // on either so this page agrees with that same definition of ownership.
         Specification<Evidence> spec = buildSearchSpec(
                 area,
                 blankToNull(academicYear),
                 deptScope,
+                officeScope,
+                rawOrgUnit,
                 blankToNull(keyword),
                 referencedIds
         );
@@ -400,6 +411,8 @@ public class SharedEvidenceService {
             AccreditationArea area,
             String academicYear,
             Department department,
+            Office office,
+            String uploaderOrgUnit,
             String keyword,
             List<UUID> evidenceIds
     ) {
@@ -414,8 +427,24 @@ public class SharedEvidenceService {
             if (academicYear != null) {
                 predicates.add(cb.equal(act.get("academicYear"), academicYear));
             }
+            // "Mine" means either the evidence's own activity belongs to my
+            // department/office, OR I'm the one who actually uploaded it (a
+            // service/institutional office's evidence often lives under a
+            // different activity than its own, so the activity alone isn't
+            // enough to tell who "owns" it).
+            List<Predicate> ownerMatch = new ArrayList<>();
             if (department != null) {
-                predicates.add(cb.equal(act.get("department"), department));
+                ownerMatch.add(cb.equal(act.get("department"), department));
+            }
+            if (office != null) {
+                ownerMatch.add(cb.equal(act.get("office"), office.name()));
+            }
+            if (uploaderOrgUnit != null) {
+                Join<Evidence, User> uploader = root.join("uploadedBy", JoinType.LEFT);
+                ownerMatch.add(cb.equal(uploader.get("office"), uploaderOrgUnit));
+            }
+            if (!ownerMatch.isEmpty()) {
+                predicates.add(cb.or(ownerMatch.toArray(new Predicate[0])));
             }
             if (keyword != null) {
                 String kw = "%" + keyword.toLowerCase() + "%";

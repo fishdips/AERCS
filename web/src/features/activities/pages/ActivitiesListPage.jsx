@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActivityShell from '../components/ActivityShell';
 import Modal from '../../../shared/components/Modal';
+import Alert from '../../../shared/components/Alert';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import { listActivities } from '../api';
 import { ChevronDown, Plus } from 'lucide-react';
@@ -207,7 +208,7 @@ export default function ActivitiesListPage() {
         )}
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       <div className="am-table-section">
         <div className="am-table-header-row">

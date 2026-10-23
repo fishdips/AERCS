@@ -10,6 +10,7 @@ import { DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatUserOffice } from '../../a
 import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
+import Alert from '../../../shared/components/Alert';
 import './UserManagementPage.css';
 import { Ban, Check as CheckIcon, LogOut, Mail, Trash2, X } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -65,11 +66,18 @@ function DeptOfficeOptions({ value }) {
 }
 
 // Static permissions reference table (display-only in MVP)
+// Visibility reflects ActivityService/DashboardService#canViewAll: ADMIN and
+// INSTITUTIONAL_OFFICE see every activity institution-wide; DEPT_STAFF and
+// ACCRED_COORDINATOR only see their own department plus public/service offices.
+// Create/Upload reflect each controller's CREATE_ROLES, which deliberately
+// excludes ADMIN so the audit trail (who actually authored content) stays
+// meaningful - Admin only moderates via WRITE_ROLES (metadata, references).
 const PERMISSIONS_TABLE = [
-  { role: 'Department Staff',    create: true,  upload: true,  metadata: true,  reference: true,  monitor: false, admin: false },
-  { role: 'Chairperson',         create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
-  { role: 'Accreditor (Link)',   create: false, upload: false, metadata: false, reference: true,  monitor: false, admin: false },
-  { role: 'System Administrator',create: true,  upload: true,  metadata: true,  reference: true,  monitor: true,  admin: true  },
+  { role: 'Department Staff',     create: true,  upload: true,  metadata: true,  reference: true, visibility: 'Own Dept + Public Offices', admin: false },
+  { role: 'Institutional Staff', create: true,  upload: true,  metadata: true,  reference: true, visibility: 'All University',             admin: false },
+  { role: 'Chairperson',          create: true,  upload: true,  metadata: true,  reference: true, visibility: 'Own Dept + Public Offices', admin: true  },
+  { role: 'Accreditor (Link)',    create: false, upload: false, metadata: false, reference: true, visibility: 'Assigned Links Only',        admin: false },
+  { role: 'System Administrator', create: false, upload: false, metadata: true,  reference: true, visibility: 'All University',             admin: true  },
 ];
 
 const Check = () => <span className="perm-check"><Icon as={CheckIcon} size={14} /></span>;
@@ -469,7 +477,7 @@ export default function UserManagementPage() {
                     <th className="ump-pth">Upload</th>
                     <th className="ump-pth">Metadata</th>
                     <th className="ump-pth">Reference</th>
-                    <th className="ump-pth">Monitor</th>
+                    <th className="ump-pth">Visibility</th>
                     <th className="ump-pth">Admin</th>
                   </tr>
                 </thead>
@@ -481,7 +489,7 @@ export default function UserManagementPage() {
                       <td className="ump-ptd">{row.upload    ? <Check /> : <Dash />}</td>
                       <td className="ump-ptd">{row.metadata  ? <Check /> : <Dash />}</td>
                       <td className="ump-ptd">{row.reference ? <Check /> : <Dash />}</td>
-                      <td className="ump-ptd">{row.monitor   ? <Check /> : <Dash />}</td>
+                      <td className="ump-ptd ump-ptd-visibility">{row.visibility}</td>
                       <td className="ump-ptd">{row.admin     ? <Check /> : <Dash />}</td>
                     </tr>
                   ))}
@@ -696,7 +704,7 @@ export default function UserManagementPage() {
                 </label>
               </div>
             </div>
-            {actionError && <p className="am-alert am-alert-error">{actionError}</p>}
+            <Alert type="error" message={actionError} onDismiss={() => setActionError('')} />
             {actionMessage && <p className="am-alert am-alert-success">{actionMessage}</p>}
             <div className="ump-detail-actions">
               <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving || !isEditFormDirty}>

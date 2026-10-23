@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getMyAccreditorLinks } from '../api';
+import Alert from '../../../shared/components/Alert';
 import '../AccreditorAccess.css';
 
 function formatDateTime(value) {
@@ -47,7 +48,7 @@ export default function AccreditorLinksPage() {
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {links.length > 0 && (
         <div className="am-filters">

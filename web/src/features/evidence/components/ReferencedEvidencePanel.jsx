@@ -6,6 +6,7 @@ import { deleteReference, listActivityReferencedEvidence } from '../../shared-ev
 import { formatAccreditationArea } from '../../activities/constants';
 import { formatEvidenceType } from '../constants';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
 import { ChevronDown, ChevronUp, Download, ExternalLink, Eye, Trash2 } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
@@ -102,7 +103,7 @@ export default function ReferencedEvidencePanel({ activityId, canManageReference
         <p className="am-section-label">Referenced Evidence</p>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <div className="am-evidence-placeholder"><span>Loading referenced evidence...</span></div>}
 
       {!loading && items.length === 0 && (

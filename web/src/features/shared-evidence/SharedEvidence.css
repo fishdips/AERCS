@@ -166,6 +166,19 @@
   gap: 0.45rem;
 }
 
+.se-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.se-td-reason {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+  color: #4b5563;
+}
+
 .se-file-icon {
   font-size: 0.65rem;
   font-weight: 700;

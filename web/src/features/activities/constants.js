@@ -12,6 +12,35 @@ export function todayLocalISO() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// The academic year rolls over around the start of the school year (June),
+// not the calendar year - so Oct 2026 is still "AY 2026-2027", not 2025-2026.
+export function currentAcademicYearStartYear() {
+  const d = new Date();
+  const month = d.getMonth(); // 0 = January
+  return month >= 5 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+export function formatAcademicYear(startYear) {
+  return `${startYear}-${startYear + 1}`;
+}
+
+export const CURRENT_ACADEMIC_YEAR = formatAcademicYear(currentAcademicYearStartYear());
+
+// A dropdown range around the current academic year, so staff pick instead of
+// typing it by hand. `extra` lets a caller splice in an out-of-range value
+// (e.g. an older activity's academic year) so editing it never loses data.
+export function academicYearOptions({ past = 2, future = 3, extra = [] } = {}) {
+  const currentStart = currentAcademicYearStartYear();
+  const years = [];
+  for (let offset = future; offset >= -past; offset -= 1) {
+    years.push(formatAcademicYear(currentStart + offset));
+  }
+  extra.filter(Boolean).forEach((year) => {
+    if (!years.includes(year)) years.unshift(year);
+  });
+  return years;
+}
+
 export const ACTIVITY_WRITE_ROLES = [
   ROLES.DEPT_STAFF,
   ROLES.INSTITUTIONAL_OFFICE,

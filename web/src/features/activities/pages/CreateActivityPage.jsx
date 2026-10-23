@@ -7,6 +7,8 @@ import { createActivity } from '../api';
 import {
   ACCREDITATION_AREAS,
   ACTIVITY_TYPES,
+  CURRENT_ACADEMIC_YEAR,
+  academicYearOptions,
   formatAccreditationArea,
   formatActivityType,
   formatDepartment,
@@ -17,6 +19,9 @@ import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
+
+const ACADEMIC_YEAR_OPTIONS = academicYearOptions();
 
 const initialForm = {
   activityName: '',
@@ -25,7 +30,7 @@ const initialForm = {
   customActivityType: '',
   activityDate: '',
   accreditationArea: '',
-  academicYear: '',
+  academicYear: CURRENT_ACADEMIC_YEAR,
 };
 
 function hasMetadata(item) {
@@ -202,7 +207,7 @@ export default function CreateActivityPage() {
             </div>
 
             <form id="create-activity-form" className="am-form am-create-form am-form-embedded" onSubmit={handleSubmit} noValidate>
-              {submitError && <p className="am-alert am-alert-error">{submitError}</p>}
+              <Alert type="error" message={submitError} onDismiss={() => setSubmitError('')} />
 
               <div className="am-form-grid">
                 <label className="am-form-field">
@@ -288,13 +293,17 @@ export default function CreateActivityPage() {
 
                 <label className="am-form-field">
                   <span className="am-form-label">Academic Year <span className="am-required">*</span></span>
-                  <input
-                    className="am-input"
-                    placeholder="2025-2026"
+                  <select
+                    className="am-select"
                     value={form.academicYear}
                     onChange={(e) => updateField('academicYear', e.target.value)}
                     disabled={Boolean(createdActivity)}
-                  />
+                  >
+                    <option value="">Select academic year</option>
+                    {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
                   {errors.academicYear && <span className="am-field-error">{errors.academicYear}</span>}
                 </label>
 
