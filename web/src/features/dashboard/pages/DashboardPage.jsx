@@ -6,8 +6,9 @@ import ConfirmModal from '../../../shared/components/ConfirmModal';
 import { getDashboardSummary } from '../api';
 import { extendAccreditorAccess, deleteAccreditorAccess, getAccreditorAccessLinks } from '../../accreditor-access/api';
 import EditAccreditorLinkModal from '../../accreditor-access/components/EditAccreditorLinkModal';
-import { formatActivityType, formatDepartment } from '../../activities/constants';
+import { formatActivityType, formatDepartment, isUserActivity } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
+import { useAuth } from '../../../shared/hooks/useAuth';
 import { copyToClipboard } from '../../../shared/utils/clipboard';
 import './DashboardPage.css';
 import Alert from '../../../shared/components/Alert';
@@ -50,10 +51,14 @@ function EvidenceRow({ item, to }) {
   );
 }
 
-function ActivityRow({ item, to }) {
+function ActivityRow({ item, to, user }) {
+  const isMine = isUserActivity(item, user);
   return (
     <Link className="am-recent-item" to={to}>
-      <span>{item.activityName}</span>
+      <span>
+        {item.activityName}
+        {isMine && <span className="am-badge-you">You</span>}
+      </span>
       <small>
         {formatActivityType(item.activityType)} · {formatDepartment(item.department)} · {item.evidenceCount} evidence · {formatDateOnly(item.activityDate)}
       </small>
@@ -197,6 +202,7 @@ function AccessRow({ item, onChanged }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -281,7 +287,7 @@ export default function DashboardPage() {
                 : (
                   <div className="am-recent-list">
                     {summary.recentActivities.map((item) => (
-                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}`} />
+                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}`} user={user} />
                     ))}
                   </div>
                 )}
@@ -293,7 +299,7 @@ export default function DashboardPage() {
                 : (
                   <div className="am-recent-list">
                     {summary.activitiesWithNoEvidence.map((item) => (
-                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}/evidence`} />
+                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}/evidence`} user={user} />
                     ))}
                   </div>
                 )}
@@ -305,7 +311,7 @@ export default function DashboardPage() {
                 : (
                   <div className="am-recent-list">
                     {summary.activitiesWithEvidenceMissingMetadata.map((item) => (
-                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}/metadata`} />
+                      <ActivityRow key={item.id} item={item} to={`/activities/${item.id}/metadata`} user={user} />
                     ))}
                   </div>
                 )}

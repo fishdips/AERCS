@@ -115,3 +115,20 @@ input, select, button, textarea {
   flex-shrink: 0;
   vertical-align: -0.15em;
 }
+
+.am-badge-you {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  padding: 0.08rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--brand-700, #1e40af);
+  background: var(--brand-50, #eff5ff);
+  border: 1px solid var(--brand-200, #bfdbfe);
+  border-radius: 9999px;
+  vertical-align: middle;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}

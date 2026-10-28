@@ -11,6 +11,7 @@ import {
   formatAccreditationArea,
   formatActivityType,
   formatUserOffice,
+  isUserActivity,
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
@@ -102,24 +103,11 @@ export default function ActivityDetailPage() {
   const canManageActivity = user && ACTIVITY_WRITE_ROLES.includes(user.role);
   const canCreateEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
 
-  const isCreator = Boolean(
-    user && activity && (
-      (activity.createdById && user.id && String(activity.createdById).toLowerCase() === String(user.id).toLowerCase()) ||
-      (activity.createdByName && user.name && activity.createdByName.trim().toLowerCase() === user.name.trim().toLowerCase())
-    )
-  );
-
-  const isSameDeptOrOffice = Boolean(
-    user && activity && (
-      (user.department && activity.department && String(user.department).toUpperCase() === String(activity.department).toUpperCase()) ||
-      (user.office && activity.office && String(user.office).toUpperCase() === String(activity.office).toUpperCase())
-    )
-  );
+  const isCreator = Boolean(isUserActivity(activity, user));
 
   const canEditRecord = Boolean(
     isCreator ||
-    user?.role === ROLES.ADMIN ||
-    (user?.role === ROLES.ACCRED_COORDINATOR && isSameDeptOrOffice)
+    user?.role === ROLES.ADMIN
   );
 
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);
@@ -252,13 +240,15 @@ export default function ActivityDetailPage() {
                 ...(canEditRecord
                   ? [{ icon: Pencil, label: 'Edit Activity', onClick: handleStartEdit }]
                   : []),
-                {
-                  icon: Trash2,
-                  label: isDeleting ? 'Deleting...' : 'Delete Activity',
-                  danger: true,
-                  disabled: isDeleting,
-                  onClick: () => setDeleteConfirmOpen(true),
-                },
+                ...(canEditRecord
+                  ? [{
+                      icon: Trash2,
+                      label: isDeleting ? 'Deleting...' : 'Delete Activity',
+                      danger: true,
+                      disabled: isDeleting,
+                      onClick: () => setDeleteConfirmOpen(true),
+                    }]
+                  : []),
               ]}
             />
           )}
@@ -277,7 +267,10 @@ export default function ActivityDetailPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="am-section-label">Activity Record</p>
                 {!isEditing ? (
-                  <h2 className="am-detail-title">{activity.activityName}</h2>
+                  <h2 className="am-detail-title">
+                    {activity.activityName}
+                    {isCreator && <span className="am-badge-you">You</span>}
+                  </h2>
                 ) : (
                   <div style={{ marginTop: '0.35rem' }}>
                     <label className="am-section-label" htmlFor="edit-activity-title" style={{ fontSize: '0.62rem' }}>

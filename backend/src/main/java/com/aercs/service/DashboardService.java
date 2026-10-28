@@ -268,7 +268,9 @@ public class DashboardService {
                 a.getActivityType() != null ? a.getActivityType().name() : null,
                 a.getDepartment() != null ? a.getDepartment().name() : null,
                 a.getActivityDate(),
-                evidenceCount
+                evidenceCount,
+                a.getCreatedBy() != null ? a.getCreatedBy().getId() : null,
+                a.getCreatedBy() != null ? a.getCreatedBy().getName() : null
         );
     }
 

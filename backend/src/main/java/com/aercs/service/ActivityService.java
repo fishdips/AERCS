@@ -151,9 +151,7 @@ public class ActivityService {
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
             boolean isAdmin = user.getRole() == UserRole.ADMIN;
-            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
-            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
-            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
+            if (!isCreator && !isAdmin) {
                 throw new ForbiddenException("You are not authorized to edit this activity");
             }
         }
@@ -178,9 +176,7 @@ public class ActivityService {
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
             boolean isAdmin = user.getRole() == UserRole.ADMIN;
-            boolean isSameDept = user.resolveDepartment() != null && user.resolveDepartment() == activity.getDepartment();
-            boolean isSameOffice = user.getOffice() != null && activity.getOffice() != null && user.getOffice().equalsIgnoreCase(activity.getOffice());
-            if (!isCreator && !isAdmin && !isSameDept && !isSameOffice) {
+            if (!isCreator && !isAdmin) {
                 throw new ForbiddenException("You are not authorized to delete this activity");
             }
         }
