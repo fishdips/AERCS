@@ -7,6 +7,7 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import InfoTooltip from '../../../shared/components/InfoTooltip';
+import Alert from '../../../shared/components/Alert';
 import '../SharedEvidence.css';
 import { Search } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -73,7 +74,7 @@ export default function SharedEvidencePage() {
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       <div className="se-layout">
         <form className="se-filter-panel" onSubmit={handleSearch}>

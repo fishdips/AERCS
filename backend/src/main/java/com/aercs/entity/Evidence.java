@@ -41,6 +41,13 @@ public class Evidence {
     @Column(name = "file_type", nullable = false, length = 20)
     private String fileType;
 
+    // SHA-256 of the uploaded file's bytes (hex-encoded). Null for LINK evidence,
+    // which has no file content. Used to detect the same file being uploaded more
+    // than once - across activities, offices and departments - so staff can be
+    // pointed to the existing copy instead of duplicating it in storage.
+    @Column(name = "file_hash", length = 64)
+    private String fileHash;
+
     @Column(name = "file_size", nullable = false)
     private long fileSize;
 

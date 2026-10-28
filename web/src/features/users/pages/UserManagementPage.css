@@ -296,6 +296,7 @@
   vertical-align: middle;
 }
 .ump-ptd-role { text-align: left; font-weight: 500; }
+.ump-ptd-visibility { font-size: 0.68rem; color: #374151; white-space: nowrap; }
 
 .perm-check { color: #15803d; font-weight: 700; }
 .perm-dash  { color: #d1d5db; }

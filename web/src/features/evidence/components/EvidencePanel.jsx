@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   createLinkEvidence,
   deleteEvidence,
@@ -12,8 +13,10 @@ import {
 } from '../api';
 import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import { formatEvidenceType, formatRelatedOffice } from '../constants';
+import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import {
@@ -28,6 +31,7 @@ import {
   Pencil,
   RefreshCw,
   Trash2,
+  TriangleAlert,
   Upload,
   UploadCloud,
 } from 'lucide-react';
@@ -198,6 +202,7 @@ export default function EvidencePanel({
   const [pendingReplaceIndex, setPendingReplaceIndex] = useState(null);
   const [metadataEvidence, setMetadataEvidence] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [duplicateWarnings, setDuplicateWarnings] = useState([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [pendingUnsupported, setPendingUnsupported] = useState(null); // { valid: File[], invalid: {name, reason}[] }
   const dragCounterRef = useRef(0);
@@ -345,6 +350,10 @@ export default function EvidencePanel({
       const { data } = await uploadEvidence(activityId, selectedFiles);
       setSelectedFiles([]);
       await loadEvidence();
+      const duplicates = (data || [])
+        .filter((item) => item.duplicateWarning)
+        .map((item) => ({ ...item.duplicateWarning, newFileName: item.originalFileName }));
+      if (duplicates.length > 0) setDuplicateWarnings(duplicates);
       if (onUploaded) onUploaded(data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload evidence.');
@@ -490,7 +499,7 @@ export default function EvidencePanel({
         )}
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
 
       {canManageEvidence && (
         <div className="am-evidence-upload">
@@ -791,6 +800,48 @@ export default function EvidencePanel({
                 Skip &amp; Add {pendingUnsupported.valid.length} File(s)
               </button>
             )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Duplicate File Warning Modal */}
+      <Modal
+        isOpen={duplicateWarnings.length > 0}
+        onClose={() => setDuplicateWarnings([])}
+        title="Possible Duplicate Evidence"
+      >
+        <div className="am-replace-modal">
+          <p className="am-replace-copy">
+            {duplicateWarnings.length === 1
+              ? 'The file you just uploaded already exists elsewhere in the repository:'
+              : `${duplicateWarnings.length} of the files you just uploaded already exist elsewhere in the repository:`}
+          </p>
+          <ul className="am-duplicate-list">
+            {duplicateWarnings.map((dup, index) => (
+              <li key={`${dup.evidenceId}-${index}`} className="am-duplicate-item">
+                <Icon as={TriangleAlert} size={16} />
+                <div>
+                  <p className="am-duplicate-name">{dup.newFileName}</p>
+                  <p className="am-duplicate-detail">
+                    Already uploaded as <strong>{dup.originalFileName}</strong> in{' '}
+                    <Link to={`/activities/${dup.activityId}`} onClick={() => setDuplicateWarnings([])}>
+                      {dup.activityName}
+                    </Link>
+                    {dup.ownerOffice ? ` (${formatUserOffice(dup.ownerOffice)})` : ''}
+                    {dup.uploadedByName ? ` · uploaded by ${dup.uploadedByName}` : ''}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="am-replace-copy">
+            Both copies are kept for now. To avoid storing the same file twice, consider removing
+            the new upload and using <strong>Reference Evidence</strong> on the existing file instead.
+          </p>
+          <div className="am-form-actions am-replace-actions">
+            <button className="am-btn-primary" type="button" onClick={() => setDuplicateWarnings([])}>
+              Got it
+            </button>
           </div>
         </div>
       </Modal>

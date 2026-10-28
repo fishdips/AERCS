@@ -19,6 +19,7 @@ import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidenc
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import Alert from '../../../shared/components/Alert';
 import { ArrowLeft, Check, KeyRound, Link2, Pencil, Trash2, Upload, X } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
@@ -256,7 +257,7 @@ export default function ActivityDetailPage() {
 
       {location.state?.message && <p className="am-alert am-alert-success">{location.state.message}</p>}
       {editSuccessNotice && <p className="am-alert am-alert-success">{editSuccessNotice}</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <p className="am-empty am-empty-plain">Loading activity...</p>}
 
       {activity && (
@@ -394,7 +395,7 @@ export default function ActivityDetailPage() {
                 </button>
               </div>
             )}
-            {editSubmitError && <p className="am-alert am-alert-error" style={{ marginTop: '0.75rem' }}>{editSubmitError}</p>}
+            <Alert type="error" message={editSubmitError} onDismiss={() => setEditSubmitError('')} style={{ marginTop: '0.75rem' }} />
           </section>
 
           <div className="am-evidence-section">

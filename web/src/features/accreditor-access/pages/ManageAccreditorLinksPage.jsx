@@ -9,6 +9,7 @@ import BulkAssignAccreditorsModal from '../components/BulkAssignAccreditorsModal
 import '../AccreditorAccess.css';
 import { Pencil, Trash2 } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 function formatDateTime(value) {
   if (!value) return '-';
@@ -101,7 +102,7 @@ export default function ManageAccreditorLinksPage() {
         </div>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {notice && <p className="am-alert am-alert-success">{notice}</p>}
 
       <div className="am-filters">

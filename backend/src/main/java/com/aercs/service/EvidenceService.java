@@ -26,6 +26,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -49,9 +51,52 @@ public class EvidenceService {
         }
         User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
         return files.stream()
-                .map(file -> saveEvidenceFile(activity, file, uploadedBy))
-                .map(this::toResponse)
+                .map(file -> saveEvidenceFileWithDuplicateCheck(activity, file, uploadedBy))
                 .toList();
+    }
+
+    // Looks for an existing file with identical content anywhere in the repository
+    // (any activity, office or department) before saving the new upload, so the
+    // response can flag it - the goal is fewer duplicate files across offices, not
+    // just within one activity.
+    private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy) {
+        validateFile(file);
+        String fileHash = computeFileHash(file);
+        Evidence existingDuplicate = fileHash == null
+                ? null
+                : evidenceRepository.findFirstByFileHashOrderByUploadedAtAsc(fileHash).orElse(null);
+
+        Evidence saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
+
+        EvidenceResponse.DuplicateWarning duplicateWarning = existingDuplicate == null ? null
+                : new EvidenceResponse.DuplicateWarning(
+                        existingDuplicate.getId(),
+                        existingDuplicate.getActivity().getId(),
+                        existingDuplicate.getOriginalFileName(),
+                        existingDuplicate.getActivity().getActivityName(),
+                        resolveOwnerOffice(existingDuplicate),
+                        existingDuplicate.getUploadedBy() == null ? null : existingDuplicate.getUploadedBy().getName(),
+                        existingDuplicate.getUploadedAt()
+                );
+
+        return toResponse(saved, duplicateWarning);
+    }
+
+    // Best-effort: if hashing fails for some reason, skip the duplicate check
+    // rather than block the upload over it.
+    private String computeFileHash(MultipartFile file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(file.getBytes());
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16));
+                hex.append(Character.forDigit(b & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (IOException | NoSuchAlgorithmException e) {
+            return null;
+        }
     }
 
     @Transactional
@@ -212,7 +257,7 @@ public class EvidenceService {
         }
     }
 
-    private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy) {
+    private Evidence saveEvidenceFile(Activity activity, MultipartFile file, User uploadedBy, String fileHash) {
         validateFile(file);
         String extension = getExtension(file.getOriginalFilename());
         String storedFileName = UUID.randomUUID() + "." + extension;
@@ -231,6 +276,7 @@ public class EvidenceService {
         evidence.setFilePath(objectPath);
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
+        evidence.setFileHash(fileHash);
         evidence.setUploadedBy(uploadedBy);
         return evidenceRepository.save(evidence);
     }
@@ -291,6 +337,10 @@ public class EvidenceService {
     }
 
     private EvidenceResponse toResponse(Evidence evidence) {
+        return toResponse(evidence, null);
+    }
+
+    private EvidenceResponse toResponse(Evidence evidence, EvidenceResponse.DuplicateWarning duplicateWarning) {
         User uploadedBy = evidence.getUploadedBy();
         return new EvidenceResponse(
                 evidence.getId(),
@@ -303,10 +353,7 @@ public class EvidenceService {
                 evidence.getFileSize(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
-                firstNonBlank(
-                        evidence.getActivity().getOffice(),
-                        evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
-                        uploadedBy == null ? null : uploadedBy.getOffice()),
+                resolveOwnerOffice(evidence),
                 evidence.getEvidenceType(),
                 parseRelatedOffices(evidence.getRelatedOffices()),
                 parseStrings(evidence.getTags()),
@@ -316,8 +363,17 @@ public class EvidenceService {
                 uploadedBy == null ? null : uploadedBy.getOffice(),
                 uploadedBy == null ? null : uploadedBy.getRole().name(),
                 evidence.getUploadedAt(),
-                evidence.getUpdatedAt()
+                evidence.getUpdatedAt(),
+                duplicateWarning
         );
+    }
+
+    private String resolveOwnerOffice(Evidence evidence) {
+        User uploadedBy = evidence.getUploadedBy();
+        return firstNonBlank(
+                evidence.getActivity().getOffice(),
+                evidence.getActivity().getDepartment() != null ? evidence.getActivity().getDepartment().name() : null,
+                uploadedBy == null ? null : uploadedBy.getOffice());
     }
 
     private EvidenceMetadataResponse toMetadataResponse(Evidence evidence) {

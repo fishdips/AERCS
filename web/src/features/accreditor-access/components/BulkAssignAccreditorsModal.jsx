@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
+import Alert from '../../../shared/components/Alert';
 import { assignAccreditors } from '../api';
 import AccreditorPicker from './AccreditorPicker';
 
@@ -38,7 +39,7 @@ export default function BulkAssignAccreditorsModal({ links, onClose, onSaved }) 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Assign Accreditors">
       <div className="aa-generate">
-        {error && <p className="am-alert am-alert-error">{error}</p>}
+        <Alert type="error" message={error} onDismiss={() => setError('')} />
 
         <div className="aa-generate-summary">
           <span>{links.length} link{links.length === 1 ? '' : 's'} selected</span>

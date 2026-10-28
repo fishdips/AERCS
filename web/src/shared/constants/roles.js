@@ -14,7 +14,7 @@ export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'System Administrator',
   [ROLES.DEPT_STAFF]: 'Department Staff',
   [ROLES.ACCRED_COORDINATOR]: 'Chairperson',
-  [ROLES.INSTITUTIONAL_OFFICE]: 'Institutional Office',
+  [ROLES.INSTITUTIONAL_OFFICE]: 'Institutional Staff',
   [ROLES.ACCREDITOR_LINK]: 'Accreditor',
 };
 

@@ -11,6 +11,7 @@ import { formatEvidenceType } from '../../evidence/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { copyToClipboard } from '../../../shared/utils/clipboard';
 import './DashboardPage.css';
+import Alert from '../../../shared/components/Alert';
 import { Check, Clock, Copy, Pencil, Trash2 } from 'lucide-react';
 
 function formatDateOnly(value) {
@@ -225,7 +226,7 @@ export default function DashboardPage() {
         <h1 className="am-page-title">Dashboard</h1>
       </div>
 
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <EmptyRow text="Loading dashboard..." />}
 
       {!loading && summary && (

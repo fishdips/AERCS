@@ -264,6 +264,10 @@
 }
 
 /* Dropdown Animation */
+.am-dropdown-wrap {
+  position: relative;
+}
+
 .am-dropdown-menu {
   position: absolute;
   top: 100%;
@@ -276,7 +280,7 @@
   min-width: 160px;
   z-index: 50;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  
+
   /* Bidirectional Transition */
   opacity: 0;
   transform: translateY(-8px);
@@ -307,37 +311,13 @@
   background: #f3f4f6;
 }
 
-/* Upload Modal Styles */
-.am-upload-dropzone {
-  border: 2px dashed #d1d5db;
-  border-radius: 6px;
-  padding: 3rem 2rem;
-  text-align: center;
-  background: #f9fafb;
+.am-dropdown-item-button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  margin-bottom: 1.5rem;
-  transition: all 0.2s ease;
-}
-
-.am-upload-dropzone:hover {
-  border-color: #111;
-  background: #f3f4f6;
-}
-
-.am-upload-dropzone p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.am-upload-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  font-family: inherit;
 }
 
 .am-filters {
@@ -453,10 +433,36 @@
 }
 
 .am-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
   margin: 0 0 1rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid;
   font-size: 0.76rem;
+}
+
+.am-alert-text {
+  flex: 1;
+}
+
+.am-alert-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 0.05rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.am-alert-close:hover {
+  opacity: 1;
 }
 
 .am-alert-error {
@@ -1190,6 +1196,47 @@
 .am-unsupported-reason {
   color: #b91c1c;
   flex-shrink: 0;
+}
+
+.am-duplicate-list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.am-duplicate-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  color: #92400e;
+}
+
+.am-duplicate-item .ui-icon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.am-duplicate-name {
+  margin: 0 0 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #374151;
+  overflow-wrap: anywhere;
+}
+
+.am-duplicate-detail {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #92400e;
 }
 
 .am-selected-files {

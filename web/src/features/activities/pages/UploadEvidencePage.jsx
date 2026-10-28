@@ -13,6 +13,7 @@ import {
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import Alert from '../../../shared/components/Alert';
 
 function ActivitySummary({ activity }) {
   return (
@@ -88,7 +89,7 @@ export default function UploadEvidencePage() {
       </div>
 
       {location.state?.message && <p className="am-alert am-alert-success">{location.state.message}</p>}
-      {error && <p className="am-alert am-alert-error">{error}</p>}
+      <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <p className="am-empty am-empty-plain">Loading activity...</p>}
 
       {activity && (
