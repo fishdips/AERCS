@@ -142,7 +142,6 @@ AERCS utilizes strict domain models reflecting Philippine higher education accre
 - `CASE` — College of Arts, Sciences, and Education
 - `CNAHS` — College of Nursing and Allied Health Sciences
 - `CCJ` — College of Criminal Justice
-- `CES` — College of Environmental Studies
 
 ### Institutional Offices
 - `QUALITY_ASSURANCE_OFFICE`
@@ -538,8 +537,4 @@ npm test -- --watchAll=false
 AERCS was conceptualized and developed as a Bachelor of Science in Information Technology (BSIT) Capstone Project.
 
 * **Repository**: [https://github.com/fishdips/AERCS](https://github.com/fishdips/AERCS)
-* **Academic Year**: 2025 – 2026
-
----
-
-*© AERCS Development Team. All rights reserved.*
+* **Academic Year**: 2025 – 2026 - 2026 - 2027
