@@ -42,10 +42,12 @@ public class EvidenceService {
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final SupabaseStorageService storageService;
+    private final EvidenceAccessService accessService;
 
     @Transactional
     public List<EvidenceResponse> uploadEvidence(UUID activityId, List<MultipartFile> files, String userId) {
         Activity activity = findActivity(activityId);
+        accessService.assertCanAddToActivity(activity, userId);
         if (files == null || files.isEmpty()) {
             throw new BadRequestException("Select at least one evidence file");
         }
@@ -62,9 +64,15 @@ public class EvidenceService {
     private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy) {
         validateFile(file);
         String fileHash = computeFileHash(file);
+        // A matching hash only counts if the stored file is the same size too: records whose
+        // file was replaced before the hash was kept in sync carry a stale hash and must not
+        // be reported as duplicates of a file they no longer hold.
         Evidence existingDuplicate = fileHash == null
                 ? null
-                : evidenceRepository.findFirstByFileHashOrderByUploadedAtAsc(fileHash).orElse(null);
+                : evidenceRepository.findByFileHashOrderByUploadedAtAsc(fileHash).stream()
+                        .filter(e -> e.getFileSize() == file.getSize())
+                        .findFirst()
+                        .orElse(null);
 
         Evidence saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
 
@@ -102,6 +110,7 @@ public class EvidenceService {
     @Transactional
     public EvidenceResponse createLinkEvidence(UUID activityId, CreateLinkEvidenceRequest request, String userId) {
         Activity activity = findActivity(activityId);
+        accessService.assertCanAddToActivity(activity, userId);
         User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
 
         Evidence evidence = new Evidence();
@@ -130,21 +139,25 @@ public class EvidenceService {
     }
 
     @Transactional(readOnly = true)
-    public List<EvidenceResponse> listEvidence(UUID activityId) {
-        findActivity(activityId);
+    public List<EvidenceResponse> listEvidence(UUID activityId, String userId) {
+        accessService.assertCanViewActivity(findActivity(activityId), userId);
         return evidenceRepository.findByActivityIdOrderByUploadedAtDesc(activityId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public EvidenceResponse getEvidence(UUID evidenceId) {
-        return toResponse(findEvidence(evidenceId));
+    public EvidenceResponse getEvidence(UUID evidenceId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        accessService.assertCanViewEvidence(evidence, userId);
+        return toResponse(evidence);
     }
 
     @Transactional(readOnly = true)
-    public EvidenceMetadataResponse getMetadata(UUID evidenceId) {
-        return toMetadataResponse(findEvidence(evidenceId));
+    public EvidenceMetadataResponse getMetadata(UUID evidenceId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        accessService.assertCanViewEvidence(evidence, userId);
+        return toMetadataResponse(evidence);
     }
 
     @Transactional
@@ -177,6 +190,19 @@ public class EvidenceService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public EvidenceDownload getDownload(UUID evidenceId, String userId) {
+        accessService.assertCanViewEvidence(findEvidence(evidenceId), userId);
+        return getDownload(evidenceId);
+    }
+
+    @Transactional(readOnly = true)
+    public EvidenceDownload getView(UUID evidenceId, String userId) {
+        accessService.assertCanViewEvidence(findEvidence(evidenceId), userId);
+        return getView(evidenceId);
+    }
+
+    // Unchecked: callers must have authorised access themselves (e.g. the accreditor link flow).
     @Transactional(readOnly = true)
     public EvidenceDownload getDownload(UUID evidenceId) {
         Evidence evidence = findEvidence(evidenceId);
@@ -236,6 +262,9 @@ public class EvidenceService {
         evidence.setLinkUrl(null);
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
+        // Keep the content hash in step with the stored file; otherwise the old file's hash
+        // lingers and later uploads are compared against content that no longer exists.
+        evidence.setFileHash(computeFileHash(file));
         evidence.setUpdatedAt(OffsetDateTime.now());
         userRepository.findByIdentifier(userId).ifPresent(evidence::setUploadedBy);
 

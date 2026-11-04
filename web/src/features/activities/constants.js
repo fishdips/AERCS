@@ -96,13 +96,12 @@ export function formatAccreditationArea(value) {
 }
 
 export const DEPARTMENTS = [
-  { value: 'CEA', label: 'CEA' },
-  { value: 'CMBA', label: 'CMBA' },
-  { value: 'CASE', label: 'CASE' },
-  { value: 'CNAHS', label: 'CNAHS' },
-  { value: 'CCS', label: 'CCS' },
-  { value: 'CCJ', label: 'CCJ' },
-  { value: 'CES', label: 'CES' },
+  { value: 'CEA', label: 'College of Engineering and Architecture' },
+  { value: 'CMBA', label: 'College of Management, Business, and Accountancy' },
+  { value: 'CASE', label: 'College of Arts, Sciences, and Education' },
+  { value: 'CNAHS', label: 'College of Nursing and Allied Health Sciences' },
+  { value: 'CCS', label: 'College of Computer Studies' },
+  { value: 'CCJ', label: 'College of Criminal Justice' },
 ];
 
 export const OFFICES = [
@@ -110,6 +109,7 @@ export const OFFICES = [
   { value: 'RESEARCH_OFFICE', label: 'Research Office' },
   { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
   { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
+  { value: 'COMMUNITY_EXTENSION_SERVICE', label: 'Community Extension Service' },
 ];
 
 export const SERVICE_OFFICES = [
@@ -122,6 +122,7 @@ export const SERVICE_OFFICES = [
   { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
   { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
+  { value: 'FINANCE_OFFICE', label: 'Finance Office' },
 ];
 
 export const ALL_OFFICES = [
@@ -129,6 +130,8 @@ export const ALL_OFFICES = [
   ...SERVICE_OFFICES,
   { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
   { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
+  // Legacy: CES used to be a department before moving to the Institutional Offices.
+  { value: 'CES', label: 'Community Extension Service' },
   { value: 'OTHER', label: 'Other' },
 ];
 

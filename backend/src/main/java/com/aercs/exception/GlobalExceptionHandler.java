@@ -11,6 +11,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import jakarta.validation.ConstraintViolationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -103,10 +113,61 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "Invalid file upload request");
     }
 
+    // Malformed path/query parameters (bad UUID, non-numeric page, bad date, ...).
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return error(HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + e.getName() + "'");
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class,
+            MissingRequestHeaderException.class})
+    public ResponseEntity<Map<String, String>> handleMissingParameter(Exception e) {
+        return error(HttpStatus.BAD_REQUEST, "A required request parameter is missing");
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, String>> handleConstraintViolation(ConstraintViolationException e) {
+        return error(HttpStatus.BAD_REQUEST, "Invalid request parameters");
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
+        log.debug("Rejected request with illegal argument", e);
+        return error(HttpStatus.BAD_REQUEST, "Invalid request parameters");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNoResource(NoResourceFoundException e) {
+        return error(HttpStatus.NOT_FOUND, "Resource not found");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        return error(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handleMediaType(HttpMediaTypeNotSupportedException e) {
+        return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type");
+    }
+
+    // Thrown from @PreAuthorize-protected controllers; without these the catch-all below
+    // turned them into 500s.
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException e) {
+        return error(HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, String>> handleAuthentication(AuthenticationException e) {
+        return error(HttpStatus.UNAUTHORIZED, "Unauthorized");
+    }
+
+    // Never echo internal exception messages (they can leak SQL, class names or paths).
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception e) {
         log.error("Unhandled exception: ", e);
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage() != null ? e.getMessage() : "An unexpected error occurred");
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
     }
 
     private ResponseEntity<Map<String, String>> error(HttpStatus status, String message) {

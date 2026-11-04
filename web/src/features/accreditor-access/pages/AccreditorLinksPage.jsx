@@ -44,7 +44,7 @@ export default function AccreditorLinksPage() {
       <div className="am-page-header">
         <div className="am-page-header-left">
           <h1 className="am-page-title">Evidence Links</h1>
-          <p className="am-description">Accreditation evidence shared with you for review. Links close automatically when they expire.</p>
+          <p className="am-description">Accreditation evidence shared with you for review. Expired links stay listed but can no longer be opened.</p>
         </div>
       </div>
 
@@ -73,22 +73,38 @@ export default function AccreditorLinksPage() {
       )}
 
       <div className="aa-link-grid">
-        {filtered.map((link) => (
-          <Link key={link.id} to={`/accreditor/links/${link.id}`} className="aa-link-card">
-            <div className="aa-link-card-head">
-              <strong>{link.name}</strong>
-              <span className={`aa-link-expiry ${expiresSoon(link.expiresAt) ? 'aa-link-expiry-soon' : ''}`}>
-                Expires {formatDateTime(link.expiresAt)}
-              </span>
+        {filtered.map((link) => {
+          const expired = link.expired || new Date(link.expiresAt).getTime() <= Date.now();
+          const body = (
+            <>
+              <div className="aa-link-card-head">
+                <strong>{link.name}</strong>
+                {expired ? (
+                  <span className="aa-link-expiry aa-link-expiry-soon">Expired {formatDateTime(link.expiresAt)}</span>
+                ) : (
+                  <span className={`aa-link-expiry ${expiresSoon(link.expiresAt) ? 'aa-link-expiry-soon' : ''}`}>
+                    Expires {formatDateTime(link.expiresAt)}
+                  </span>
+                )}
+              </div>
+              {link.notes && <p className="aa-link-notes">{link.notes}</p>}
+              <div className="aa-link-meta">
+                <span>{link.evidenceCount} evidence file{link.evidenceCount === 1 ? '' : 's'}</span>
+                {link.sharedBy && <span>Shared by {link.sharedBy}</span>}
+                <span>Shared {formatDateTime(link.createdAt)}</span>
+              </div>
+            </>
+          );
+          return expired ? (
+            <div key={link.id} className="aa-link-card" style={{ opacity: 0.6, cursor: 'not-allowed' }} aria-disabled="true">
+              {body}
             </div>
-            {link.notes && <p className="aa-link-notes">{link.notes}</p>}
-            <div className="aa-link-meta">
-              <span>{link.evidenceCount} evidence file{link.evidenceCount === 1 ? '' : 's'}</span>
-              {link.sharedBy && <span>Shared by {link.sharedBy}</span>}
-              <span>Shared {formatDateTime(link.createdAt)}</span>
-            </div>
-          </Link>
-        ))}
+          ) : (
+            <Link key={link.id} to={`/accreditor/links/${link.id}`} className="aa-link-card">
+              {body}
+            </Link>
+          );
+        })}
       </div>
     </ActivityShell>
   );

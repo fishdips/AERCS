@@ -14,6 +14,7 @@ import com.aercs.service.SharedEvidenceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import com.aercs.exception.BadRequestException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -49,7 +50,7 @@ public class SharedEvidenceController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         AccreditationArea areaEnum = parseArea(area);
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = pageable(page, size);
         UUID currentUserId = resolveUserId(userDetails);
 
         return ResponseEntity.ok(sharedEvidenceService.searchEvidence(
@@ -76,13 +77,15 @@ public class SharedEvidenceController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
         AccreditationArea areaEnum = parseArea(area);
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = pageable(page, size);
 
         return ResponseEntity.ok(sharedEvidenceService.getReferences(
-                evidenceId, department, areaEnum, startDate, endDate, pageable
+                evidenceId, department, areaEnum, startDate, endDate, pageable,
+                userDetails != null ? userDetails.getUsername() : null
         ));
     }
 
@@ -100,9 +103,11 @@ public class SharedEvidenceController {
 
     @GetMapping("/api/activities/{activityId}/referenced-evidence")
     public ResponseEntity<List<ActivityReferencedEvidenceResponse>> getActivityReferencedEvidence(
-            @PathVariable UUID activityId
+            @PathVariable UUID activityId,
+            @AuthenticationPrincipal UserDetails userDetails
     ) {
-        return ResponseEntity.ok(sharedEvidenceService.getReferencedEvidenceForActivity(activityId));
+        return ResponseEntity.ok(sharedEvidenceService.getReferencedEvidenceForActivity(
+                activityId, userDetails != null ? userDetails.getUsername() : null));
     }
 
     @GetMapping("/api/evidence/repository")
@@ -124,7 +129,7 @@ public class SharedEvidenceController {
         List<ActivityType> typeList = parseActivityTypeList(activityTypes);
         List<String> fileTypeList = parseStringList(fileTypes);
         List<EvidenceType> evidenceTypeList = parseEvidenceTypeList(evidenceTypes);
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = pageable(page, size);
         UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(sharedEvidenceService.searchRepository(
                 keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList,
@@ -133,30 +138,34 @@ public class SharedEvidenceController {
     }
 
     private List<AccreditationArea> parseAreaList(String areas) {
-        if (areas == null || areas.isBlank()) return null;
-        return Arrays.stream(areas.split(","))
-                .map(String::trim)
-                .map(s -> { try { return AccreditationArea.valueOf(s.toUpperCase()); } catch (IllegalArgumentException e) { return null; } })
-                .filter(Objects::nonNull)
-                .toList();
+        return parseEnumList(areas, AccreditationArea.class, "area");
     }
 
     private List<ActivityType> parseActivityTypeList(String types) {
-        if (types == null || types.isBlank()) return null;
-        return Arrays.stream(types.split(","))
-                .map(String::trim)
-                .map(s -> { try { return ActivityType.valueOf(s.toUpperCase()); } catch (IllegalArgumentException e) { return null; } })
-                .filter(Objects::nonNull)
-                .toList();
+        return parseEnumList(types, ActivityType.class, "activity type");
     }
 
     private List<EvidenceType> parseEvidenceTypeList(String types) {
-        if (types == null || types.isBlank()) return null;
-        return Arrays.stream(types.split(","))
+        return parseEnumList(types, EvidenceType.class, "evidence type");
+    }
+
+    // Unknown values are a client error, not "no filter" - silently ignoring them
+    // returned 200 with unfiltered data for a malformed request.
+    private <E extends Enum<E>> List<E> parseEnumList(String values, Class<E> type, String label) {
+        if (values == null || values.isBlank()) return null;
+        return Arrays.stream(values.split(","))
                 .map(String::trim)
-                .map(s -> { try { return EvidenceType.valueOf(s.toUpperCase()); } catch (IllegalArgumentException e) { return null; } })
-                .filter(Objects::nonNull)
+                .filter(s -> !s.isEmpty())
+                .map(s -> parseEnum(s, type, label))
                 .toList();
+    }
+
+    private <E extends Enum<E>> E parseEnum(String value, Class<E> type, String label) {
+        try {
+            return Enum.valueOf(type, value.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid " + label + ": " + value);
+        }
     }
 
     private List<String> parseStringList(String values) {
@@ -166,11 +175,13 @@ public class SharedEvidenceController {
 
     private AccreditationArea parseArea(String area) {
         if (area == null || area.isBlank()) return null;
-        try {
-            return AccreditationArea.valueOf(area.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+        return parseEnum(area.trim(), AccreditationArea.class, "area");
+    }
+
+    private Pageable pageable(int page, int size) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        if (size < 1 || size > 100) throw new BadRequestException("Size must be between 1 and 100");
+        return PageRequest.of(page, size);
     }
 
     private UUID resolveUserId(UserDetails userDetails) {

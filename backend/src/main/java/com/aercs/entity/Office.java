@@ -5,6 +5,7 @@ public enum Office {
     RESEARCH_OFFICE,
     HUMAN_RESOURCE_OFFICE,
     FACILITIES_MANAGEMENT_OFFICE,
+    COMMUNITY_EXTENSION_SERVICE,
 
     // Service Offices
     STUDENT_SUCCESS_OFFICE,
@@ -16,6 +17,7 @@ public enum Office {
     SAFETY_AND_SECURITY,
     ADMISSIONS_AND_SCHOLARSHIPS,
     NATIONAL_SERVICE_TRAINING_PROGRAM,
+    FINANCE_OFFICE,
 
     // Legacy values
     EXTENSION_OFFICE,
@@ -27,6 +29,8 @@ public enum Office {
             case RESEARCH_OFFICE -> "Research Office";
             case HUMAN_RESOURCE_OFFICE -> "Human Resource Office";
             case FACILITIES_MANAGEMENT_OFFICE -> "Facilities Management Office";
+            case COMMUNITY_EXTENSION_SERVICE -> "Community Extension Service";
+            case FINANCE_OFFICE -> "Finance Office";
             case STUDENT_SUCCESS_OFFICE -> "Student Success Office";
             case REGISTRARS_OFFICE -> "Registrar’s Office";
             case LIBRARY -> "Library";
@@ -51,7 +55,8 @@ public enum Office {
                  TECHNICAL_SUPPORT_GROUP,
                  SAFETY_AND_SECURITY,
                  ADMISSIONS_AND_SCHOLARSHIPS,
-                 NATIONAL_SERVICE_TRAINING_PROGRAM -> true;
+                 NATIONAL_SERVICE_TRAINING_PROGRAM,
+                 FINANCE_OFFICE -> true;
             default -> false;
         };
     }

@@ -9,6 +9,7 @@ import com.aercs.security.JwtUtil;
 import com.aercs.security.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +29,9 @@ public class AuthService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int RESET_TOKEN_BYTES = 32;
+
+    @Value("${app.password-reset.expiration-minutes:60}")
+    private long resetTokenExpirationMinutes;
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
@@ -88,7 +92,7 @@ public class AuthService {
         userRepository.findByEmail(email).ifPresent(user -> {
             String token = generateResetToken();
             user.setResetToken(token);
-            user.setResetTokenExpiresAt(OffsetDateTime.now().plusHours(1));
+            user.setResetTokenExpiresAt(OffsetDateTime.now().plusMinutes(resetTokenExpirationMinutes));
             userRepository.save(user);
 
             String resetUrl = normalizeFrontendOrigin(frontendOrigin) + "/reset-password/" + token;
@@ -105,7 +109,7 @@ public class AuthService {
         User user = userRepository.findByResetToken(token)
                 .orElseThrow(() -> new BadRequestException("Invalid or expired reset link"));
 
-        if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(OffsetDateTime.now())) {
+        if (user.getResetTokenExpiresAt() == null || !user.getResetTokenExpiresAt().isAfter(OffsetDateTime.now())) {
             throw new BadRequestException("Invalid or expired reset link");
         }
 

@@ -243,7 +243,7 @@ export default function RepositoryPage() {
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </optgroup>
-                <optgroup label="Office">
+                <optgroup label="Institutional Office">
                   {OFFICES.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}

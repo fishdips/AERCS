@@ -21,4 +21,6 @@ public interface EvidenceRepository extends JpaRepository<Evidence, UUID>, JpaSp
     // Earliest matching upload is treated as "the original" that a duplicate should
     // point to, regardless of which office/department/activity it lives under.
     Optional<Evidence> findFirstByFileHashOrderByUploadedAtAsc(String fileHash);
+
+    java.util.List<Evidence> findByFileHashOrderByUploadedAtAsc(String fileHash);
 }

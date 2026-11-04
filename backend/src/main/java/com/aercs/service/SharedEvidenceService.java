@@ -8,6 +8,7 @@ import com.aercs.dto.response.SharedEvidenceResponse;
 import com.aercs.entity.*;
 import com.aercs.exception.BadRequestException;
 import com.aercs.exception.ConflictException;
+import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.*;
 import jakarta.persistence.criteria.*;
@@ -34,6 +35,7 @@ public class SharedEvidenceService {
     private final EvidenceReferenceRepository referenceRepository;
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
+    private final EvidenceAccessService accessService;
 
     private static final EnumMap<Department, RelatedOffice> DEPARTMENT_TO_RELATED = new EnumMap<>(Department.class);
     private static final EnumMap<Office, RelatedOffice> OFFICE_TO_RELATED = new EnumMap<>(Office.class);
@@ -44,11 +46,14 @@ public class SharedEvidenceService {
         DEPARTMENT_TO_RELATED.put(Department.CNAHS, RelatedOffice.COLLEGE_OF_NURSING);
         DEPARTMENT_TO_RELATED.put(Department.CMBA, RelatedOffice.COLLEGE_OF_MANAGEMENT_BUSINESS_AND_ACCOUNTANCY);
         DEPARTMENT_TO_RELATED.put(Department.CASE, RelatedOffice.COLLEGE_OF_ARTS_AND_SCIENCES);
+        DEPARTMENT_TO_RELATED.put(Department.CCJ, RelatedOffice.COLLEGE_OF_CRIMINAL_JUSTICE);
 
         OFFICE_TO_RELATED.put(Office.QUALITY_ASSURANCE_OFFICE, RelatedOffice.QUALITY_ASSURANCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.RESEARCH_OFFICE, RelatedOffice.RESEARCH_OFFICE);
         OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
+        OFFICE_TO_RELATED.put(Office.COMMUNITY_EXTENSION_SERVICE, RelatedOffice.COMMUNITY_EXTENSION_SERVICE);
+        OFFICE_TO_RELATED.put(Office.FINANCE_OFFICE, RelatedOffice.FINANCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.STUDENT_SUCCESS_OFFICE, RelatedOffice.STUDENT_SUCCESS_OFFICE);
         OFFICE_TO_RELATED.put(Office.REGISTRARS_OFFICE, RelatedOffice.REGISTRARS_OFFICE);
         OFFICE_TO_RELATED.put(Office.LIBRARY, RelatedOffice.LIBRARY);
@@ -122,6 +127,12 @@ public class SharedEvidenceService {
         Activity activity = activityRepository.findById(request.activityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
 
+        // A user can only cite evidence they are allowed to see (404, so another
+        // department's file is not revealed) and only into their own unit's activities.
+        String actor = currentUserId != null ? currentUserId.toString() : null;
+        accessService.assertCanViewEvidence(evidence, actor);
+        accessService.assertCanAddToActivity(activity, actor);
+
         if (evidence.getActivity().getId().equals(activity.getId())) {
             throw new BadRequestException("Evidence is already uploaded under this activity");
         }
@@ -155,10 +166,12 @@ public class SharedEvidenceService {
             AccreditationArea area,
             OffsetDateTime startDate,
             OffsetDateTime endDate,
-            Pageable pageable
+            Pageable pageable,
+            String userId
     ) {
-        evidenceRepository.findById(evidenceId)
+        Evidence evidence = evidenceRepository.findById(evidenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Evidence file not found"));
+        accessService.assertCanViewEvidence(evidence, userId);
 
         Specification<EvidenceReference> spec = buildRefSpec(
                 evidenceId, blankToNull(department), area, startDate, endDate);
@@ -208,16 +221,17 @@ public class SharedEvidenceService {
         boolean isAdmin = currentUserRole == UserRole.ADMIN;
 
         if (!isOwner && !isSameOffice && !isAdmin) {
-            throw new BadRequestException("Only the referencing user, department colleague, or administrator can delete it");
+            throw new ForbiddenException("Only the referencing user, department colleague, or administrator can delete it");
         }
 
         referenceRepository.delete(ref);
     }
 
     @Transactional(readOnly = true)
-    public List<ActivityReferencedEvidenceResponse> getReferencedEvidenceForActivity(UUID activityId) {
-        activityRepository.findById(activityId)
+    public List<ActivityReferencedEvidenceResponse> getReferencedEvidenceForActivity(UUID activityId, String userId) {
+        Activity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
+        accessService.assertCanViewActivity(activity, userId);
 
         return referenceRepository.findByActivityIdOrderByCreatedAtDesc(activityId).stream()
                 .map(this::toActivityReferencedEvidenceResponse)
@@ -287,7 +301,7 @@ public class SharedEvidenceService {
             List<String> serviceOffices = List.of(
                     "STUDENT_SUCCESS_OFFICE", "REGISTRARS_OFFICE", "LIBRARY", "GUIDANCE_CENTER",
                     "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP", "SAFETY_AND_SECURITY",
-                    "ADMISSIONS_AND_SCHOLARSHIPS", "NATIONAL_SERVICE_TRAINING_PROGRAM"
+                    "ADMISSIONS_AND_SCHOLARSHIPS", "NATIONAL_SERVICE_TRAINING_PROGRAM", "FINANCE_OFFICE"
             );
             Predicate isServiceOfficeFile = act.get("office").in(serviceOffices);
 

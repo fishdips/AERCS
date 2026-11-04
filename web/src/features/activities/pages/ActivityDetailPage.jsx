@@ -14,6 +14,7 @@ import {
 } from '../constants';
 import EvidencePanel from '../../evidence/components/EvidencePanel';
 import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
+import { isForeignUnit, isUserUnitTagged } from '../../evidence/constants';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
 import ActionMenu from '../../../shared/components/ActionMenu';
@@ -418,7 +419,7 @@ export default function ActivityDetailPage() {
             />
           </div>
 
-          {canManageActivity && (
+          {canManageActivity && (!isForeignUnit(user, activity) || evidenceItems.some((item) => isUserUnitTagged(user, item))) && (
             <div className="am-evidence-section">
               <BatchMetadataPanel
                 activityId={activity.id}

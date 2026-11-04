@@ -11,5 +11,6 @@ public record AccreditorLinkResponse(
         String sharedBy,
         OffsetDateTime createdAt,
         OffsetDateTime expiresAt,
-        int evidenceCount
+        int evidenceCount,
+        boolean expired
 ) {}

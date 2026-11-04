@@ -55,7 +55,7 @@ function DeptOfficeOptions({ value }) {
       <optgroup label="Department">
         {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
       </optgroup>
-      <optgroup label="Office">
+      <optgroup label="Institutional Office">
         {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </optgroup>
       <optgroup label="Service Office">

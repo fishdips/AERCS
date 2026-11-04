@@ -259,7 +259,7 @@ export default function EditActivityPage() {
                 }}
               >
                 <option value="">Select office</option>
-                <optgroup label="Office">
+                <optgroup label="Institutional Office">
                   {OFFICES.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
