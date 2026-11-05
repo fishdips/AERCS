@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
       await resetPassword(token, newPassword);
       setDone(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'This reset link is invalid or has expired.');
+      setError(err.response?.data?.error || 'Invalid or expired reset link');
     } finally {
       setSubmitting(false);
     }

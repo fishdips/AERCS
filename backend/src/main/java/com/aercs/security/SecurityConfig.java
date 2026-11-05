@@ -47,7 +47,9 @@ public class SecurityConfig {
                 // Every signed-in account, accreditors included, manages its own session/password.
                 .requestMatchers("/api/auth/**").authenticated()
                 // Accreditor accounts can only reach the links assigned to them - nothing else.
-                .requestMatchers("/api/accreditor/**").hasRole("ACCREDITOR_LINK")
+                .requestMatchers(HttpMethod.GET, "/api/accreditor/**").hasRole("ACCREDITOR_LINK")
+                // Accreditor sessions are read-only: POST/PUT/PATCH/DELETE are refused (403).
+                .requestMatchers("/api/accreditor/**").denyAll()
                 .anyRequest().hasAnyRole("ADMIN", "DEPT_STAFF", "ACCRED_COORDINATOR", "INSTITUTIONAL_OFFICE")
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

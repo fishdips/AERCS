@@ -30,7 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String token = extractTokenFromCookie(request);
+        String token = extractToken(request);
 
         if (token != null && jwtUtil.isTokenValid(token)) {
             String userId = jwtUtil.extractUserId(token);
@@ -62,6 +62,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // Accepts "Authorization: Bearer <jwt>" as well as the session cookie. A forged, altered
+    // or expired token never authenticates: the context stays empty, so any protected
+    // endpoint answers 401 through the authentication entry point and returns no data.
+    private String extractToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            String bearer = header.substring(7).trim();
+            return bearer.isEmpty() ? null : bearer;
+        }
+        return extractTokenFromCookie(request);
     }
 
     private String extractTokenFromCookie(HttpServletRequest request) {

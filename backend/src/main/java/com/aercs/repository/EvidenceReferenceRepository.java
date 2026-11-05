@@ -25,6 +25,9 @@ public interface EvidenceReferenceRepository extends JpaRepository<EvidenceRefer
     @Query("SELECT r.evidence FROM EvidenceReference r WHERE r.activity.id = :activityId ORDER BY r.createdAt DESC")
     List<Evidence> findReferencedEvidenceByActivityId(@Param("activityId") UUID activityId);
 
+    @Query("SELECT r.activity FROM EvidenceReference r WHERE r.evidence.id = :evidenceId")
+    List<com.aercs.entity.Activity> findReferencingActivities(@Param("evidenceId") UUID evidenceId);
+
     @Query("SELECT r.evidence.id, COUNT(r) FROM EvidenceReference r WHERE r.evidence.id IN :evidenceIds GROUP BY r.evidence.id")
     List<Object[]> countByEvidenceIdIn(@Param("evidenceIds") List<UUID> evidenceIds);
 

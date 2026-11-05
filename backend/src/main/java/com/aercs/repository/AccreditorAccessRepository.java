@@ -53,6 +53,15 @@ public interface AccreditorAccessRepository extends JpaRepository<AccreditorAcce
             """)
     List<AccreditorAccess> findOpenLinksForAccreditor(@Param("userId") UUID userId, @Param("now") OffsetDateTime now);
 
+    // Every active link assigned to an accreditor, expired ones included, so the list can
+    // show them as expired. Opening one is still restricted to unexpired links.
+    @Query("""
+            SELECT a FROM AccreditorAccess a JOIN a.accreditors u
+            WHERE u.id = :userId AND a.active = true
+            ORDER BY a.expiresAt DESC
+            """)
+    List<AccreditorAccess> findLinksForAccreditor(@Param("userId") UUID userId);
+
     // The join table may have been created by Hibernate (ddl-auto) without ON DELETE CASCADE,
     // so assignments are cleared explicitly before an accreditor account is deleted or re-roled.
     @Modifying

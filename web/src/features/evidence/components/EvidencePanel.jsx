@@ -11,11 +11,12 @@ import {
   updateLinkEvidence,
   uploadEvidence,
 } from '../api';
+import { getActivity } from '../../activities/api';
 import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
-import { formatEvidenceType, formatRelatedOffice } from '../constants';
+import { formatEvidenceType, formatRelatedOffice, isForeignUnit, isUserUnitTagged } from '../constants';
 import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
@@ -196,6 +197,7 @@ export default function EvidencePanel({
   const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
   const [editLinkModal, setEditLinkModal] = useState({ isOpen: false, item: null, title: '', linkUrl: '' });
   const [error, setError] = useState('');
+  const [activityOwner, setActivityOwner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [busyEvidenceId, setBusyEvidenceId] = useState('');
@@ -224,6 +226,21 @@ export default function EvidencePanel({
       setLoading(false);
     }
   }, [activityId, onEvidenceChange]);
+
+  // Who owns the activity - used to warn (and block) uploads into another unit's activity.
+  useEffect(() => {
+    let cancelled = false;
+    setActivityOwner(null);
+    if (!activityId) return undefined;
+    getActivity(activityId)
+      .then(({ data }) => { if (!cancelled) setActivityOwner({ department: data.department, office: data.office }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activityId]);
+
+  const isForeignUnitActivity = isForeignUnit(user, activityOwner);
+  // On another unit's activity, metadata is only available for evidence that tags the user's unit.
+  const canSeeMetadata = (item) => !isForeignUnitActivity || isUserUnitTagged(user, item);
 
   useEffect(() => {
     if (activityId) loadEvidence();
@@ -501,7 +518,15 @@ export default function EvidencePanel({
 
       <Alert type="error" message={error} onDismiss={() => setError('')} />
 
-      {canManageEvidence && (
+      {canManageEvidence && isForeignUnitActivity && (
+        <p className="am-alert am-alert-warning" role="alert">
+          <span className="am-alert-text">
+            You can't upload to another department's or office's activity. Upload under your own activity and tag them, or ask them to tag you.
+          </span>
+        </p>
+      )}
+
+      {canManageEvidence && !isForeignUnitActivity && (
         <div className="am-evidence-upload">
           <div className="am-upload-tabs">
             <button
@@ -706,7 +731,7 @@ export default function EvidencePanel({
                   <td className="am-ev-toggle-cell">
                     <ActionMenu
                       items={[
-                        canManageItem(item) && !hideMetadataActions && {
+                        canManageItem(item) && !hideMetadataActions && canSeeMetadata(item) && {
                           icon: Eye,
                           label: 'View Details',
                           disabled: managementLocked,

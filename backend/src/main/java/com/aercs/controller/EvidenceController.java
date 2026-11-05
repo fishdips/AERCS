@@ -66,18 +66,21 @@ public class EvidenceController {
     }
 
     @GetMapping("/api/activities/{activityId}/evidence")
-    public ResponseEntity<List<EvidenceResponse>> listEvidence(@PathVariable UUID activityId) {
-        return ResponseEntity.ok(evidenceService.listEvidence(activityId));
+    public ResponseEntity<List<EvidenceResponse>> listEvidence(@PathVariable UUID activityId,
+                                                              @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.listEvidence(activityId, userDetails.getUsername()));
     }
 
     @GetMapping("/api/evidence/{evidenceId}")
-    public ResponseEntity<EvidenceResponse> getEvidence(@PathVariable UUID evidenceId) {
-        return ResponseEntity.ok(evidenceService.getEvidence(evidenceId));
+    public ResponseEntity<EvidenceResponse> getEvidence(@PathVariable UUID evidenceId,
+                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.getEvidence(evidenceId, userDetails.getUsername()));
     }
 
     @GetMapping("/api/evidence/{evidenceId}/metadata")
-    public ResponseEntity<EvidenceMetadataResponse> getEvidenceMetadata(@PathVariable UUID evidenceId) {
-        return ResponseEntity.ok(evidenceService.getMetadata(evidenceId));
+    public ResponseEntity<EvidenceMetadataResponse> getEvidenceMetadata(@PathVariable UUID evidenceId,
+                                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.getMetadata(evidenceId, userDetails.getUsername()));
     }
 
     @PutMapping("/api/evidence/{evidenceId}/metadata")
@@ -99,8 +102,9 @@ public class EvidenceController {
     }
 
     @GetMapping("/api/evidence/{evidenceId}/download")
-    public ResponseEntity<Resource> downloadEvidence(@PathVariable UUID evidenceId) {
-        EvidenceService.EvidenceDownload download = evidenceService.getDownload(evidenceId);
+    public ResponseEntity<Resource> downloadEvidence(@PathVariable UUID evidenceId,
+                                                     @AuthenticationPrincipal UserDetails userDetails) {
+        EvidenceService.EvidenceDownload download = evidenceService.getDownload(evidenceId, userDetails.getUsername());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .contentLength(download.fileSize())
@@ -112,8 +116,9 @@ public class EvidenceController {
     }
 
     @GetMapping("/api/evidence/{evidenceId}/view")
-    public ResponseEntity<Resource> viewEvidence(@PathVariable UUID evidenceId) {
-        EvidenceService.EvidenceDownload view = evidenceService.getView(evidenceId);
+    public ResponseEntity<Resource> viewEvidence(@PathVariable UUID evidenceId,
+                                                 @AuthenticationPrincipal UserDetails userDetails) {
+        EvidenceService.EvidenceDownload view = evidenceService.getView(evidenceId, userDetails.getUsername());
         return ResponseEntity.ok()
                 .contentType(view.mediaType())
                 .contentLength(view.fileSize())

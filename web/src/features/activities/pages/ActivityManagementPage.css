@@ -471,6 +471,12 @@
   color: #b91c1c;
 }
 
+.am-alert-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
 .am-alert-success {
   border-color: #bbf7d0;
   background: #f0fdf4;

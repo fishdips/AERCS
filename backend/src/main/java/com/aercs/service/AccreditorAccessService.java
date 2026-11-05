@@ -226,7 +226,7 @@ public class AccreditorAccessService {
 
     @Transactional(readOnly = true)
     public List<AccreditorLinkResponse> listLinksForAccreditor(UUID accreditorId) {
-        return accessRepository.findOpenLinksForAccreditor(accreditorId, OffsetDateTime.now()).stream()
+        return accessRepository.findLinksForAccreditor(accreditorId).stream()
                 .map(access -> new AccreditorLinkResponse(
                         access.getId(),
                         displayName(access),
@@ -234,7 +234,8 @@ public class AccreditorAccessService {
                         access.getCreatedBy() != null ? access.getCreatedBy().getName() : null,
                         access.getCreatedAt(),
                         access.getExpiresAt(),
-                        access.getEvidence().size()
+                        access.getEvidence().size(),
+                        !access.getExpiresAt().isAfter(OffsetDateTime.now())
                 ))
                 .toList();
     }
