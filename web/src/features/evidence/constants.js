@@ -24,19 +24,19 @@ export const RELATED_OFFICES = [
 
   // Institutional Offices
   { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
-  { value: 'RESEARCH_OFFICE', label: 'Research Office' },
-  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
+  { value: 'RESEARCH_OFFICE', label: 'Research and Development Coordinating Office' },
+  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Department' },
   { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
-  { value: 'COMMUNITY_EXTENSION_SERVICE', label: 'Community Extension Service' },
+  { value: 'COMMUNITY_EXTENSION_SERVICE', label: 'Community Extension Services' },
+  { value: 'SAFETY_AND_SECURITY_DEPARTMENT', label: 'Safety and Security Department' },
 
   // Service Offices
   { value: 'STUDENT_SUCCESS_OFFICE', label: 'Student Success Office' },
   { value: 'REGISTRARS_OFFICE', label: 'Registrar’s Office' },
-  { value: 'LIBRARY', label: 'Library' },
+  { value: 'LIBRARY', label: 'Learning Resource and Activity Center' },
   { value: 'GUIDANCE_CENTER', label: 'Guidance Center' },
   { value: 'MEDICAL_DENTAL_CLINIC', label: 'Medical-Dental Clinic' },
   { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
-  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
   { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
   { value: 'FINANCE_OFFICE', label: 'Finance Office' },
@@ -48,6 +48,7 @@ const LEGACY_RELATED_OFFICE_LABELS = {
   STUDENT_AFFAIRS_OFFICE: 'Student Affairs Office',
   GUIDANCE_OFFICE: 'Guidance Office',
   CLINIC: 'Clinic',
+  SAFETY_AND_SECURITY: 'Safety & Security',
   COLLEGE_OF_EDUCATION: 'College of Education',
 };
 

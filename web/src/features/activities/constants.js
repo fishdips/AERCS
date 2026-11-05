@@ -69,6 +69,7 @@ export const ACTIVITY_TYPES = [
   { value: 'WEBINAR', label: 'Webinar' },
   { value: 'ADMINISTRATIVE', label: 'Administrative' },
   { value: 'FACULTY', label: 'Faculty' },
+  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -106,20 +107,20 @@ export const DEPARTMENTS = [
 
 export const OFFICES = [
   { value: 'QUALITY_ASSURANCE_OFFICE', label: 'Quality Assurance Office' },
-  { value: 'RESEARCH_OFFICE', label: 'Research Office' },
-  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Office' },
+  { value: 'RESEARCH_OFFICE', label: 'Research and Development Coordinating Office' },
+  { value: 'HUMAN_RESOURCE_OFFICE', label: 'Human Resource Department' },
   { value: 'FACILITIES_MANAGEMENT_OFFICE', label: 'Facilities Management Office' },
-  { value: 'COMMUNITY_EXTENSION_SERVICE', label: 'Community Extension Service' },
+  { value: 'COMMUNITY_EXTENSION_SERVICE', label: 'Community Extension Services' },
+  { value: 'SAFETY_AND_SECURITY_DEPARTMENT', label: 'Safety and Security Department' },
 ];
 
 export const SERVICE_OFFICES = [
   { value: 'STUDENT_SUCCESS_OFFICE', label: 'Student Success Office' },
   { value: 'REGISTRARS_OFFICE', label: 'Registrar\u2019s Office' },
-  { value: 'LIBRARY', label: 'Library' },
+  { value: 'LIBRARY', label: 'Learning Resource and Activity Center' },
   { value: 'GUIDANCE_CENTER', label: 'Guidance Center' },
   { value: 'MEDICAL_DENTAL_CLINIC', label: 'Medical-Dental Clinic' },
   { value: 'TECHNICAL_SUPPORT_GROUP', label: 'Technical Support Group' },
-  { value: 'SAFETY_AND_SECURITY', label: 'Safety & Security' },
   { value: 'ADMISSIONS_AND_SCHOLARSHIPS', label: 'Admissions & Scholarships' },
   { value: 'NATIONAL_SERVICE_TRAINING_PROGRAM', label: 'National Service Training Program' },
   { value: 'FINANCE_OFFICE', label: 'Finance Office' },
@@ -131,7 +132,7 @@ export const ALL_OFFICES = [
   { value: 'EXTENSION_OFFICE', label: 'Extension Office' },
   { value: 'STUDENT_AFFAIRS_OFFICE', label: 'Student Affairs Office' },
   // Legacy: CES used to be a department before moving to the Institutional Offices.
-  { value: 'CES', label: 'Community Extension Service' },
+  { value: 'CES', label: 'Community Extension Services' },
   { value: 'OTHER', label: 'Other' },
 ];
 

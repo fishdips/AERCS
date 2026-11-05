@@ -53,6 +53,7 @@ public class SharedEvidenceService {
         OFFICE_TO_RELATED.put(Office.HUMAN_RESOURCE_OFFICE, RelatedOffice.HUMAN_RESOURCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.FACILITIES_MANAGEMENT_OFFICE, RelatedOffice.FACILITIES_MANAGEMENT_OFFICE);
         OFFICE_TO_RELATED.put(Office.COMMUNITY_EXTENSION_SERVICE, RelatedOffice.COMMUNITY_EXTENSION_SERVICE);
+        OFFICE_TO_RELATED.put(Office.SAFETY_AND_SECURITY_DEPARTMENT, RelatedOffice.SAFETY_AND_SECURITY_DEPARTMENT);
         OFFICE_TO_RELATED.put(Office.FINANCE_OFFICE, RelatedOffice.FINANCE_OFFICE);
         OFFICE_TO_RELATED.put(Office.STUDENT_SUCCESS_OFFICE, RelatedOffice.STUDENT_SUCCESS_OFFICE);
         OFFICE_TO_RELATED.put(Office.REGISTRARS_OFFICE, RelatedOffice.REGISTRARS_OFFICE);
@@ -300,7 +301,7 @@ public class SharedEvidenceService {
 
             List<String> serviceOffices = List.of(
                     "STUDENT_SUCCESS_OFFICE", "REGISTRARS_OFFICE", "LIBRARY", "GUIDANCE_CENTER",
-                    "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP", "SAFETY_AND_SECURITY",
+                    "MEDICAL_DENTAL_CLINIC", "TECHNICAL_SUPPORT_GROUP",
                     "ADMISSIONS_AND_SCHOLARSHIPS", "NATIONAL_SERVICE_TRAINING_PROGRAM", "FINANCE_OFFICE"
             );
             Predicate isServiceOfficeFile = act.get("office").in(serviceOffices);

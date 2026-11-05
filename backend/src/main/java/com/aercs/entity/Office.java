@@ -6,6 +6,7 @@ public enum Office {
     HUMAN_RESOURCE_OFFICE,
     FACILITIES_MANAGEMENT_OFFICE,
     COMMUNITY_EXTENSION_SERVICE,
+    SAFETY_AND_SECURITY_DEPARTMENT,
 
     // Service Offices
     STUDENT_SUCCESS_OFFICE,
@@ -26,14 +27,15 @@ public enum Office {
     public String getDisplayName() {
         return switch (this) {
             case QUALITY_ASSURANCE_OFFICE -> "Quality Assurance Office";
-            case RESEARCH_OFFICE -> "Research Office";
-            case HUMAN_RESOURCE_OFFICE -> "Human Resource Office";
+            case RESEARCH_OFFICE -> "Research and Development Coordinating Office";
+            case HUMAN_RESOURCE_OFFICE -> "Human Resource Department";
             case FACILITIES_MANAGEMENT_OFFICE -> "Facilities Management Office";
-            case COMMUNITY_EXTENSION_SERVICE -> "Community Extension Service";
+            case SAFETY_AND_SECURITY_DEPARTMENT -> "Safety and Security Department";
+            case COMMUNITY_EXTENSION_SERVICE -> "Community Extension Services";
             case FINANCE_OFFICE -> "Finance Office";
             case STUDENT_SUCCESS_OFFICE -> "Student Success Office";
             case REGISTRARS_OFFICE -> "Registrar’s Office";
-            case LIBRARY -> "Library";
+            case LIBRARY -> "Learning Resource and Activity Center";
             case GUIDANCE_CENTER -> "Guidance Center";
             case MEDICAL_DENTAL_CLINIC -> "Medical-Dental Clinic";
             case TECHNICAL_SUPPORT_GROUP -> "Technical Support Group";
@@ -53,7 +55,6 @@ public enum Office {
                  GUIDANCE_CENTER,
                  MEDICAL_DENTAL_CLINIC,
                  TECHNICAL_SUPPORT_GROUP,
-                 SAFETY_AND_SECURITY,
                  ADMISSIONS_AND_SCHOLARSHIPS,
                  NATIONAL_SERVICE_TRAINING_PROGRAM,
                  FINANCE_OFFICE -> true;
