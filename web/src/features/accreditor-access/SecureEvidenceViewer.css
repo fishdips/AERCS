@@ -1,0 +1,75 @@
+.sev-root {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sev-notice {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.sev-status {
+  padding: 24px 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+.sev-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.sev-canvas {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  -webkit-user-drag: none;
+}
+
+/* Word documents render at their own page width inside a gray wrapper. */
+.sev-docx {
+  width: 100%;
+  overflow: auto;
+}
+
+.sev-sheet {
+  width: 100%;
+  overflow: auto;
+}
+
+.sev-sheet h4 {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.sev-sheet table {
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+}
+
+.sev-sheet td {
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.sev-sheet-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Nothing from the viewer reaches the printer. */
+@media print {
+  .modal-overlay {
+    display: none !important;
+  }
+}

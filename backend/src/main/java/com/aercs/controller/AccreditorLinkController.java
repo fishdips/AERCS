@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 // Accreditor side: a logged-in accreditor account sees only the links assigned to it.
@@ -28,6 +28,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ACCREDITOR_LINK')")
 public class AccreditorLinkController {
+
+    private static final Set<String> NAVIGATION_DESTINATIONS =
+            Set.of("document", "iframe", "frame", "embed", "object");
 
     private final AccreditorAccessService accreditorAccessService;
     private final UserRepository userRepository;
@@ -49,36 +52,26 @@ public class AccreditorLinkController {
     public ResponseEntity<Resource> viewEvidence(
             @PathVariable UUID id,
             @PathVariable UUID evidenceId,
+            @RequestHeader(value = "Sec-Fetch-Dest", required = false) String fetchDest,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
+        // Accreditors are view-only. The app's viewer fetches this with XHR (Sec-Fetch-Dest: empty);
+        // refuse the address bar / iframe / embed, where the browser's own PDF viewer would offer Save.
+        if (fetchDest != null && NAVIGATION_DESTINATIONS.contains(fetchDest.toLowerCase())) {
+            throw new ForbiddenException("Evidence can only be viewed inside the application");
+        }
         EvidenceService.EvidenceDownload view =
                 accreditorAccessService.getEvidenceView(id, evidenceId, resolveUserId(userDetails));
         return ResponseEntity.ok()
                 .contentType(view.mediaType())
                 .contentLength(view.fileSize())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
                         .filename(view.originalFileName(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
                 .body(view.resource());
-    }
-
-    @GetMapping("/{id}/evidence/{evidenceId}/download")
-    public ResponseEntity<Resource> downloadEvidence(
-            @PathVariable UUID id,
-            @PathVariable UUID evidenceId,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        EvidenceService.EvidenceDownload download =
-                accreditorAccessService.getEvidenceDownload(id, evidenceId, resolveUserId(userDetails));
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(download.fileSize())
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(download.originalFileName(), StandardCharsets.UTF_8)
-                        .build()
-                        .toString())
-                .body(download.resource());
     }
 
     private UUID resolveUserId(UserDetails userDetails) {

@@ -24,6 +24,9 @@ public interface AccreditorAccessRepository extends JpaRepository<AccreditorAcce
     List<AccreditorAccess> findByActiveTrueAndExpiresAtBetweenAndCreatedById(
             OffsetDateTime from, OffsetDateTime to, UUID createdById);
 
+    // Live (active, unexpired) links already created for an activity.
+    List<AccreditorAccess> findByActivityIdAndActiveTrueAndExpiresAtAfter(UUID activityId, OffsetDateTime now);
+
     List<AccreditorAccess> findAllByOrderByCreatedAtDesc();
 
     List<AccreditorAccess> findByCreatedByIdOrderByCreatedAtDesc(UUID createdById);

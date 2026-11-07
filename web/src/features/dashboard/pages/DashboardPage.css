@@ -110,3 +110,31 @@
   padding: 0.15rem 0.45rem;
   white-space: nowrap;
 }
+
+.dash-badge-ok,
+.dash-badge-muted {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  white-space: nowrap;
+}
+
+.dash-badge-ok {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.dash-badge-muted {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+/* Every shared link is listed, so the section scrolls instead of growing the page. */
+.dash-access-list {
+  max-height: 28rem;
+  overflow-y: auto;
+}

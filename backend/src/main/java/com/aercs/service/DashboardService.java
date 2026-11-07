@@ -42,6 +42,7 @@ public class DashboardService {
     private final EvidenceRepository evidenceRepository;
     private final EvidenceReferenceRepository evidenceReferenceRepository;
     private final AccreditorAccessRepository accreditorAccessRepository;
+    private final AccreditorAccessService accreditorAccessService;
 
     // Same office/department -> RelatedOffice mapping as SharedEvidenceService, used here
     // to decide which other departments' evidence is "recommended" to this viewer.
@@ -127,16 +128,23 @@ public class DashboardService {
 
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime soon = now.plusDays(7);
-        // Links are visible to the creator's whole office/department but editable only by the creator.
-        List<AccreditorAccess> expiring;
-        if (canViewAll) {
-            expiring = accreditorAccessRepository.findByActiveTrueAndExpiresAtBetween(now, soon);
+        // Every link the viewer may see (same rule as the Manage Links page): admins see all,
+        // everyone else sees their own plus those created within their own office/department.
+        List<AccreditorAccess> sharedLinks;
+        if (user.getRole() == UserRole.ADMIN) {
+            sharedLinks = accreditorAccessRepository.findAllByOrderByCreatedAtDesc();
         } else if (user.getOffice() == null || user.getOffice().isBlank()) {
-            expiring = accreditorAccessRepository.findByActiveTrueAndExpiresAtBetweenAndCreatedById(now, soon, user.getId());
+            sharedLinks = accreditorAccessRepository.findByCreatedByIdOrderByCreatedAtDesc(user.getId());
         } else {
-            expiring = accreditorAccessRepository.findExpiringVisibleToOffice(now, soon, user.getId(), user.getOffice());
+            sharedLinks = accreditorAccessRepository.findVisibleToOffice(user.getId(), user.getOffice());
         }
-        expiring = expiring.stream().sorted(Comparator.comparing(AccreditorAccess::getExpiresAt)).toList();
+        // Expired links are not listed on the dashboard.
+        sharedLinks = sharedLinks.stream().filter(a -> a.getExpiresAt().isAfter(now)).toList();
+
+        // The "expiring" stat counts only links in the visible set, so it matches the list below it.
+        int expiringCount = (int) sharedLinks.stream()
+                .filter(a -> a.isActive() && !a.getExpiresAt().isBefore(now) && !a.getExpiresAt().isAfter(soon))
+                .count();
 
         String origin = normalizeFrontendOrigin(frontendOrigin);
 
@@ -144,7 +152,7 @@ public class DashboardService {
                 activities.size(),
                 evidence.size(),
                 missingMetadata.size(),
-                expiring.size()
+                expiringCount
         );
 
         return new DashboardSummaryResponse(
@@ -155,7 +163,7 @@ public class DashboardService {
                 limit(noEvidenceActivities).stream().map(a -> toActivityItem(a, evidenceByActivity)).toList(),
                 limit(missingMetadataActivities).stream().map(a -> toActivityItem(a, evidenceByActivity)).toList(),
                 limit(missingMetadata).stream().map(e -> toEvidenceItem(e, referenceCounts)).toList(),
-                limit(expiring).stream().map(a -> toAccessItem(a, origin, user)).toList()
+                sharedLinks.stream().map(a -> toAccessItem(a, origin, user, now)).toList()
         );
     }
 
@@ -278,7 +286,7 @@ public class DashboardService {
         );
     }
 
-    private DashboardAccreditorAccessItem toAccessItem(AccreditorAccess access, String origin, User viewer) {
+    private DashboardAccreditorAccessItem toAccessItem(AccreditorAccess access, String origin, User viewer, OffsetDateTime now) {
         Activity activity = access.getActivity();
         return new DashboardAccreditorAccessItem(
                 access.getId(),
@@ -287,7 +295,12 @@ public class DashboardService {
                 activity != null ? activity.getId() : null,
                 activity != null ? activity.getActivityName() : null,
                 access.getExpiresAt(),
+                access.getCreatedAt(),
                 access.getCreatedBy() != null ? access.getCreatedBy().getName() : null,
+                access.isActive(),
+                !access.getExpiresAt().isAfter(now),
+                accreditorAccessService.effectiveEvidence(access).size(),
+                access.getAccreditors().size(),
                 canEditAccess(viewer, access)
         );
     }

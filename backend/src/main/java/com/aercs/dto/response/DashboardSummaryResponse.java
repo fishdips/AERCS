@@ -10,5 +10,5 @@ public record DashboardSummaryResponse(
         List<DashboardActivityItem> activitiesWithNoEvidence,
         List<DashboardActivityItem> activitiesWithEvidenceMissingMetadata,
         List<DashboardEvidenceItem> evidenceNeedingMetadata,
-        List<DashboardAccreditorAccessItem> expiringAccreditorAccess
+        List<DashboardAccreditorAccessItem> sharedAccreditorAccess
 ) {}

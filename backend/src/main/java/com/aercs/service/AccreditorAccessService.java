@@ -15,6 +15,7 @@ import com.aercs.entity.Evidence;
 import com.aercs.entity.User;
 import com.aercs.entity.UserRole;
 import com.aercs.exception.BadRequestException;
+import com.aercs.exception.ConflictException;
 import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.InvitationEmailException;
 import com.aercs.exception.ResourceNotFoundException;
@@ -94,6 +95,9 @@ public class AccreditorAccessService {
         }
         Set<Evidence> selectedEvidence = new LinkedHashSet<>(evidence);
         Set<User> accreditors = resolveAccreditors(request.accreditorIds());
+        if (activity != null) {
+            assertNotAlreadySharedWith(activity, accreditors);
+        }
 
         OffsetDateTime expiresAt = request.expirationDateTime() == null
                 ? OffsetDateTime.now().plusDays(7)
@@ -120,6 +124,36 @@ public class AccreditorAccessService {
                 groupByAccreditor(saved, accreditors), frontendOrigin);
 
         return toGenerateResponse(saved, emailFailures);
+    }
+
+    // An activity may be shared again, but not with an accreditor who already has a live link to it.
+    private void assertNotAlreadySharedWith(Activity activity, Set<User> accreditors) {
+        Set<UUID> requested = accreditors.stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+        Map<UUID, String> alreadyShared = new LinkedHashMap<>();
+        for (AccreditorAccess existing : accessRepository
+                .findByActivityIdAndActiveTrueAndExpiresAtAfter(activity.getId(), OffsetDateTime.now())) {
+            for (User accreditor : existing.getAccreditors()) {
+                if (requested.contains(accreditor.getId())) {
+                    alreadyShared.putIfAbsent(accreditor.getId(), accreditor.getName());
+                }
+            }
+        }
+        if (!alreadyShared.isEmpty()) {
+            throw new ConflictException("This activity is already shared with "
+                    + String.join(", ", alreadyShared.values()) + ".");
+        }
+    }
+
+    // A link created for a whole activity always reflects the activity's current files, so evidence
+    // uploaded (or referenced) after the link was created shows up for its accreditors too.
+    public Set<Evidence> effectiveEvidence(AccreditorAccess access) {
+        Set<Evidence> result = new LinkedHashSet<>(access.getEvidence());
+        if (access.getActivity() != null) {
+            UUID activityId = access.getActivity().getId();
+            result.addAll(evidenceRepository.findByActivityIdOrderByUploadedAtDesc(activityId));
+            result.addAll(evidenceReferenceRepository.findReferencedEvidenceByActivityId(activityId));
+        }
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -234,7 +268,7 @@ public class AccreditorAccessService {
                         access.getCreatedBy() != null ? access.getCreatedBy().getName() : null,
                         access.getCreatedAt(),
                         access.getExpiresAt(),
-                        access.getEvidence().size(),
+                        effectiveEvidence(access).size(),
                         !access.getExpiresAt().isAfter(OffsetDateTime.now())
                 ))
                 .toList();
@@ -249,7 +283,7 @@ public class AccreditorAccessService {
                 access.getNotes(),
                 access.getCreatedBy() != null ? access.getCreatedBy().getName() : null,
                 access.getExpiresAt(),
-                access.getEvidence().stream()
+                effectiveEvidence(access).stream()
                         .map(this::toEvidenceResponse)
                         .toList()
         );
@@ -261,15 +295,9 @@ public class AccreditorAccessService {
         return evidenceService.getView(evidenceId);
     }
 
-    @Transactional(readOnly = true)
-    public EvidenceService.EvidenceDownload getEvidenceDownload(UUID accessId, UUID evidenceId, UUID accreditorId) {
-        ensureEvidenceAllowed(accessId, evidenceId, accreditorId);
-        return evidenceService.getDownload(evidenceId);
-    }
-
     private void ensureEvidenceAllowed(UUID accessId, UUID evidenceId, UUID accreditorId) {
         AccreditorAccess access = getOpenLinkForAccreditor(accessId, accreditorId);
-        boolean allowed = access.getEvidence().stream().anyMatch(e -> e.getId().equals(evidenceId));
+        boolean allowed = effectiveEvidence(access).stream().anyMatch(e -> e.getId().equals(evidenceId));
         if (!allowed) {
             throw new ResourceNotFoundException("Evidence file not found for this access link");
         }
@@ -372,7 +400,7 @@ public class AccreditorAccessService {
                 access.getId(),
                 displayName(access),
                 access.getExpiresAt(),
-                access.getEvidence().size(),
+                effectiveEvidence(access).size(),
                 access.getAccreditors().size(),
                 emailFailures
         );
@@ -390,7 +418,7 @@ public class AccreditorAccessService {
                 access.getCreatedAt(),
                 access.getExpiresAt(),
                 !access.isActive() || !access.getExpiresAt().isAfter(OffsetDateTime.now()),
-                access.getEvidence().size(),
+                effectiveEvidence(access).size(),
                 access.getAccreditors().stream()
                         .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
                         .map(this::toAccreditorSummary)

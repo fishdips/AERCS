@@ -289,3 +289,49 @@
     flex-direction: column;
   }
 }
+
+.aa-view-only {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.aa-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.aa-filter-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aa-filter-chip {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.aa-filter-chip:hover {
+  background: #f3f4f6;
+}
+
+.aa-filter-chip-active,
+.aa-filter-chip-active:hover {
+  border-color: #1f2937;
+  background: #1f2937;
+  color: #fff;
+}
+
+.aa-filter-activity {
+  width: auto;
+  max-width: 280px;
+}

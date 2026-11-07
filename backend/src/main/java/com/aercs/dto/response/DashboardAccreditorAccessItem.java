@@ -10,6 +10,11 @@ public record DashboardAccreditorAccessItem(
         UUID activityId,
         String activityName,
         OffsetDateTime expiresAt,
+        OffsetDateTime createdAt,
         String createdByName,
+        boolean active,
+        boolean expired,
+        int evidenceCount,
+        int accreditorCount,
         boolean canEdit
 ) {}

@@ -349,6 +349,8 @@ public class EvidenceService {
             case "PDF"        -> MediaType.APPLICATION_PDF;
             case "PNG"        -> MediaType.IMAGE_PNG;
             case "JPG", "JPEG" -> MediaType.IMAGE_JPEG;
+            case "DOCX"       -> MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            case "XLSX"       -> MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             default           -> null;
         };
     }

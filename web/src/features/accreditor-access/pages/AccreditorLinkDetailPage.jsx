@@ -1,19 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
-import {
-  downloadAccreditorEvidenceBlob,
-  getAccreditorEvidenceViewUrl,
-  getMyAccreditorLink,
-} from '../api';
+import { getMyAccreditorLink } from '../api';
 import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
 import { formatEvidenceType } from '../../evidence/constants';
 import '../AccreditorAccess.css';
-import { Download, Eye, ExternalLink } from 'lucide-react';
+import { Eye, ExternalLink } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 import Alert from '../../../shared/components/Alert';
 
-const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
+// Loaded on demand so the document renderers is only downloaded when an accreditor opens a file.
+const SecureEvidenceViewer = lazy(() => import('../components/SecureEvidenceViewer'));
+
+const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG', 'DOCX', 'XLSX'];
 
 function formatFileSize(size) {
   if (!size) return '-';
@@ -21,15 +20,10 @@ function formatFileSize(size) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function saveBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+const FILE_TYPE_LABELS = { LINK: 'Links' };
+
+function typeLabel(fileType) {
+  return FILE_TYPE_LABELS[fileType] || fileType;
 }
 
 function formatOwnerOffice(value) {
@@ -44,9 +38,13 @@ export default function AccreditorLinkDetailPage() {
   const [access, setAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [busyId, setBusyId] = useState('');
+  const [viewing, setViewing] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [activityFilter, setActivityFilter] = useState('ALL');
 
   useEffect(() => {
+    setTypeFilter('ALL');
+    setActivityFilter('ALL');
     setLoading(true);
     setError('');
     getMyAccreditorLink(id)
@@ -55,18 +53,27 @@ export default function AccreditorLinkDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleDownload = async (item) => {
-    setBusyId(item.id);
-    setError('');
-    try {
-      const { data } = await downloadAccreditorEvidenceBlob(id, item.id);
-      saveBlob(data, item.originalFileName);
-    } catch {
-      setError('Unable to download this evidence file.');
-    } finally {
-      setBusyId('');
-    }
-  };
+  const evidence = access?.evidence;
+
+  // Only the file types and activities that actually exist in this link are offered as filters.
+  const typeCounts = useMemo(() => {
+    const counts = new Map();
+    (evidence || []).forEach((item) => counts.set(item.fileType, (counts.get(item.fileType) || 0) + 1));
+    return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [evidence]);
+
+  const activities = useMemo(
+    () => [...new Set((evidence || []).map((item) => item.sourceActivity).filter(Boolean))].sort(),
+    [evidence],
+  );
+
+  const visibleEvidence = useMemo(
+    () => (evidence || []).filter((item) => (
+      (typeFilter === 'ALL' || item.fileType === typeFilter)
+      && (activityFilter === 'ALL' || item.sourceActivity === activityFilter)
+    )),
+    [evidence, typeFilter, activityFilter],
+  );
 
   return (
     <ActivityShell>
@@ -93,6 +100,41 @@ export default function AccreditorLinkDetailPage() {
         <>
           {access.notes && <p className="aa-notes">{access.notes}</p>}
 
+          {access.evidence.length > 0 && (
+            <div className="aa-filters">
+              <div className="aa-filter-types" role="group" aria-label="Filter by file type">
+                <button
+                  type="button"
+                  className={`aa-filter-chip${typeFilter === 'ALL' ? ' aa-filter-chip-active' : ''}`}
+                  onClick={() => setTypeFilter('ALL')}
+                >
+                  All ({access.evidence.length})
+                </button>
+                {typeCounts.map(([fileType, count]) => (
+                  <button
+                    key={fileType}
+                    type="button"
+                    className={`aa-filter-chip${typeFilter === fileType ? ' aa-filter-chip-active' : ''}`}
+                    onClick={() => setTypeFilter(fileType)}
+                  >
+                    {typeLabel(fileType)} ({count})
+                  </button>
+                ))}
+              </div>
+              {activities.length > 1 && (
+                <select
+                  className="am-input aa-filter-activity"
+                  value={activityFilter}
+                  onChange={(event) => setActivityFilter(event.target.value)}
+                  aria-label="Filter by activity"
+                >
+                  <option value="ALL">All activities</option>
+                  {activities.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+
           <div className="aa-table-wrap">
             <table className="aa-table">
               <thead>
@@ -110,7 +152,10 @@ export default function AccreditorLinkDetailPage() {
                 {access.evidence.length === 0 && (
                   <tr><td colSpan={7} className="aa-empty">No evidence is available for this link.</td></tr>
                 )}
-                {access.evidence.map((item) => (
+                {access.evidence.length > 0 && visibleEvidence.length === 0 && (
+                  <tr><td colSpan={7} className="aa-empty">No files match the selected filters.</td></tr>
+                )}
+                {visibleEvidence.map((item) => (
                   <tr key={item.id}>
                     <td>
                       <strong>{item.originalFileName}</strong>
@@ -129,19 +174,12 @@ export default function AccreditorLinkDetailPage() {
                           </a>
                         )}
                         {PREVIEW_TYPES.includes(item.fileType) && (
-                          <a className="am-link-button" href={getAccreditorEvidenceViewUrl(id, item.id)} target="_blank" rel="noreferrer">
+                          <button className="am-link-button" type="button" onClick={() => setViewing(item)}>
                             <Icon as={Eye} /> View
-                          </a>
-                        )}
-                        {item.fileType !== 'LINK' && !item.linkUrl && (
-                          <button
-                            className="am-link-button"
-                            type="button"
-                            onClick={() => handleDownload(item)}
-                            disabled={busyId === item.id}
-                          >
-                            <Icon as={Download} /> {busyId === item.id ? 'Downloading...' : 'Download'}
                           </button>
+                        )}
+                        {item.fileType !== 'LINK' && !item.linkUrl && !PREVIEW_TYPES.includes(item.fileType) && (
+                          <span className="aa-view-only">Preview not available</span>
                         )}
                       </div>
                     </td>
@@ -151,6 +189,16 @@ export default function AccreditorLinkDetailPage() {
             </table>
           </div>
         </>
+      )}
+
+      {viewing && (
+        <Suspense fallback={null}>
+          <SecureEvidenceViewer
+            linkId={id}
+            evidence={viewing}
+            onClose={() => setViewing(null)}
+          />
+        </Suspense>
       )}
     </ActivityShell>
   );

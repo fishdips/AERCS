@@ -73,7 +73,18 @@ function defaultExtendedExpiry(currentExpiresAt) {
   return base.toISOString().slice(0, 16);
 }
 
+const EXPIRING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
+
+function accessStatus(item) {
+  if (!item.active) return { label: 'Inactive', className: 'dash-badge-muted' };
+  if (new Date(item.expiresAt).getTime() - Date.now() <= EXPIRING_SOON_MS) {
+    return { label: 'Expiring Soon', className: 'dash-badge-warning' };
+  }
+  return { label: 'Active', className: 'dash-badge-ok' };
+}
+
 function AccessRow({ item, onChanged }) {
+  const status = accessStatus(item);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -144,7 +155,12 @@ function AccessRow({ item, onChanged }) {
     <div className="dash-access-row">
       <div className="dash-access-info">
         <span>{item.name || item.activityName || 'Evidence-only access link'}</span>
-        <small>Expires {formatDateTime(item.expiresAt)}{item.createdByName ? ` · Created by ${item.createdByName}` : ''}</small>
+        <small>
+          Expires {formatDateTime(item.expiresAt)}
+          {item.createdByName ? ` · Shared by ${item.createdByName}` : ''}
+          {` · ${item.evidenceCount} file${item.evidenceCount === 1 ? '' : 's'}`}
+          {` · ${item.accreditorCount} accreditor${item.accreditorCount === 1 ? '' : 's'}`}
+        </small>
         {copyFailed && <small>Could not copy automatically — copy the link manually: {item.accessUrl}</small>}
         {error && <small className="dash-access-error">{error}</small>}
         {editing && (
@@ -166,7 +182,7 @@ function AccessRow({ item, onChanged }) {
         )}
       </div>
       <div className="dash-row-meta">
-        <span className="dash-badge-warning">Expiring Soon</span>
+        <span className={status.className}>{status.label}</span>
         <ActionMenu
           items={[
             { icon: copied ? Check : Copy, label: copied ? 'Copied' : 'Copy Link', onClick: copyLink },
@@ -334,12 +350,16 @@ export default function DashboardPage() {
           </section>
 
           <section className="am-panel dash-section">
-            <p className="am-section-label">Accreditor Access Expiring Within 7 Days</p>
-            {summary.expiringAccreditorAccess.length === 0
-              ? <EmptyRow text="No active access links are expiring soon." />
-              : summary.expiringAccreditorAccess.map((item) => (
-                <AccessRow key={item.id} item={item} onChanged={loadSummary} />
-              ))}
+            <p className="am-section-label">Shared Accreditor Links ({summary.sharedAccreditorAccess.length})</p>
+            {summary.sharedAccreditorAccess.length === 0
+              ? <EmptyRow text="No accreditor links have been shared yet." />
+              : (
+                <div className="dash-access-list">
+                  {summary.sharedAccreditorAccess.map((item) => (
+                    <AccessRow key={item.id} item={item} onChanged={loadSummary} />
+                  ))}
+                </div>
+              )}
           </section>
         </>
       )}

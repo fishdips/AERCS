@@ -8,11 +8,14 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.16.1",
+    "docx-preview": "0.4.1",
     "lucide-react": "^1.48.0",
+    "pdfjs-dist": "3.11.174",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
     "react-scripts": "5.0.1",
+    "read-excel-file": "9.3.14",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

@@ -247,6 +247,58 @@ class AccreditorAccessIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void activityLinkShowsFilesUploadedAfterTheLinkWasCreated() throws Exception {
+        UUID linkId = createActivityLink("Activity link", List.of(accreditorA.getId()));
+
+        mvc.perform(get("/api/accreditor/links/" + linkId).cookie(auth(accreditorA)))
+                .andExpect(jsonPath("$.evidence.length()").value(1));
+
+        Evidence later = new Evidence();
+        later.setActivity(evidence.getActivity());
+        later.setOriginalFileName("Uploaded later");
+        later.setLinkUrl("https://example.com/later");
+        later.setFileType("LINK");
+        later.setFileSize(0);
+        later.setUploadedBy(staff);
+        later = evidenceRepository.save(later);
+
+        mvc.perform(get("/api/accreditor/links/" + linkId).cookie(auth(accreditorA)))
+                .andExpect(jsonPath("$.evidence.length()").value(2));
+        mvc.perform(get("/api/accreditor/links").cookie(auth(accreditorA)))
+                .andExpect(jsonPath("$[0].evidenceCount").value(2));
+        mvc.perform(get("/api/accreditor/links/" + linkId + "/evidence/" + later.getId() + "/view")
+                        .cookie(auth(accreditorA)))
+                .andExpect(status().isBadRequest()); // allowed through; LINK evidence just has no file to preview
+    }
+
+    @Test
+    void activityCannotBeSharedAgainWithAnAccreditorWhoAlreadyHasItButCanWithAnother() throws Exception {
+        createActivityLink("First share", List.of(accreditorA.getId()));
+
+        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "name", "Second share",
+                                "activityId", evidence.getActivity().getId(),
+                                "accreditorIds", List.of(accreditorA.getId())))))
+                .andExpect(status().isConflict());
+
+        createActivityLink("Share with B", List.of(accreditorB.getId()));
+    }
+
+    private UUID createActivityLink(String name, List<UUID> accreditorIds) throws Exception {
+        String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "name", name,
+                                "activityId", evidence.getActivity().getId(),
+                                "accreditorIds", accreditorIds))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return UUID.fromString(json.readTree(body).get("id").asText());
+    }
+
     private UUID createLink(String name, List<UUID> accreditorIds) throws Exception {
         String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
                         .contentType(MediaType.APPLICATION_JSON)

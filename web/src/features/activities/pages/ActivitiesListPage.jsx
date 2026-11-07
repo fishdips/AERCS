@@ -45,6 +45,7 @@ export default function ActivitiesListPage() {
   const [organizationFilter, setOrganizationFilter] = useState('');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [accreditationAreaFilter, setAccreditationAreaFilter] = useState('');
+  const [ownershipFilter, setOwnershipFilter] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadActivityId, setUploadActivityId] = useState('');
@@ -105,7 +106,10 @@ export default function ActivitiesListPage() {
       const matchesAccreditationArea = !accreditationAreaFilter
         || activity.accreditationArea === accreditationAreaFilter;
 
+      const matchesOwnership = ownershipFilter !== 'owned' || isMine;
+
       return matchesSearch
+        && matchesOwnership
         && matchesType
         && matchesOrganization
         && matchesAcademicYear
@@ -118,6 +122,7 @@ export default function ActivitiesListPage() {
     organizationFilter,
     academicYearFilter,
     accreditationAreaFilter,
+    ownershipFilter,
     user,
   ]);
 
@@ -144,7 +149,7 @@ export default function ActivitiesListPage() {
   }, [activities]);
 
   const hasActiveFilters = query || activityTypeFilter || organizationFilter
-    || academicYearFilter || accreditationAreaFilter;
+    || academicYearFilter || accreditationAreaFilter || ownershipFilter;
 
   const clearFilters = () => {
     setQuery('');
@@ -152,6 +157,7 @@ export default function ActivitiesListPage() {
     setOrganizationFilter('');
     setAcademicYearFilter('');
     setAccreditationAreaFilter('');
+    setOwnershipFilter('');
   };
 
   const canCreateActivity = user && ACTIVITY_CREATE_ROLES.includes(user.role);
@@ -189,6 +195,10 @@ export default function ActivitiesListPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <select className="am-select" value={ownershipFilter} onChange={(e) => setOwnershipFilter(e.target.value)}>
+          <option value=""> All activities </option>
+          <option value="owned"> Owned by me </option>
+        </select>
         <select className="am-select" value={activityTypeFilter} onChange={(e) => setActivityTypeFilter(e.target.value)}>
           <option value=""> All types   </option>
           {ACTIVITY_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
