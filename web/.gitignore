@@ -11,6 +11,9 @@
 # production
 /build
 
+# pdf.js worker, copied from node_modules by scripts/copy-pdf-worker.js
+/public/pdf.worker.min.js
+
 # misc
 .DS_Store
 .env.local

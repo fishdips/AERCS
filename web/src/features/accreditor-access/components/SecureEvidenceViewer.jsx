@@ -6,10 +6,9 @@ import Modal from '../../../shared/components/Modal';
 import { viewAccreditorEvidenceBlob } from '../api';
 import '../SecureEvidenceViewer.css';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url,
-).toString();
+// The worker is a plain static file (see scripts/copy-pdf-worker.js). Importing it through webpack
+// makes babel rewrite it with require() calls, which breaks it inside the browser's worker context.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.js?v=${pdfjsLib.version}`;
 
 const RENDER_WIDTH = 1100;
 const MAX_SHEET_ROWS = 1000;
