@@ -21,8 +21,9 @@ import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvi
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
 import AccreditorLinksPage from './features/accreditor-access/pages/AccreditorLinksPage';
 import AccreditorLinkDetailPage from './features/accreditor-access/pages/AccreditorLinkDetailPage';
+import HelpPage from './features/help/pages/HelpPage';
 import { ROLES } from './shared/constants/roles';
-import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES } from './features/activities/constants';
+import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES, HELP_ROLES } from './features/activities/constants';
 
 function App() {
   return (
@@ -135,6 +136,16 @@ function App() {
               <ProtectedRoute>
                 <ActivityDetailPage />
               </ProtectedRoute>
+            }
+          />
+
+          {/* Help Center: everyone except accreditors */}
+          <Route
+            path="/help"
+            element={
+              <RoleProtectedRoute allowedRoles={HELP_ROLES}>
+                <HelpPage />
+              </RoleProtectedRoute>
             }
           />
 

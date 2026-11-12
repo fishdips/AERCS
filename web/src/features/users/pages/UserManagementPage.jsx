@@ -452,6 +452,8 @@ export default function UserManagementPage() {
             <NavLink to="/shared-evidence" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Shared Evidence</NavLink>
             <p className="ump-nav-section">Administration</p>
             <NavLink to="/admin/users" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Access Management</NavLink>
+            <p className="ump-nav-section">Support</p>
+            <NavLink to="/help" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Help</NavLink>
           </nav>
           <div className="ump-sidebar-footer">
             <div className="ump-signed-as">

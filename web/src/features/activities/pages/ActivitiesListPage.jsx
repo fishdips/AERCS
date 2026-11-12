@@ -35,6 +35,8 @@ function formatDate(value) {
   });
 }
 
+const PAGE_SIZE = 15;
+
 export default function ActivitiesListPage() {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
@@ -46,6 +48,7 @@ export default function ActivitiesListPage() {
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [accreditationAreaFilter, setAccreditationAreaFilter] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('');
+  const [page, setPage] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadActivityId, setUploadActivityId] = useState('');
@@ -86,7 +89,9 @@ export default function ActivitiesListPage() {
 
   const filteredActivities = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return activities.filter((activity) => {
+    // Newest created activity first.
+    const createdTime = (activity) => (activity.createdAt ? new Date(activity.createdAt).getTime() : 0);
+    return [...activities].sort((a, b) => createdTime(b) - createdTime(a)).filter((activity) => {
       const name = activity.activityName || '';
       const academicYear = activity.academicYear || '';
       const department = activity.department || '';
@@ -125,6 +130,17 @@ export default function ActivitiesListPage() {
     ownershipFilter,
     user,
   ]);
+
+  // Back to the first page whenever the search or a filter changes.
+  useEffect(() => {
+    setPage(0);
+  }, [query, activityTypeFilter, organizationFilter, academicYearFilter, accreditationAreaFilter, ownershipFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredActivities.length / PAGE_SIZE));
+  // Clamp in case the list shrinks (e.g. after a delete) while on the last page.
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageStart = currentPage * PAGE_SIZE;
+  const pageActivities = filteredActivities.slice(pageStart, pageStart + PAGE_SIZE);
 
   const academicYears = useMemo(() => (
     [...new Set(activities.map((activity) => activity.academicYear).filter(Boolean))]
@@ -242,7 +258,7 @@ export default function ActivitiesListPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredActivities.map((activity) => {
+            {pageActivities.map((activity) => {
               const isMine = isUserActivity(activity, user);
               return (
                 <tr key={activity.id}>
@@ -268,6 +284,19 @@ export default function ActivitiesListPage() {
             )}
           </tbody>
         </table>
+
+        {totalPages > 1 && (
+          <div className="am-pagination">
+            <span className="am-page-info">
+              {pageStart + 1}-{pageStart + pageActivities.length} of {filteredActivities.length}
+            </span>
+            <div className="am-page-buttons">
+              <button type="button" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 0}>Prev</button>
+              <span className="am-page-info">Page {currentPage + 1} of {totalPages}</span>
+              <button type="button" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= totalPages - 1}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal isOpen={showUploadModal} onClose={closeUploadModal} title="Upload Evidence" size="wide">

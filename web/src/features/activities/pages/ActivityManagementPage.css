@@ -397,17 +397,17 @@
 .am-badge-you {
   display: inline-flex;
   align-items: center;
-  margin-left: 0.45rem;
-  padding: 0.08rem 0.45rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--brand-700, #1e40af);
-  background: var(--brand-50, #eff6ff);
-  border: 1px solid var(--brand-200, #bfdbfe);
-  border-radius: 9999px;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   vertical-align: middle;
   line-height: 1.25;
-  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
@@ -419,6 +419,39 @@
   font-size: 0.65rem;
   font-weight: 600;
 }
+
+/* Pagination: same look as the Repository pager */
+.am-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.5rem;
+}
+
+.am-page-info {
+  font-size: 0.68rem;
+  color: #6b7280;
+}
+
+.am-page-buttons {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.am-page-buttons button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 0.4rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.am-page-buttons button:hover:not(:disabled) { background: #f3f4f6; }
+.am-page-buttons button:disabled { color: #d1d5db; cursor: default; }
 
 .am-empty {
   padding: 2rem;
@@ -868,6 +901,15 @@
   font-size: 0.74rem;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* The row's generic span rule above would otherwise enlarge the badge. */
+.am-recent-item .am-badge-you {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
 }
 
 .am-recent-item small {

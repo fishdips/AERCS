@@ -1,12 +1,15 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
+import { HELP_ROLES } from '../constants';
 import '../pages/ActivityManagementPage.css';
 
 export default function ActivityShell({ children }) {
   const { user, logout } = useAuth();
   const canAccessAdmin = user?.role === ROLES.ADMIN || user?.role === ROLES.ACCRED_COORDINATOR;
   const isAccreditor = user?.role === ROLES.ACCREDITOR_LINK;
+  // Everyone except accreditors gets the Help Center.
+  const canSeeHelp = HELP_ROLES.includes(user?.role);
   const navClass = ({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`;
   const navigate = useNavigate();
 
@@ -56,6 +59,12 @@ export default function ActivityShell({ children }) {
               <>
                 <p className="am-nav-section">Administration</p>
                 <NavLink to="/admin/users" className={navClass}>Access Management</NavLink>
+              </>
+            )}
+            {canSeeHelp && (
+              <>
+                <p className="am-nav-section">Support</p>
+                <NavLink to="/help" className={navClass}>Help</NavLink>
               </>
             )}
           </nav>

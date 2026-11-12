@@ -57,6 +57,9 @@ export const ACTIVITY_CREATE_ROLES = [
   ROLES.ACCRED_COORDINATOR,
 ];
 
+// Everyone except accreditors can open the Help Center.
+export const HELP_ROLES = [...ACTIVITY_WRITE_ROLES];
+
 export const ACTIVITY_TYPES = [
   { value: 'SEMINAR', label: 'Seminar' },
   { value: 'TRAINING', label: 'Training' },
