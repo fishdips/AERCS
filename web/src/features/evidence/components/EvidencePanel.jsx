@@ -398,6 +398,7 @@ export default function EvidencePanel({
       const { data } = await createLinkEvidence(activityId, payload);
       setLinkTitle('');
       setLinkUrl('');
+      setUploadMode('file');
       await loadEvidence();
       if (onUploaded) onUploaded(data ? [data] : []);
     } catch (err) {
@@ -530,17 +531,9 @@ export default function EvidencePanel({
         <div className="am-evidence-upload">
           <div className="am-upload-tabs">
             <button
-              className={uploadMode === 'file' ? 'am-upload-tab am-upload-tab-active' : 'am-upload-tab'}
-              type="button"
-              onClick={() => { setUploadMode('file'); setError(''); }}
-              disabled={isUploading}
-            >
-              Upload Files
-            </button>
-            <button
               className={uploadMode === 'link' ? 'am-upload-tab am-upload-tab-active' : 'am-upload-tab'}
               type="button"
-              onClick={() => { setUploadMode('link'); setError(''); }}
+              onClick={() => { setUploadMode((mode) => (mode === 'link' ? 'file' : 'link')); setError(''); }}
               disabled={isUploading}
             >
               Add Google Drive Link
@@ -665,8 +658,13 @@ export default function EvidencePanel({
                 <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
                   {isUploading ? 'Saving Link...' : <><Icon as={Link2} /> Add Drive Link</>}
                 </button>
-                <button className="am-btn-secondary" type="button" onClick={() => { setLinkTitle(''); setLinkUrl(''); }} disabled={isUploading}>
-                  Clear
+                <button
+                  className="am-btn-secondary"
+                  type="button"
+                  onClick={() => { setLinkTitle(''); setLinkUrl(''); setUploadMode('file'); setError(''); }}
+                  disabled={isUploading}
+                >
+                  Cancel
                 </button>
               </div>
             </div>
