@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getActivity } from '../../activities/api';
 import { searchRepository } from '../../repository/api';
-import { getEvidenceViewUrl } from '../../evidence/api';
 import ReferenceConfirmModal from '../components/ReferenceConfirmModal';
 import api from '../../../shared/api/config';
 import { ACCREDITATION_AREAS, DEPARTMENTS, formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
@@ -14,7 +13,6 @@ import { ArrowRight } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'JPG', 'PNG'];
-const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatFileSize(size) {
   if (!size) return '-';
@@ -344,7 +342,7 @@ export default function ReferenceEvidencePage() {
                   <EvidencePreview
                     fileType={preview.fileType}
                     linkUrl={preview.linkUrl}
-                    viewUrl={PREVIEW_TYPES.includes(preview.fileType) ? getEvidenceViewUrl(preview.id) : undefined}
+                    evidenceId={preview.id}
                     fileName={preview.originalFileName}
                     iconSize={22}
                   />

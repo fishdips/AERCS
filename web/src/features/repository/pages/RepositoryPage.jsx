@@ -22,7 +22,6 @@ import GenerateAccreditorAccessModal from '../../accreditor-access/components/Ge
 import {
   downloadEvidenceBlob,
   getEvidence,
-  getEvidenceViewUrl,
 } from '../../evidence/api';
 import {
   EVIDENCE_TYPES,
@@ -37,7 +36,6 @@ import EvidencePreview from '../../../shared/components/EvidencePreview';
 import Alert from '../../../shared/components/Alert';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
-const PREVIEW_TYPES = ['PDF', 'JPG', 'JPEG', 'PNG'];
 
 function formatFileSize(size, fileType) {
   if (fileType === 'LINK') return 'Link';
@@ -401,7 +399,7 @@ export default function RepositoryPage() {
                   <EvidencePreview
                     fileType={detail.fileType}
                     linkUrl={detail.linkUrl}
-                    viewUrl={PREVIEW_TYPES.includes(detail.fileType) ? getEvidenceViewUrl(detail.id) : undefined}
+                    evidenceId={detail.id}
                     fileName={detail.originalFileName}
                     iconSize={32}
                   />

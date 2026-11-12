@@ -5,10 +5,30 @@
   display: block;
 }
 
-.evp-frame {
-  width: 100%;
-  height: 100%;
-  border: none;
+/* Rendered file (PDF pages, Word, Excel, image): fills its box and scrolls inside it. */
+.evp-rendered {
+  position: relative;
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  max-height: 480px;
+  overflow: auto;
+}
+
+.evp-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.evp-status {
+  margin: 0;
+  padding: 1rem;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  text-align: center;
 }
 
 .evp-placeholder {

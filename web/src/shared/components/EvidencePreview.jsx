@@ -1,25 +1,77 @@
+import { useEffect, useRef, useState } from 'react';
 import { FileText, Link2 } from 'lucide-react';
 import Icon from './Icon';
+import { viewEvidenceBlob } from '../../features/evidence/api';
+import { renderPdf, renderSpreadsheet, renderWord } from '../utils/evidenceRenderers';
+// Word / Excel / PDF page styles (sev-*) are shared with the accreditor viewer.
+import '../../features/accreditor-access/SecureEvidenceViewer.css';
 import './EvidencePreview.css';
 
-const PREVIEW_IMAGE_TYPES = ['JPG', 'JPEG', 'PNG'];
+const IMAGE_TYPES = ['JPG', 'JPEG', 'PNG'];
+const RENDERABLE_TYPES = ['PDF', 'DOCX', 'XLSX', ...IMAGE_TYPES];
 
-// Renders an inline preview for a piece of evidence: an iframe for PDFs, an
-// <img> for images, or a placeholder icon for links / unsupported file types.
-// `viewUrl` is the already-built URL for streaming the file (callers build it
-// with their feature's own API helper, e.g. getEvidenceViewUrl(evidenceId)).
-export default function EvidencePreview({ fileType, linkUrl, viewUrl, fileName, iconSize = 28 }) {
-  if (fileType === 'PDF' && viewUrl) {
+// Inline preview for a piece of evidence. The file is fetched with the signed-in session and
+// drawn in the page (PDF pages, Word, Excel sheets, images). It is not put in an <iframe>, because
+// the API replies with headers that stop browsers from framing it. Links and unsupported
+// file types get a placeholder instead.
+export default function EvidencePreview({ fileType, linkUrl, evidenceId, fileName, iconSize = 28 }) {
+  const isLink = fileType === 'LINK' || Boolean(linkUrl);
+  const canRender = !isLink && Boolean(evidenceId) && RENDERABLE_TYPES.includes(fileType);
+
+  const pagesRef = useRef(null);
+  const [status, setStatus] = useState('loading');
+
+  useEffect(() => {
+    if (!canRender) return undefined;
+
+    let cancelled = false;
+    let objectUrl = null;
+    const container = pagesRef.current;
+    setStatus('loading');
+
+    const load = async () => {
+      try {
+        const { data } = await viewEvidenceBlob(evidenceId);
+        if (cancelled) return;
+        if (fileType === 'PDF') {
+          await renderPdf(data, container, () => cancelled);
+        } else if (fileType === 'DOCX') {
+          await renderWord(data, container);
+        } else if (fileType === 'XLSX') {
+          await renderSpreadsheet(data, container);
+        } else {
+          objectUrl = URL.createObjectURL(data);
+          const img = document.createElement('img');
+          img.className = 'evp-img';
+          img.alt = fileName || 'Evidence preview';
+          img.src = objectUrl;
+          container.appendChild(img);
+        }
+        if (!cancelled) setStatus('ready');
+      } catch {
+        if (!cancelled) setStatus('error');
+      }
+    };
+    load();
+
+    return () => {
+      cancelled = true;
+      container.replaceChildren();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [canRender, evidenceId, fileType, fileName]);
+
+  if (canRender) {
     return (
-      <iframe className="evp-frame" src={viewUrl} title={fileName || 'Evidence preview'} />
+      <div className="evp-rendered">
+        <div className="evp-pages" ref={pagesRef} />
+        {status === 'loading' && <p className="evp-status">Loading preview...</p>}
+        {status === 'error' && <p className="evp-status">Preview unavailable. Use Download to open the file.</p>}
+      </div>
     );
   }
 
-  if (PREVIEW_IMAGE_TYPES.includes(fileType) && viewUrl) {
-    return <img className="evp-img" src={viewUrl} alt={fileName || 'Evidence preview'} />;
-  }
-
-  if (fileType === 'LINK' || linkUrl) {
+  if (isLink) {
     return (
       <div className="evp-placeholder">
         <Icon as={Link2} size={iconSize} />
