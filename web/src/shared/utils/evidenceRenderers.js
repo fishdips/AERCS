@@ -57,7 +57,59 @@ export async function renderWord(blob, container) {
   const holder = document.createElement('div');
   holder.className = 'sev-docx';
   container.appendChild(holder);
-  await renderDocx(blob, holder, holder, { inWrapper: true, ignoreLastRenderedPageBreak: true });
+  await renderDocx(blob, holder, null, {
+    inWrapper: true,
+    ignoreWidth: true,
+    ignoreHeight: true,
+    ignoreLastRenderedPageBreak: true,
+  });
+
+  // Normalize fixed-width sections and positioned Word textboxes/frames so text
+  // wraps cleanly inside any preview pane without clipping or overlapping.
+  holder.querySelectorAll('section.docx').forEach((section) => {
+    section.style.width = '100%';
+    section.style.maxWidth = '100%';
+    section.style.minWidth = '0';
+    section.style.minHeight = 'auto';
+    section.style.padding = '24px 28px';
+    section.style.boxSizing = 'border-box';
+  });
+
+  holder.querySelectorAll('[style]').forEach((el) => {
+    const tag = el.tagName?.toLowerCase();
+    const isMedia = tag === 'img' || tag === 'canvas' || tag === 'svg';
+
+    if (el.style.position === 'absolute' || el.style.position === 'fixed') {
+      el.style.position = 'relative';
+      el.style.top = 'auto';
+      el.style.left = 'auto';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.margin = '0.5rem 0';
+      el.style.maxWidth = '100%';
+      if (!isMedia) {
+        el.style.width = '100%';
+        el.style.height = 'auto';
+      }
+    }
+
+    if (!isMedia && el.style.height && tag !== 'tr' && tag !== 'td') {
+      el.style.minHeight = el.style.height;
+      el.style.height = 'auto';
+    }
+
+    if (el.style.float === 'left' || el.style.float === 'right') {
+      el.style.float = 'none';
+      el.style.maxWidth = '100%';
+    }
+
+    if (el.style.marginLeft && el.style.marginLeft.startsWith('-')) {
+      el.style.marginLeft = '0';
+    }
+    if (el.style.textIndent && el.style.textIndent.startsWith('-')) {
+      el.style.textIndent = '0';
+    }
+  });
 }
 
 export async function renderPdf(blob, container, isCancelled) {

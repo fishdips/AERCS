@@ -29,9 +29,12 @@ export const getMyAccreditorLinks = () =>
   api.get('/api/accreditor/links');
 
 export const getMyAccreditorLink = (id) =>
-  api.get(`/api/accreditor/links/${id}`);
+  api.get(`/api/accreditor/links/${id}`, { params: { _t: Date.now() } });
 
 // Accreditors are view-only: the file is fetched as a blob and drawn by the in-app viewer.
 // There is deliberately no download call here (the server has no download endpoint for them).
-export const viewAccreditorEvidenceBlob = (linkId, evidenceId) =>
-  api.get(`/api/accreditor/links/${linkId}/evidence/${evidenceId}/view`, { responseType: 'blob' });
+export const viewAccreditorEvidenceBlob = (linkId, evidenceId, version) =>
+  api.get(`/api/accreditor/links/${linkId}/evidence/${evidenceId}/view`, {
+    params: { v: version || 1, _t: Date.now() },
+    responseType: 'blob',
+  });

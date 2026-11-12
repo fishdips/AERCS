@@ -438,12 +438,14 @@ public class AccreditorAccessService {
 
     private AccreditorAccessEvidenceResponse toEvidenceResponse(Evidence evidence) {
         Activity activity = evidence.getActivity();
+        EvidenceService.ActiveVersionSnapshot active = evidenceService.resolveActiveVersionSnapshot(evidence);
         return new AccreditorAccessEvidenceResponse(
                 evidence.getId(),
-                evidence.getOriginalFileName(),
+                active.originalFileName(),
                 evidence.getLinkUrl(),
-                evidence.getFileType(),
-                evidence.getFileSize(),
+                active.fileType(),
+                active.fileSize(),
+                active.currentVersion(),
                 activity.getActivityName(),
                 firstNonBlank(
                         activity.getOffice(),

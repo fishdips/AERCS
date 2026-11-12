@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getMyAccreditorLink } from '../api';
@@ -42,16 +42,41 @@ export default function AccreditorLinkDetailPage() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [activityFilter, setActivityFilter] = useState('ALL');
 
+  const fetchLink = useCallback((silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
+    getMyAccreditorLink(id)
+      .then(({ data }) => setAccess(data))
+      .catch(() => {
+        if (!silent) {
+          setError('This evidence link is unavailable. It may have expired or was not shared with your account.');
+        }
+      })
+      .finally(() => {
+        if (!silent) setLoading(false);
+      });
+  }, [id]);
+
   useEffect(() => {
     setTypeFilter('ALL');
     setActivityFilter('ALL');
-    setLoading(true);
-    setError('');
-    getMyAccreditorLink(id)
-      .then(({ data }) => setAccess(data))
-      .catch(() => setError('This evidence link is unavailable. It may have expired or was not shared with your account.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+    fetchLink(false);
+  }, [id, fetchLink]);
+
+  useEffect(() => {
+    const handleFocus = () => fetchLink(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchLink(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchLink]);
 
   const evidence = access?.evidence;
 
@@ -158,7 +183,14 @@ export default function AccreditorLinkDetailPage() {
                 {visibleEvidence.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <strong>{item.originalFileName}</strong>
+                      <div className="am-evidence-name-row">
+                        <strong>{item.originalFileName}</strong>
+                        {item.fileType !== 'LINK' && !item.linkUrl && (
+                          <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
+                            v{item.currentVersion || 1}
+                          </span>
+                        )}
+                      </div>
                       <span>{item.fileType} - {formatFileSize(item.fileSize)}</span>
                     </td>
                     <td>{item.sourceActivity || '-'}</td>

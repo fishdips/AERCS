@@ -15,6 +15,7 @@ public record SharedEvidenceResponse(
         String linkUrl,
         String fileType,
         long fileSize,
+        int currentVersion,
         AccreditationArea accreditationArea,
         String academicYear,
         String department,

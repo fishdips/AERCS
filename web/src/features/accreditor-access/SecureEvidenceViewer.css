@@ -33,10 +33,64 @@
   -webkit-user-drag: none;
 }
 
-/* Word documents render at their own page width inside a gray wrapper. */
+/* Word documents render responsively inside the preview container without clipping or overlapping. */
 .sev-docx {
   width: 100%;
-  overflow: auto;
+  overflow-x: auto;
+  color: #111827;
+  text-transform: none;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.sev-docx .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  display: block !important;
+  align-items: stretch !important;
+}
+
+.sev-docx .docx-wrapper > section.docx {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: auto !important;
+  padding: 24px 28px !important;
+  margin: 0 0 12px 0 !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.sev-docx .docx-wrapper > section.docx:last-child {
+  margin-bottom: 0 !important;
+}
+
+.sev-docx p,
+.sev-docx span,
+.sev-docx li,
+.sev-docx td,
+.sev-docx th {
+  line-height: 1.55 !important;
+  text-transform: none;
+}
+
+.sev-docx p {
+  margin-top: 0;
+  margin-bottom: 0.65em;
+}
+
+.sev-docx table {
+  max-width: 100% !important;
+  border-collapse: collapse;
+}
+
+.sev-docx img {
+  max-width: 100% !important;
+  height: auto !important;
 }
 
 .sev-sheet {

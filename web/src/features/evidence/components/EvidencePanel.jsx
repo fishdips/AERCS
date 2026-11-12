@@ -16,6 +16,7 @@ import Modal from '../../../shared/components/Modal';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
+import EvidenceVersionsModal from './EvidenceVersionsModal';
 import { formatEvidenceType, formatRelatedOffice, isForeignUnit, isUserUnitTagged } from '../constants';
 import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -28,6 +29,7 @@ import {
   ExternalLink,
   Eye,
   FolderUp,
+  History,
   Link2,
   Pencil,
   RefreshCw,
@@ -194,7 +196,7 @@ export default function EvidencePanel({
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null });
+  const [replacement, setReplacement] = useState({ evidenceId: '', file: null, item: null, versionNote: '' });
   const [editLinkModal, setEditLinkModal] = useState({ isOpen: false, item: null, title: '', linkUrl: '' });
   const [error, setError] = useState('');
   const [activityOwner, setActivityOwner] = useState(null);
@@ -203,6 +205,7 @@ export default function EvidencePanel({
   const [busyEvidenceId, setBusyEvidenceId] = useState('');
   const [pendingReplaceIndex, setPendingReplaceIndex] = useState(null);
   const [metadataEvidence, setMetadataEvidence] = useState(null);
+  const [versionsEvidence, setVersionsEvidence] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [duplicateWarnings, setDuplicateWarnings] = useState([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -465,7 +468,7 @@ export default function EvidencePanel({
     const validationError = validateFiles([file]);
     if (validationError) { setError(validationError); return; }
     setError('');
-    setReplacement({ evidenceId: item.id, file, item });
+    setReplacement({ evidenceId: item.id, file, item, versionNote: '' });
   };
 
   const handleReplace = async () => {
@@ -473,8 +476,8 @@ export default function EvidencePanel({
     setBusyEvidenceId(replacement.evidenceId);
     setError('');
     try {
-      await replaceEvidence(replacement.evidenceId, replacement.file);
-      setReplacement({ evidenceId: '', file: null, item: null });
+      await replaceEvidence(replacement.evidenceId, replacement.file, replacement.versionNote);
+      setReplacement({ evidenceId: '', file: null, item: null, versionNote: '' });
       await loadEvidence();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to replace evidence.');
@@ -708,7 +711,26 @@ export default function EvidencePanel({
                         />
                       )}
                       <div>
-                        <span className="am-evidence-name">{item.originalFileName}</span>
+                        <div className="am-evidence-name-row">
+                          <span className="am-evidence-name">{item.originalFileName}</span>
+                          {item.fileType !== 'LINK' && !item.linkUrl && (
+                            <button
+                              type="button"
+                              className={
+                                (item.currentVersion || 1) > 1
+                                  ? 'am-version-badge am-version-badge-multi'
+                                  : 'am-version-badge'
+                              }
+                              title="View version history"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setVersionsEvidence(item);
+                              }}
+                            >
+                              <Icon as={History} size={11} /> v{item.currentVersion || 1}
+                            </button>
+                          )}
+                        </div>
                         {hasMetadata(item) && (
                           <span className="am-evidence-meta am-evidence-meta-assigned">
                             <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
@@ -753,6 +775,12 @@ export default function EvidencePanel({
                           }),
                         },
                         item.fileType !== 'LINK' && !item.linkUrl && {
+                          icon: History,
+                          label: `Version History (v${item.currentVersion || 1})`,
+                          disabled: managementLocked,
+                          onClick: () => setVersionsEvidence(item),
+                        },
+                        item.fileType !== 'LINK' && !item.linkUrl && {
                           icon: Download,
                           label: busyEvidenceId === item.id ? 'Downloading...' : 'Download',
                           disabled: managementLocked || busyEvidenceId === item.id,
@@ -762,7 +790,7 @@ export default function EvidencePanel({
                           key: 'replace',
                           render: ({ className, close }) => (
                             <label className={managementLocked ? `${className} ui-action-menu-disabled` : className}>
-                              <Icon as={RefreshCw} /> Replace File
+                              <Icon as={RefreshCw} /> Upload New Version / Replace
                               <input
                                 className="am-hidden-input"
                                 type="file"
@@ -872,24 +900,34 @@ export default function EvidencePanel({
       {/* Replace File Modal */}
       <Modal
         isOpen={Boolean(replacement.evidenceId && replacement.file)}
-        onClose={() => setReplacement({ evidenceId: '', file: null, item: null })}
-        title="Replace Evidence"
+        onClose={() => setReplacement({ evidenceId: '', file: null, item: null, versionNote: '' })}
+        title="Upload New Version / Replace Evidence"
       >
         <div className="am-replace-modal">
           <p className="am-replace-copy">
-            Save this replacement to update the selected evidence record. The current file will be replaced.
+            Save this file as <strong>v{(replacement.item?.currentVersion || 1) + 1}</strong>. The previous version (v{replacement.item?.currentVersion || 1}) will remain saved in Version History.
           </p>
           <dl className="am-replace-details">
-            <div><dt>Current File</dt><dd>{replacement.item?.originalFileName || '-'}</dd></div>
-            <div><dt>Replacement File</dt><dd>{replacement.file?.name || '-'}</dd></div>
+            <div><dt>Current File (v{replacement.item?.currentVersion || 1})</dt><dd>{replacement.item?.originalFileName || '-'}</dd></div>
+            <div><dt>New Version (v{(replacement.item?.currentVersion || 1) + 1})</dt><dd>{replacement.file?.name || '-'}</dd></div>
             <div><dt>Type</dt><dd>{replacement.file?.name?.split('.').pop()?.toUpperCase() || '-'}</dd></div>
             <div><dt>Size</dt><dd>{formatFileSize(replacement.file?.size, 'FILE')}</dd></div>
           </dl>
+          <label className="am-form-field">
+            <span className="am-form-label">Version Note (Optional)</span>
+            <input
+              className="am-input"
+              placeholder="e.g. Updated with signed attendance pages"
+              value={replacement.versionNote}
+              onChange={(e) => setReplacement((prev) => ({ ...prev, versionNote: e.target.value }))}
+              disabled={Boolean(busyEvidenceId)}
+            />
+          </label>
           <div className="am-form-actions am-replace-actions">
             <button
               className="am-btn-secondary"
               type="button"
-              onClick={() => setReplacement({ evidenceId: '', file: null, item: null })}
+              onClick={() => setReplacement({ evidenceId: '', file: null, item: null, versionNote: '' })}
               disabled={Boolean(busyEvidenceId)}
             >
               Cancel
@@ -900,7 +938,7 @@ export default function EvidencePanel({
               onClick={handleReplace}
               disabled={Boolean(busyEvidenceId)}
             >
-              {busyEvidenceId ? 'Saving...' : 'Save'}
+              {busyEvidenceId ? 'Saving...' : `Save as v${(replacement.item?.currentVersion || 1) + 1}`}
             </button>
           </div>
         </div>
@@ -956,6 +994,14 @@ export default function EvidencePanel({
         isOpen={Boolean(metadataEvidence)}
         onClose={() => setMetadataEvidence(null)}
         onSaved={loadEvidence}
+      />
+
+      <EvidenceVersionsModal
+        evidence={versionsEvidence}
+        isOpen={Boolean(versionsEvidence)}
+        onClose={() => setVersionsEvidence(null)}
+        canManage={versionsEvidence ? canManageItem(versionsEvidence) && !managementLocked : false}
+        onRestored={loadEvidence}
       />
 
       <ConfirmModal

@@ -6,6 +6,7 @@ import com.aercs.dto.request.EvidenceMetadataRequest;
 import com.aercs.dto.request.UpdateLinkEvidenceRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
+import com.aercs.dto.response.EvidenceVersionResponse;
 import jakarta.validation.Valid;
 import com.aercs.service.EvidenceService;
 import lombok.RequiredArgsConstructor;
@@ -131,10 +132,72 @@ public class EvidenceController {
 
     @PutMapping(value = "/api/evidence/{evidenceId}/replace", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize(WRITE_ROLES)
-    public ResponseEntity<EvidenceResponse> replaceEvidence(@PathVariable UUID evidenceId,
-                                                             @RequestParam("file") MultipartFile file,
-                                                             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(evidenceService.replaceEvidence(evidenceId, file, userDetails.getUsername()));
+    public ResponseEntity<EvidenceResponse> replaceEvidence(
+            @PathVariable UUID evidenceId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "versionNote", required = false) String versionNote,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.replaceEvidence(evidenceId, file, versionNote, userDetails.getUsername()));
+    }
+
+    @GetMapping("/api/evidence/{evidenceId}/versions")
+    public ResponseEntity<List<EvidenceVersionResponse>> listVersions(
+            @PathVariable UUID evidenceId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.listVersions(evidenceId, userDetails.getUsername()));
+    }
+
+    @GetMapping("/api/evidence/{evidenceId}/versions/{versionId}/download")
+    public ResponseEntity<Resource> downloadEvidenceVersion(
+            @PathVariable UUID evidenceId,
+            @PathVariable UUID versionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        EvidenceService.EvidenceDownload download = evidenceService.getVersionDownload(
+                evidenceId, versionId, userDetails.getUsername());
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(download.fileSize())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.originalFileName(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .body(download.resource());
+    }
+
+    @GetMapping("/api/evidence/{evidenceId}/versions/{versionId}/view")
+    public ResponseEntity<Resource> viewEvidenceVersion(
+            @PathVariable UUID evidenceId,
+            @PathVariable UUID versionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        EvidenceService.EvidenceDownload view = evidenceService.getVersionView(
+                evidenceId, versionId, userDetails.getUsername());
+        return ResponseEntity.ok()
+                .contentType(view.mediaType())
+                .contentLength(view.fileSize())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(view.originalFileName(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .body(view.resource());
+    }
+
+    @PostMapping("/api/evidence/{evidenceId}/versions/{versionId}/restore")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<EvidenceResponse> restoreEvidenceVersion(
+            @PathVariable UUID evidenceId,
+            @PathVariable UUID versionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(evidenceService.restoreVersion(evidenceId, versionId, userDetails.getUsername()));
+    }
+
+    @DeleteMapping("/api/evidence/{evidenceId}/versions/{versionId}")
+    @PreAuthorize(WRITE_ROLES)
+    public ResponseEntity<Map<String, String>> deleteEvidenceVersion(
+            @PathVariable UUID evidenceId,
+            @PathVariable UUID versionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        evidenceService.deleteVersion(evidenceId, versionId, userDetails.getUsername());
+        return ResponseEntity.ok(Map.of("message", "Version removed"));
     }
 
     @DeleteMapping("/api/evidence/{evidenceId}")

@@ -6,8 +6,10 @@ import com.aercs.dto.request.EvidenceMetadataRequest;
 import com.aercs.dto.request.UpdateLinkEvidenceRequest;
 import com.aercs.dto.response.EvidenceMetadataResponse;
 import com.aercs.dto.response.EvidenceResponse;
+import com.aercs.dto.response.EvidenceVersionResponse;
 import com.aercs.entity.Activity;
 import com.aercs.entity.Evidence;
+import com.aercs.entity.EvidenceVersion;
 import com.aercs.entity.RelatedOffice;
 import com.aercs.entity.User;
 import com.aercs.exception.BadRequestException;
@@ -15,6 +17,7 @@ import com.aercs.exception.ForbiddenException;
 import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
+import com.aercs.repository.EvidenceVersionRepository;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
@@ -39,6 +42,7 @@ public class EvidenceService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "xlsx", "jpg", "jpeg", "png");
 
     private final EvidenceRepository evidenceRepository;
+    private final EvidenceVersionRepository evidenceVersionRepository;
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final SupabaseStorageService storageService;
@@ -57,13 +61,35 @@ public class EvidenceService {
                 .toList();
     }
 
-    // Looks for an existing file with identical content anywhere in the repository
-    // (any activity, office or department) before saving the new upload, so the
-    // response can flag it - the goal is fewer duplicate files across offices, not
-    // just within one activity.
+    // Looks for an existing file with identical content or same filename before saving:
+    // 1. If the exact same content (hash + size) already exists in the same activity, reject it.
+    // 2. If a file with the same filename already exists in the same activity with modified content,
+    //    automatically create a new version (v2, v3, ...) of that evidence record.
+    // 3. If the same content exists in another activity/office, save and attach a DuplicateWarning.
     private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy) {
         validateFile(file);
         String fileHash = computeFileHash(file);
+        String cleanName = cleanFileName(file.getOriginalFilename());
+
+        List<Evidence> sameActivityEvidence = evidenceRepository.findByActivityIdOrderByUploadedAtDesc(activity.getId());
+        if (fileHash != null) {
+            Evidence sameContentInActivity = sameActivityEvidence.stream()
+                    .filter(e -> fileHash.equals(e.getFileHash()) && e.getFileSize() == file.getSize())
+                    .findFirst()
+                    .orElse(null);
+            if (sameContentInActivity != null) {
+                throw new BadRequestException("Duplicate file content: \"" + cleanName
+                        + "\" has identical content to \"" + sameContentInActivity.getOriginalFileName()
+                        + "\" (v" + Math.max(1, sameContentInActivity.getCurrentVersion()) + ") already in this activity.");
+            }
+        }
+
+        Evidence sameNameInActivity = sameActivityEvidence.stream()
+                .filter(e -> !"LINK".equalsIgnoreCase(e.getFileType()))
+                .filter(e -> cleanName.equalsIgnoreCase(e.getOriginalFileName()))
+                .findFirst()
+                .orElse(null);
+
         // A matching hash only counts if the stored file is the same size too: records whose
         // file was replaced before the hash was kept in sync carry a stale hash and must not
         // be reported as duplicates of a file they no longer hold.
@@ -71,10 +97,22 @@ public class EvidenceService {
                 ? null
                 : evidenceRepository.findByFileHashOrderByUploadedAtAsc(fileHash).stream()
                         .filter(e -> e.getFileSize() == file.getSize())
+                        .filter(e -> sameNameInActivity == null || !e.getId().equals(sameNameInActivity.getId()))
                         .findFirst()
                         .orElse(null);
 
-        Evidence saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
+        Evidence saved;
+        if (sameNameInActivity != null) {
+            saved = applyNewVersion(
+                    sameNameInActivity,
+                    file,
+                    fileHash,
+                    uploadedBy,
+                    "Uploaded new version of " + cleanName
+            );
+        } else {
+            saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
+        }
 
         EvidenceResponse.DuplicateWarning duplicateWarning = existingDuplicate == null ? null
                 : new EvidenceResponse.DuplicateWarning(
@@ -209,10 +247,11 @@ public class EvidenceService {
         if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
             throw new BadRequestException("Download is not applicable for link evidence. Please open the link directly.");
         }
-        byte[] bytes = storageService.download(evidence.getFilePath());
+        ActiveVersionSnapshot active = resolveActiveVersionSnapshot(evidence);
+        byte[] bytes = storageService.download(active.filePath());
         return new EvidenceDownload(
-                evidence.getOriginalFileName(),
-                evidence.getFileType(),
+                active.originalFileName(),
+                active.fileType(),
                 bytes.length,
                 MediaType.APPLICATION_OCTET_STREAM,
                 new ByteArrayResource(bytes)
@@ -225,14 +264,168 @@ public class EvidenceService {
         if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
             throw new BadRequestException("Preview is not applicable for link evidence. Please open the link directly.");
         }
-        MediaType mediaType = previewMediaType(evidence.getFileType());
+        ActiveVersionSnapshot active = resolveActiveVersionSnapshot(evidence);
+        MediaType mediaType = previewMediaType(active.fileType());
         if (mediaType == null) {
             throw new BadRequestException("Preview is not available for this file type. Please download the file.");
         }
-        byte[] bytes = storageService.download(evidence.getFilePath());
+        byte[] bytes = storageService.download(active.filePath());
         return new EvidenceDownload(
-                evidence.getOriginalFileName(),
-                evidence.getFileType(),
+                active.originalFileName(),
+                active.fileType(),
+                bytes.length,
+                mediaType,
+                new ByteArrayResource(bytes)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public ActiveVersionSnapshot resolveActiveVersionSnapshot(Evidence evidence) {
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            return new ActiveVersionSnapshot(
+                    evidence.getOriginalFileName(),
+                    evidence.getFilePath(),
+                    evidence.getFileType(),
+                    evidence.getFileSize(),
+                    Math.max(1, evidence.getCurrentVersion())
+            );
+        }
+
+        Evidence canonical = findRichestLineageSource(evidence);
+        List<EvidenceVersion> versions = evidenceVersionRepository
+                .findByEvidenceIdOrderByVersionNumberDesc(canonical.getId()).stream()
+                .filter(v -> v.getVersionNote() == null || !v.getVersionNote().startsWith("Restored from v"))
+                .toList();
+
+        int targetVer = Math.max(1, canonical.getCurrentVersion());
+        if (!versions.isEmpty()) {
+            EvidenceVersion active = versions.stream()
+                    .filter(v -> v.getVersionNumber() == targetVer)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        // If canonical.currentVersion pointed to a restored duplicate, match by hash/path or take latest
+                        if (canonical.getFileHash() != null) {
+                            for (int i = versions.size() - 1; i >= 0; i--) {
+                                EvidenceVersion v = versions.get(i);
+                                if (canonical.getFileHash().equals(v.getFileHash())) {
+                                    return v;
+                                }
+                            }
+                        }
+                        return versions.get(0);
+                    });
+            return new ActiveVersionSnapshot(
+                    active.getOriginalFileName(),
+                    active.getFilePath(),
+                    active.getFileType(),
+                    active.getFileSize(),
+                    active.getVersionNumber()
+            );
+        }
+
+        return new ActiveVersionSnapshot(
+                canonical.getOriginalFileName(),
+                canonical.getFilePath(),
+                canonical.getFileType(),
+                canonical.getFileSize(),
+                targetVer
+        );
+    }
+
+    public record ActiveVersionSnapshot(
+            String originalFileName,
+            String filePath,
+            String fileType,
+            long fileSize,
+            int currentVersion
+    ) {}
+
+    @Transactional
+    public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String userId) {
+        return replaceEvidence(evidenceId, file, null, userId);
+    }
+
+    @Transactional
+    public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String versionNote, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, userId);
+        validateFile(file);
+
+        String fileHash = computeFileHash(file);
+        if (fileHash != null && fileHash.equals(evidence.getFileHash()) && file.getSize() == evidence.getFileSize()) {
+            throw new BadRequestException("This file has identical content to the current version (v"
+                    + Math.max(1, evidence.getCurrentVersion())
+                    + "). Upload a modified file to create a new version.");
+        }
+
+        User uploader = userRepository.findByIdentifier(userId).orElse(evidence.getUploadedBy());
+        String note = trimToNull(versionNote) != null ? trimToNull(versionNote) : "Replaced file";
+        Evidence saved = applyNewVersion(evidence, file, fileHash, uploader, note);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public List<EvidenceVersionResponse> listVersions(UUID evidenceId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        accessService.assertCanViewEvidence(evidence, userId);
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            return List.of();
+        }
+        cleanupDuplicateRestoredVersions(evidence);
+        reconcileWithSiblingLineage(evidence);
+        List<EvidenceVersion> versions = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidenceId);
+        if (versions.isEmpty()) {
+            User uploadedBy = evidence.getUploadedBy();
+            int ver = Math.max(1, evidence.getCurrentVersion());
+            return List.of(new EvidenceVersionResponse(
+                    evidence.getId(),
+                    evidence.getId(),
+                    ver,
+                    true,
+                    evidence.getOriginalFileName(),
+                    evidence.getFileType(),
+                    evidence.getFileSize(),
+                    evidence.getFileHash(),
+                    "Initial upload",
+                    uploadedBy == null ? null : uploadedBy.getId(),
+                    uploadedBy == null ? null : uploadedBy.getName(),
+                    evidence.getUploadedAt()
+            ));
+        }
+        int currentVer = Math.max(1, evidence.getCurrentVersion());
+        return versions.stream()
+                .map(v -> toVersionResponse(v, v.getVersionNumber() == currentVer))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public EvidenceDownload getVersionDownload(UUID evidenceId, UUID versionId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        accessService.assertCanViewEvidence(evidence, userId);
+        VersionFileTarget target = resolveVersionFileTarget(evidence, versionId);
+        byte[] bytes = storageService.download(target.filePath());
+        return new EvidenceDownload(
+                target.originalFileName(),
+                target.fileType(),
+                bytes.length,
+                MediaType.APPLICATION_OCTET_STREAM,
+                new ByteArrayResource(bytes)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public EvidenceDownload getVersionView(UUID evidenceId, UUID versionId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        accessService.assertCanViewEvidence(evidence, userId);
+        VersionFileTarget target = resolveVersionFileTarget(evidence, versionId);
+        MediaType mediaType = previewMediaType(target.fileType());
+        if (mediaType == null) {
+            throw new BadRequestException("Preview is not available for this file type. Please download the file.");
+        }
+        byte[] bytes = storageService.download(target.filePath());
+        return new EvidenceDownload(
+                target.originalFileName(),
+                target.fileType(),
                 bytes.length,
                 mediaType,
                 new ByteArrayResource(bytes)
@@ -240,49 +433,123 @@ public class EvidenceService {
     }
 
     @Transactional
-    public EvidenceResponse replaceEvidence(UUID evidenceId, MultipartFile file, String userId) {
+    public EvidenceResponse restoreVersion(UUID evidenceId, UUID versionId, String userId) {
         Evidence evidence = findEvidence(evidenceId);
         assertCanModify(evidence, userId);
-        validateFile(file);
+        ensureInitialVersionRecorded(evidence);
+        cleanupDuplicateRestoredVersions(evidence);
 
-        String oldPath = evidence.getFilePath();
-        String extension = getExtension(file.getOriginalFilename());
-        String storedFileName = UUID.randomUUID() + "." + extension;
-        String objectPath = evidence.getActivity().getId() + "/" + storedFileName;
+        EvidenceVersion target = evidenceVersionRepository.findByIdAndEvidenceId(versionId, evidenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evidence version not found"));
 
-        try {
-            storageService.upload(objectPath, file.getBytes(), contentTypeFor(extension));
-        } catch (IOException e) {
-            throw new BadRequestException("Unable to store evidence file");
+        if (target.getVersionNumber() == evidence.getCurrentVersion()) {
+            throw new BadRequestException("Version v" + target.getVersionNumber() + " is already the current version");
         }
 
-        evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
-        evidence.setStoredFileName(storedFileName);
-        evidence.setFilePath(objectPath);
+        OffsetDateTime now = OffsetDateTime.now();
+        evidence.setOriginalFileName(target.getOriginalFileName());
+        evidence.setStoredFileName(target.getStoredFileName());
+        evidence.setFilePath(target.getFilePath());
         evidence.setLinkUrl(null);
-        evidence.setFileType(extension.toUpperCase(Locale.ROOT));
-        evidence.setFileSize(file.getSize());
-        // Keep the content hash in step with the stored file; otherwise the old file's hash
-        // lingers and later uploads are compared against content that no longer exists.
-        evidence.setFileHash(computeFileHash(file));
-        evidence.setUpdatedAt(OffsetDateTime.now());
-        userRepository.findByIdentifier(userId).ifPresent(evidence::setUploadedBy);
+        evidence.setFileType(target.getFileType());
+        evidence.setFileSize(target.getFileSize());
+        evidence.setFileHash(target.getFileHash());
+        evidence.setCurrentVersion(target.getVersionNumber());
+        evidence.setUpdatedAt(now);
+        if (target.getUploadedBy() != null) {
+            evidence.setUploadedBy(target.getUploadedBy());
+        }
 
         Evidence saved = evidenceRepository.save(evidence);
-        if (oldPath != null && !oldPath.isBlank()) {
-            storageService.delete(oldPath);
-        }
+        syncSiblingEvidenceLineage(saved);
         return toResponse(saved);
+    }
+
+    @Transactional
+    public void deleteVersion(UUID evidenceId, UUID versionId, String userId) {
+        Evidence evidence = findEvidence(evidenceId);
+        assertCanModify(evidence, userId);
+        ensureInitialVersionRecorded(evidence);
+        cleanupDuplicateRestoredVersions(evidence);
+
+        EvidenceVersion target = evidenceVersionRepository.findByIdAndEvidenceId(versionId, evidenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Evidence version not found"));
+
+        List<EvidenceVersion> allVersions = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidenceId);
+        if (allVersions.size() <= 1) {
+            throw new BadRequestException("Cannot delete the only version of an evidence file.");
+        }
+        if (target.getVersionNumber() == evidence.getCurrentVersion()) {
+            throw new BadRequestException("Cannot delete the currently active version. Restore another version first.");
+        }
+
+        String deletedFilePath = target.getFilePath();
+        evidenceVersionRepository.delete(target);
+        syncSiblingEvidenceLineage(evidence);
+
+        if (deletedFilePath != null && !deletedFilePath.isBlank()
+                && !evidenceVersionRepository.existsByFilePath(deletedFilePath)
+                && !evidenceRepository.existsByFilePath(deletedFilePath)) {
+            storageService.delete(deletedFilePath);
+        }
+    }
+
+    private void cleanupDuplicateRestoredVersions(Evidence evidence) {
+        List<EvidenceVersion> versions = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidence.getId());
+        if (versions.size() <= 1) {
+            return;
+        }
+        List<EvidenceVersion> ascending = new ArrayList<>(versions);
+        Collections.reverse(ascending);
+
+        Map<String, EvidenceVersion> canonicalByContent = new LinkedHashMap<>();
+        boolean updatedEvidence = false;
+
+        for (EvidenceVersion v : ascending) {
+            String key = (v.getFileHash() != null ? v.getFileHash() : "") + ":" + v.getFileSize() + ":" + Objects.toString(v.getFilePath(), "");
+            boolean isRestoredCopy = v.getVersionNote() != null && v.getVersionNote().startsWith("Restored from v");
+            EvidenceVersion canonical = canonicalByContent.get(key);
+
+            if (isRestoredCopy && canonical != null) {
+                if (evidence.getCurrentVersion() == v.getVersionNumber()) {
+                    evidence.setCurrentVersion(canonical.getVersionNumber());
+                    evidence.setOriginalFileName(canonical.getOriginalFileName());
+                    evidence.setStoredFileName(canonical.getStoredFileName());
+                    evidence.setFilePath(canonical.getFilePath());
+                    evidence.setFileType(canonical.getFileType());
+                    evidence.setFileSize(canonical.getFileSize());
+                    evidence.setFileHash(canonical.getFileHash());
+                    updatedEvidence = true;
+                }
+                evidenceVersionRepository.delete(v);
+            } else {
+                canonicalByContent.putIfAbsent(key, v);
+            }
+        }
+
+        if (updatedEvidence) {
+            evidenceRepository.save(evidence);
+        }
     }
 
     @Transactional
     public void deleteEvidence(UUID evidenceId, UUID currentUserId) {
         Evidence evidence = findEvidence(evidenceId);
         assertCanModify(evidence, currentUserId);
-        String objectPath = evidence.getFilePath();
+        Set<String> objectPaths = new LinkedHashSet<>();
+        if (evidence.getFilePath() != null && !evidence.getFilePath().isBlank()) {
+            objectPaths.add(evidence.getFilePath());
+        }
+        evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidenceId).stream()
+                .map(EvidenceVersion::getFilePath)
+                .filter(p -> p != null && !p.isBlank())
+                .forEach(objectPaths::add);
         evidenceRepository.delete(evidence);
-        if (objectPath != null && !objectPath.isBlank()) {
-            storageService.delete(objectPath);
+        for (String path : objectPaths) {
+            if (!evidenceVersionRepository.existsByFilePath(path)
+                    && !evidenceRepository.existsByFilePath(path)) {
+                storageService.delete(path);
+            }
         }
     }
 
@@ -305,10 +572,289 @@ public class EvidenceService {
         evidence.setFilePath(objectPath);
         evidence.setFileType(extension.toUpperCase(Locale.ROOT));
         evidence.setFileSize(file.getSize());
+        evidence.setCurrentVersion(1);
         evidence.setFileHash(fileHash);
         evidence.setUploadedBy(uploadedBy);
-        return evidenceRepository.save(evidence);
+        Evidence saved = evidenceRepository.save(evidence);
+
+        EvidenceVersion initialVersion = new EvidenceVersion();
+        initialVersion.setEvidence(saved);
+        initialVersion.setVersionNumber(1);
+        initialVersion.setOriginalFileName(saved.getOriginalFileName());
+        initialVersion.setStoredFileName(saved.getStoredFileName());
+        initialVersion.setFilePath(saved.getFilePath());
+        initialVersion.setFileType(saved.getFileType());
+        initialVersion.setFileSize(saved.getFileSize());
+        initialVersion.setFileHash(saved.getFileHash());
+        initialVersion.setVersionNote("Initial upload");
+        initialVersion.setUploadedBy(uploadedBy);
+        initialVersion.setUploadedAt(saved.getUploadedAt());
+        evidenceVersionRepository.save(initialVersion);
+
+        return saved;
     }
+
+    private Evidence applyNewVersion(
+            Evidence evidence,
+            MultipartFile file,
+            String fileHash,
+            User uploadedBy,
+            String versionNote
+    ) {
+        ensureInitialVersionRecorded(evidence);
+        cleanupDuplicateRestoredVersions(evidence);
+
+        if (fileHash != null) {
+            Optional<EvidenceVersion> matchingVersion = evidenceVersionRepository
+                    .findByEvidenceIdOrderByVersionNumberDesc(evidence.getId()).stream()
+                    .filter(v -> fileHash.equals(v.getFileHash()) && file.getSize() == v.getFileSize())
+                    .findFirst();
+            if (matchingVersion.isPresent()) {
+                int ver = matchingVersion.get().getVersionNumber();
+                throw new BadRequestException("This file has identical content to version v" + ver
+                        + ". Use Restore in Version History to switch back to v" + ver + ".");
+            }
+        }
+
+        int nextVersion = nextVersionNumber(evidence);
+
+        String extension = getExtension(file.getOriginalFilename());
+        String storedFileName = UUID.randomUUID() + "." + extension;
+        String objectPath = evidence.getActivity().getId() + "/" + storedFileName;
+
+        try {
+            storageService.upload(objectPath, file.getBytes(), contentTypeFor(extension));
+        } catch (IOException e) {
+            throw new BadRequestException("Unable to store evidence file");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        evidence.setOriginalFileName(cleanFileName(file.getOriginalFilename()));
+        evidence.setStoredFileName(storedFileName);
+        evidence.setFilePath(objectPath);
+        evidence.setLinkUrl(null);
+        evidence.setFileType(extension.toUpperCase(Locale.ROOT));
+        evidence.setFileSize(file.getSize());
+        evidence.setFileHash(fileHash);
+        evidence.setCurrentVersion(nextVersion);
+        evidence.setUpdatedAt(now);
+        if (uploadedBy != null) {
+            evidence.setUploadedBy(uploadedBy);
+        }
+
+        Evidence saved = evidenceRepository.save(evidence);
+
+        EvidenceVersion newVersion = new EvidenceVersion();
+        newVersion.setEvidence(saved);
+        newVersion.setVersionNumber(nextVersion);
+        newVersion.setOriginalFileName(saved.getOriginalFileName());
+        newVersion.setStoredFileName(saved.getStoredFileName());
+        newVersion.setFilePath(saved.getFilePath());
+        newVersion.setFileType(saved.getFileType());
+        newVersion.setFileSize(saved.getFileSize());
+        newVersion.setFileHash(saved.getFileHash());
+        newVersion.setVersionNote(versionNote);
+        newVersion.setUploadedBy(uploadedBy);
+        newVersion.setUploadedAt(now);
+        evidenceVersionRepository.save(newVersion);
+        syncSiblingEvidenceLineage(saved);
+
+        return saved;
+    }
+
+    private Evidence findRichestLineageSource(Evidence evidence) {
+        Set<String> hashes = collectLineageHashes(evidence);
+        if (hashes.isEmpty()) {
+            return evidence;
+        }
+        List<EvidenceVersion> ownVersions = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidence.getId());
+        int bestCount = (int) ownVersions.stream()
+                .filter(v -> v.getVersionNote() == null || !v.getVersionNote().startsWith("Restored from v"))
+                .count();
+        Evidence best = evidence;
+
+        for (Evidence sibling : findSiblingEvidence(evidence, hashes)) {
+            List<EvidenceVersion> sibVersions = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(sibling.getId());
+            int sibCount = (int) sibVersions.stream()
+                    .filter(v -> v.getVersionNote() == null || !v.getVersionNote().startsWith("Restored from v"))
+                    .count();
+            if (sibCount > bestCount || (sibCount == bestCount && sibCount > 0
+                    && sibling.getUpdatedAt() != null && best.getUpdatedAt() != null
+                    && sibling.getUpdatedAt().isAfter(best.getUpdatedAt()))) {
+                bestCount = sibCount;
+                best = sibling;
+            }
+        }
+        return best;
+    }
+
+    private void reconcileWithSiblingLineage(Evidence evidence) {
+        Evidence source = findRichestLineageSource(evidence);
+        if (!source.getId().equals(evidence.getId())) {
+            cleanupDuplicateRestoredVersions(source);
+            copyLineageFromSource(source, evidence);
+        }
+    }
+
+    private void syncSiblingEvidenceLineage(Evidence source) {
+        if ("LINK".equalsIgnoreCase(source.getFileType())) {
+            return;
+        }
+        Set<String> hashes = collectLineageHashes(source);
+        if (hashes.isEmpty()) {
+            return;
+        }
+        for (Evidence sibling : findSiblingEvidence(source, hashes)) {
+            copyLineageFromSource(source, sibling);
+        }
+    }
+
+    private Set<String> collectLineageHashes(Evidence evidence) {
+        Set<String> hashes = new LinkedHashSet<>();
+        if (evidence.getFileHash() != null && !evidence.getFileHash().isBlank()) {
+            hashes.add(evidence.getFileHash());
+        }
+        evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidence.getId()).stream()
+                .map(EvidenceVersion::getFileHash)
+                .filter(h -> h != null && !h.isBlank())
+                .forEach(hashes::add);
+        return hashes;
+    }
+
+    private List<Evidence> findSiblingEvidence(Evidence self, Set<String> hashes) {
+        if (hashes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Evidence> siblings = new LinkedHashMap<>();
+        evidenceRepository.findByFileHashIn(hashes).forEach(e -> {
+            if (!e.getId().equals(self.getId()) && !"LINK".equalsIgnoreCase(e.getFileType())) {
+                siblings.put(e.getId(), e);
+            }
+        });
+        evidenceVersionRepository.findByFileHashIn(hashes).forEach(v -> {
+            Evidence e = v.getEvidence();
+            if (e != null && !e.getId().equals(self.getId()) && !"LINK".equalsIgnoreCase(e.getFileType())) {
+                siblings.put(e.getId(), e);
+            }
+        });
+        return new ArrayList<>(siblings.values());
+    }
+
+    private void copyLineageFromSource(Evidence source, Evidence target) {
+        List<EvidenceVersion> sourceVersions = evidenceVersionRepository
+                .findByEvidenceIdOrderByVersionNumberDesc(source.getId());
+        List<EvidenceVersion> targetVersions = evidenceVersionRepository
+                .findByEvidenceIdOrderByVersionNumberDesc(target.getId());
+
+        Set<Integer> sourceVerNums = new LinkedHashSet<>();
+        Map<Integer, EvidenceVersion> targetByNum = new LinkedHashMap<>();
+        for (EvidenceVersion tv : targetVersions) {
+            targetByNum.put(tv.getVersionNumber(), tv);
+        }
+
+        List<EvidenceVersion> ascendingSource = new ArrayList<>(sourceVersions);
+        Collections.reverse(ascendingSource);
+        for (EvidenceVersion sv : ascendingSource) {
+            sourceVerNums.add(sv.getVersionNumber());
+            EvidenceVersion tv = targetByNum.get(sv.getVersionNumber());
+            if (tv == null) {
+                tv = new EvidenceVersion();
+                tv.setEvidence(target);
+                tv.setVersionNumber(sv.getVersionNumber());
+            }
+            tv.setOriginalFileName(sv.getOriginalFileName());
+            tv.setStoredFileName(sv.getStoredFileName());
+            tv.setFilePath(sv.getFilePath());
+            tv.setFileType(sv.getFileType());
+            tv.setFileSize(sv.getFileSize());
+            tv.setFileHash(sv.getFileHash());
+            tv.setVersionNote(sv.getVersionNote());
+            tv.setUploadedBy(sv.getUploadedBy());
+            tv.setUploadedAt(sv.getUploadedAt());
+            evidenceVersionRepository.save(tv);
+        }
+
+        for (EvidenceVersion tv : targetVersions) {
+            if (!sourceVerNums.contains(tv.getVersionNumber())) {
+                evidenceVersionRepository.delete(tv);
+            }
+        }
+
+        target.setOriginalFileName(source.getOriginalFileName());
+        target.setStoredFileName(source.getStoredFileName());
+        target.setFilePath(source.getFilePath());
+        target.setFileType(source.getFileType());
+        target.setFileSize(source.getFileSize());
+        target.setFileHash(source.getFileHash());
+        target.setCurrentVersion(source.getCurrentVersion());
+        target.setUpdatedAt(source.getUpdatedAt());
+        evidenceRepository.save(target);
+    }
+
+    private void ensureInitialVersionRecorded(Evidence evidence) {
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            return;
+        }
+        if (evidenceVersionRepository.existsByEvidenceId(evidence.getId())) {
+            return;
+        }
+        EvidenceVersion initial = new EvidenceVersion();
+        initial.setEvidence(evidence);
+        initial.setVersionNumber(Math.max(1, evidence.getCurrentVersion()));
+        initial.setOriginalFileName(evidence.getOriginalFileName());
+        initial.setStoredFileName(evidence.getStoredFileName());
+        initial.setFilePath(evidence.getFilePath());
+        initial.setFileType(evidence.getFileType());
+        initial.setFileSize(evidence.getFileSize());
+        initial.setFileHash(evidence.getFileHash());
+        initial.setVersionNote("Initial upload");
+        initial.setUploadedBy(evidence.getUploadedBy());
+        initial.setUploadedAt(evidence.getUploadedAt() != null ? evidence.getUploadedAt() : OffsetDateTime.now());
+        evidenceVersionRepository.save(initial);
+    }
+
+    private int nextVersionNumber(Evidence evidence) {
+        int highestRecorded = evidenceVersionRepository.findByEvidenceIdOrderByVersionNumberDesc(evidence.getId()).stream()
+                .mapToInt(EvidenceVersion::getVersionNumber)
+                .max()
+                .orElse(0);
+        return Math.max(Math.max(1, evidence.getCurrentVersion()), highestRecorded) + 1;
+    }
+
+    private VersionFileTarget resolveVersionFileTarget(Evidence evidence, UUID versionId) {
+        if ("LINK".equalsIgnoreCase(evidence.getFileType())) {
+            throw new BadRequestException("Version files are not applicable for link evidence.");
+        }
+        Optional<EvidenceVersion> versionOpt = evidenceVersionRepository.findByIdAndEvidenceId(versionId, evidence.getId());
+        if (versionOpt.isPresent()) {
+            EvidenceVersion v = versionOpt.get();
+            return new VersionFileTarget(v.getOriginalFileName(), v.getFileType(), v.getFilePath());
+        }
+        if (versionId.equals(evidence.getId())) {
+            return new VersionFileTarget(evidence.getOriginalFileName(), evidence.getFileType(), evidence.getFilePath());
+        }
+        throw new ResourceNotFoundException("Evidence version not found");
+    }
+
+    private EvidenceVersionResponse toVersionResponse(EvidenceVersion v, boolean isCurrent) {
+        User uploadedBy = v.getUploadedBy();
+        return new EvidenceVersionResponse(
+                v.getId(),
+                v.getEvidence().getId(),
+                v.getVersionNumber(),
+                isCurrent,
+                v.getOriginalFileName(),
+                v.getFileType(),
+                v.getFileSize(),
+                v.getFileHash(),
+                v.getVersionNote(),
+                uploadedBy == null ? null : uploadedBy.getId(),
+                uploadedBy == null ? null : uploadedBy.getName(),
+                v.getUploadedAt()
+        );
+    }
+
+    private record VersionFileTarget(String originalFileName, String fileType, String filePath) {}
 
     private Activity findActivity(UUID activityId) {
         return activityRepository.findById(activityId)
@@ -373,15 +919,17 @@ public class EvidenceService {
 
     private EvidenceResponse toResponse(Evidence evidence, EvidenceResponse.DuplicateWarning duplicateWarning) {
         User uploadedBy = evidence.getUploadedBy();
+        ActiveVersionSnapshot active = resolveActiveVersionSnapshot(evidence);
         return new EvidenceResponse(
                 evidence.getId(),
                 evidence.getActivity().getId(),
                 evidence.getActivity().getActivityName(),
-                evidence.getOriginalFileName(),
+                active.originalFileName(),
                 evidence.getStoredFileName(),
                 evidence.getLinkUrl(),
-                evidence.getFileType(),
-                evidence.getFileSize(),
+                active.fileType(),
+                active.fileSize(),
+                active.currentVersion(),
                 evidence.getActivity().getAccreditationArea(),
                 evidence.getActivity().getAcademicYear(),
                 resolveOwnerOffice(evidence),

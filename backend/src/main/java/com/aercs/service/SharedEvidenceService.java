@@ -36,6 +36,7 @@ public class SharedEvidenceService {
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final EvidenceAccessService accessService;
+    private final EvidenceService evidenceService;
 
     private static final EnumMap<Department, RelatedOffice> DEPARTMENT_TO_RELATED = new EnumMap<>(Department.class);
     private static final EnumMap<Office, RelatedOffice> OFFICE_TO_RELATED = new EnumMap<>(Office.class);
@@ -400,15 +401,17 @@ public class SharedEvidenceService {
         if (uploaderDept == null || uploaderDept.isBlank()) {
             uploaderDept = activity.getDepartment() != null ? activity.getDepartment().name() : activity.getOffice();
         }
+        EvidenceService.ActiveVersionSnapshot active = evidenceService.resolveActiveVersionSnapshot(e);
         return new RepositoryEvidenceResponse(
                 e.getId(),
                 activity.getId(),
                 activity.getActivityName(),
                 activity.getActivityType(),
-                e.getOriginalFileName(),
+                active.originalFileName(),
                 e.getLinkUrl(),
-                e.getFileType(),
-                e.getFileSize(),
+                active.fileType(),
+                active.fileSize(),
+                active.currentVersion(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
@@ -507,14 +510,16 @@ public class SharedEvidenceService {
             uploaderDept = activity.getDepartment() != null ? activity.getDepartment().name() : activity.getOffice();
         }
 
+        EvidenceService.ActiveVersionSnapshot active = evidenceService.resolveActiveVersionSnapshot(e);
         return new SharedEvidenceResponse(
                 e.getId(),
                 activity.getId(),
                 activity.getActivityName(),
-                e.getOriginalFileName(),
+                active.originalFileName(),
                 e.getLinkUrl(),
-                e.getFileType(),
-                e.getFileSize(),
+                active.fileType(),
+                active.fileSize(),
+                active.currentVersion(),
                 activity.getAccreditationArea(),
                 activity.getAcademicYear(),
                 activity.getDepartment() != null ? activity.getDepartment().name() : null,
@@ -555,13 +560,15 @@ public class SharedEvidenceService {
                 sourceActivity.getOffice(),
                 sourceActivity.getDepartment() != null ? sourceActivity.getDepartment().name() : null
         );
+        EvidenceService.ActiveVersionSnapshot active = evidenceService.resolveActiveVersionSnapshot(evidence);
         return new ActivityReferencedEvidenceResponse(
                 r.getId(),
                 evidence.getId(),
-                evidence.getOriginalFileName(),
+                active.originalFileName(),
                 evidence.getLinkUrl(),
-                evidence.getFileType(),
-                evidence.getFileSize(),
+                active.fileType(),
+                active.fileSize(),
+                active.currentVersion(),
                 evidence.getEvidenceType(),
                 sourceActivity.getId(),
                 sourceActivity.getActivityName(),

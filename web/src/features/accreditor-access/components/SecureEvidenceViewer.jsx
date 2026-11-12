@@ -17,7 +17,7 @@ export default function SecureEvidenceViewer({ linkId, evidence, onClose }) {
 
     const load = async () => {
       try {
-        const { data } = await viewAccreditorEvidenceBlob(linkId, evidence.id);
+        const { data } = await viewAccreditorEvidenceBlob(linkId, evidence.id, evidence.currentVersion);
         if (cancelled) return;
         if (evidence.fileType === 'PDF') {
           await renderPdf(data, container, () => cancelled);
@@ -60,8 +60,12 @@ export default function SecureEvidenceViewer({ linkId, evidence, onClose }) {
     };
   }, [evidence]);
 
+  const modalTitle = evidence
+    ? `${evidence.originalFileName || 'Evidence'}${evidence.fileType !== 'LINK' ? ` (v${evidence.currentVersion || 1})` : ''}`
+    : 'Evidence';
+
   return (
-    <Modal isOpen={Boolean(evidence)} onClose={onClose} title={evidence?.originalFileName || 'Evidence'} size="wide">
+    <Modal isOpen={Boolean(evidence)} onClose={onClose} title={modalTitle} size="wide">
       <div className="sev-root">
         <p className="sev-notice">
           View only.

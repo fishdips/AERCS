@@ -11,6 +11,7 @@ public record AccreditorAccessEvidenceResponse(
         String linkUrl,
         String fileType,
         long fileSize,
+        int currentVersion,
         String sourceActivity,
         String ownerOffice,
         AccreditationArea accreditationArea,

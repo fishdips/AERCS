@@ -4,9 +4,11 @@ import { formatAccreditationArea, isServiceOfficeValue } from '../../activities/
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { downloadEvidenceBlob, getEvidenceMetadata, updateEvidenceMetadata, viewEvidenceBlob } from '../api';
 import { EVIDENCE_TYPES, RELATED_OFFICES, formatEvidenceType, formatRelatedOffice } from '../constants';
-import { Globe } from 'lucide-react';
+import { Globe, History } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 import Alert from '../../../shared/components/Alert';
+import EvidencePreview from '../../../shared/components/EvidencePreview';
+import EvidenceVersionsModal from './EvidenceVersionsModal';
 
 const initialForm = {
   evidenceType: '',
@@ -51,7 +53,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [previewError, setPreviewError] = useState('');
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const canPreview = PREVIEW_TYPES.includes(evidence?.fileType);
 
   useEffect(() => {
@@ -82,7 +84,6 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
   useEffect(() => {
     if (!isOpen || !evidence || !canPreview) {
       setPreviewUrl('');
-      setPreviewError('');
       return undefined;
     }
 
@@ -91,16 +92,13 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
 
     const loadPreview = async () => {
       setPreviewUrl('');
-      setPreviewError('');
       try {
         const { data } = await viewEvidenceBlob(evidence.id);
         if (cancelled) return;
         objectUrl = URL.createObjectURL(data);
         setPreviewUrl(objectUrl);
-      } catch (err) {
-        if (!cancelled) {
-          setPreviewError(err.response?.data?.error || 'Preview is not available.');
-        }
+      } catch {
+        // Preview handled inline by EvidencePreview
       }
     };
 
@@ -173,15 +171,12 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
             <section className="am-evidence-file-panel">
               <p className="am-section-label">File</p>
               <div className="am-evidence-preview-box">
-                {canPreview && !previewUrl && !previewError && <span>Loading preview...</span>}
-                {previewError && <span>{previewError}</span>}
-                {!canPreview && <span>Download required</span>}
-                {previewUrl && evidence?.fileType === 'PDF' && (
-                  <iframe className="am-evidence-preview-frame" title={evidence?.originalFileName || 'Evidence preview'} src={previewUrl} />
-                )}
-                {previewUrl && evidence?.fileType !== 'PDF' && (
-                  <img className="am-evidence-preview-image" src={previewUrl} alt={evidence?.originalFileName || 'Evidence preview'} />
-                )}
+                <EvidencePreview
+                  evidenceId={evidence?.id}
+                  fileType={evidence?.fileType}
+                  linkUrl={evidence?.linkUrl}
+                  fileName={evidence?.originalFileName}
+                />
               </div>
               <dl className="am-evidence-file-details">
                 <div>
@@ -192,6 +187,12 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                   <dt>Type</dt>
                   <dd>{evidence?.fileType || '-'}</dd>
                 </div>
+                {evidence?.fileType !== 'LINK' && (
+                  <div>
+                    <dt>Version</dt>
+                    <dd>v{evidence?.currentVersion || 1}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Size</dt>
                   <dd>{formatFileSize(evidence?.fileSize)}</dd>
@@ -219,6 +220,15 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                 <button className="am-btn-secondary" type="button" onClick={handleDownload}>
                   Download
                 </button>
+                {evidence?.fileType !== 'LINK' && (
+                  <button
+                    className="am-btn-secondary"
+                    type="button"
+                    onClick={() => setVersionsModalOpen(true)}
+                  >
+                    <Icon as={History} /> Version History (v{evidence?.currentVersion || 1})
+                  </button>
+                )}
               </div>
             </section>
 
@@ -330,6 +340,15 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
           </div>
         </form>
       )}
+      <EvidenceVersionsModal
+        evidence={evidence}
+        isOpen={versionsModalOpen}
+        onClose={() => setVersionsModalOpen(false)}
+        canRestore={false}
+        onRestored={() => {
+          if (onSaved) onSaved();
+        }}
+      />
     </Modal>
   );
 }

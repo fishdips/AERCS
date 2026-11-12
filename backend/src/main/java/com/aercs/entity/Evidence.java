@@ -51,6 +51,9 @@ public class Evidence {
     @Column(name = "file_size", nullable = false)
     private long fileSize;
 
+    @Column(name = "current_version", nullable = false, columnDefinition = "INTEGER NOT NULL DEFAULT 1")
+    private int currentVersion = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "evidence_type", length = 50)
     private EvidenceType evidenceType;

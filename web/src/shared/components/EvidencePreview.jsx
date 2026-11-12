@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileText, Link2 } from 'lucide-react';
 import Icon from './Icon';
-import { viewEvidenceBlob } from '../../features/evidence/api';
+import { viewEvidenceBlob, viewEvidenceVersionBlob } from '../../features/evidence/api';
 import { renderPdf, renderSpreadsheet, renderWord } from '../utils/evidenceRenderers';
 // Word / Excel / PDF page styles (sev-*) are shared with the accreditor viewer.
 import '../../features/accreditor-access/SecureEvidenceViewer.css';
@@ -14,7 +14,7 @@ const RENDERABLE_TYPES = ['PDF', 'DOCX', 'XLSX', ...IMAGE_TYPES];
 // drawn in the page (PDF pages, Word, Excel sheets, images). It is not put in an <iframe>, because
 // the API replies with headers that stop browsers from framing it. Links and unsupported
 // file types get a placeholder instead.
-export default function EvidencePreview({ fileType, linkUrl, evidenceId, fileName, iconSize = 28 }) {
+export default function EvidencePreview({ fileType, linkUrl, evidenceId, versionId, fileName, iconSize = 28 }) {
   const isLink = fileType === 'LINK' || Boolean(linkUrl);
   const canRender = !isLink && Boolean(evidenceId) && RENDERABLE_TYPES.includes(fileType);
 
@@ -31,7 +31,9 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, fileNam
 
     const load = async () => {
       try {
-        const { data } = await viewEvidenceBlob(evidenceId);
+        const { data } = versionId
+          ? await viewEvidenceVersionBlob(evidenceId, versionId)
+          : await viewEvidenceBlob(evidenceId);
         if (cancelled) return;
         if (fileType === 'PDF') {
           await renderPdf(data, container, () => cancelled);
@@ -59,7 +61,7 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, fileNam
       container.replaceChildren();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [canRender, evidenceId, fileType, fileName]);
+  }, [canRender, evidenceId, versionId, fileType, fileName]);
 
   if (canRender) {
     return (

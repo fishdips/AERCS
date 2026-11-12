@@ -20,13 +20,34 @@ export const createLinkEvidence = (activityId, data) =>
 export const updateLinkEvidence = (evidenceId, data) =>
   api.put(`/api/evidence/${evidenceId}/link`, data);
 
-export const replaceEvidence = (evidenceId, file) => {
+export const replaceEvidence = (evidenceId, file, versionNote) => {
   const formData = new FormData();
   formData.append('file', file);
+  if (versionNote && versionNote.trim()) {
+    formData.append('versionNote', versionNote.trim());
+  }
   return api.put(`/api/evidence/${evidenceId}/replace`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const listEvidenceVersions = (evidenceId) =>
+  api.get(`/api/evidence/${evidenceId}/versions`);
+
+export const downloadEvidenceVersionBlob = (evidenceId, versionId) =>
+  api.get(`/api/evidence/${evidenceId}/versions/${versionId}/download`, { responseType: 'blob' });
+
+export const viewEvidenceVersionBlob = (evidenceId, versionId) =>
+  api.get(`/api/evidence/${evidenceId}/versions/${versionId}/view`, { responseType: 'blob' });
+
+export const getEvidenceVersionViewUrl = (evidenceId, versionId) =>
+  `${api.defaults.baseURL}/api/evidence/${evidenceId}/versions/${versionId}/view`;
+
+export const restoreEvidenceVersion = (evidenceId, versionId) =>
+  api.post(`/api/evidence/${evidenceId}/versions/${versionId}/restore`);
+
+export const deleteEvidenceVersion = (evidenceId, versionId) =>
+  api.delete(`/api/evidence/${evidenceId}/versions/${versionId}`);
 
 export const deleteEvidence = (evidenceId) =>
   api.delete(`/api/evidence/${evidenceId}`);

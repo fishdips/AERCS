@@ -13,6 +13,7 @@ public record ActivityReferencedEvidenceResponse(
         String linkUrl,
         String fileType,
         long fileSize,
+        int currentVersion,
         EvidenceType evidenceType,
         UUID sourceActivityId,
         String sourceActivityName,

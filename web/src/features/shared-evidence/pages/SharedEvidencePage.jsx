@@ -153,6 +153,11 @@ export default function SharedEvidencePage() {
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
                       <span className="se-file-name">{item.originalFileName}</span>
+                      {item.fileType !== 'LINK' && (
+                        <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
+                          v{item.currentVersion || 1}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="se-td">{item.activityName || '-'}</td>

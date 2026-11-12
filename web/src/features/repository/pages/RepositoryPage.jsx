@@ -30,9 +30,10 @@ import {
 } from '../../evidence/constants';
 import { searchRepository } from '../api';
 import '../Repository.css';
-import { ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowRight, ExternalLink, History } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 import EvidencePreview from '../../../shared/components/EvidencePreview';
+import EvidenceVersionsModal from '../../evidence/components/EvidenceVersionsModal';
 import Alert from '../../../shared/components/Alert';
 
 const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
@@ -89,6 +90,7 @@ export default function RepositoryPage() {
   const [targetActivityId, setTargetActivityId] = useState('');
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const [busyDownloadId, setBusyDownloadId] = useState('');
 
   const doSearch = useCallback(async (page = 0) => {
@@ -159,6 +161,7 @@ export default function RepositoryPage() {
     setTargetActivityId('');
     setReferenceModalOpen(false);
     setAccreditorAccessOpen(false);
+    setVersionsModalOpen(false);
   };
 
   const handleDownload = async (item) => {
@@ -318,6 +321,11 @@ export default function RepositoryPage() {
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
                       <span className="se-file-name">{item.originalFileName}</span>
+                      {item.fileType !== 'LINK' && (
+                        <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
+                          v{item.currentVersion || 1}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="se-td">{item.activityName || '-'}</td>
@@ -387,6 +395,10 @@ export default function RepositoryPage() {
                         disabled: busyDownloadId === detail.id,
                         onClick: () => handleDownload(detail),
                       },
+                      detail.fileType !== 'LINK' && !detail.linkUrl && {
+                        label: `Version History (v${detail.currentVersion || 1})`,
+                        onClick: () => setVersionsModalOpen(true),
+                      },
                       canReference && {
                         label: 'Generate Accreditor Access',
                         onClick: () => setAccreditorAccessOpen(true),
@@ -407,8 +419,20 @@ export default function RepositoryPage() {
 
                 <h2 className="repo-details-title">{detail.originalFileName}</h2>
                 <p className="repo-details-sub">
-                  {detail.fileType === 'LINK' ? 'LINK' : detail.fileType} - {formatFileSize(detail.fileSize, detail.fileType)}
+                  {detail.fileType === 'LINK' ? 'LINK' : `${detail.fileType} · v${detail.currentVersion || 1}`} - {formatFileSize(detail.fileSize, detail.fileType)}
                 </p>
+
+                {detail.fileType !== 'LINK' && !detail.linkUrl && (
+                  <div className="repo-details-actions">
+                    <button
+                      className="am-btn-secondary"
+                      type="button"
+                      onClick={() => setVersionsModalOpen(true)}
+                    >
+                      <Icon as={History} /> Version History (v{detail.currentVersion || 1})
+                    </button>
+                  </div>
+                )}
 
                 {(detail.fileType === 'LINK' || detail.linkUrl) && (
                   <div className="repo-details-actions">
@@ -519,6 +543,13 @@ export default function RepositoryPage() {
           activityId={detail.activityId}
         />
       )}
+
+      <EvidenceVersionsModal
+        evidence={detail}
+        isOpen={versionsModalOpen}
+        onClose={() => setVersionsModalOpen(false)}
+        canRestore={false}
+      />
     </ActivityShell>
   );
 }

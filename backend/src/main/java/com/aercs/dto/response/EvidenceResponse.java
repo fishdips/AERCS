@@ -17,6 +17,7 @@ public record EvidenceResponse(
         String linkUrl,
         String fileType,
         long fileSize,
+        int currentVersion,
         AccreditationArea accreditationArea,
         String academicYear,
         String ownerOffice,

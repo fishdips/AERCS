@@ -23,4 +23,8 @@ public interface EvidenceRepository extends JpaRepository<Evidence, UUID>, JpaSp
     Optional<Evidence> findFirstByFileHashOrderByUploadedAtAsc(String fileHash);
 
     java.util.List<Evidence> findByFileHashOrderByUploadedAtAsc(String fileHash);
+
+    java.util.List<Evidence> findByFileHashIn(java.util.Collection<String> fileHashes);
+
+    boolean existsByFilePath(String filePath);
 }
