@@ -18,6 +18,7 @@ import com.aercs.exception.ResourceNotFoundException;
 import com.aercs.repository.ActivityRepository;
 import com.aercs.repository.EvidenceRepository;
 import com.aercs.repository.EvidenceVersionRepository;
+import com.aercs.util.DriveLinkPolicy;
 import com.aercs.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
@@ -149,6 +150,7 @@ public class EvidenceService {
     public EvidenceResponse createLinkEvidence(UUID activityId, CreateLinkEvidenceRequest request, String userId) {
         Activity activity = findActivity(activityId);
         accessService.assertCanAddToActivity(activity, userId);
+        assertNotDriveFolderLink(request.linkUrl());
         User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
 
         Evidence evidence = new Evidence();
@@ -168,12 +170,20 @@ public class EvidenceService {
     public EvidenceResponse updateLinkEvidence(UUID evidenceId, UpdateLinkEvidenceRequest request, String userId) {
         Evidence evidence = findEvidence(evidenceId);
         assertCanModify(evidence, userId);
+        assertNotDriveFolderLink(request.linkUrl());
 
         evidence.setOriginalFileName(trimToNull(request.title()) != null ? request.title().trim() : "Google Drive Link");
         evidence.setLinkUrl(request.linkUrl().trim());
         evidence.setUpdatedAt(OffsetDateTime.now());
 
         return toResponse(evidenceRepository.save(evidence));
+    }
+
+    // Evidence must be a document: links to a Google Drive folder are not accepted.
+    private void assertNotDriveFolderLink(String linkUrl) {
+        if (DriveLinkPolicy.isGoogleDriveFolderLink(linkUrl)) {
+            throw new BadRequestException(DriveLinkPolicy.FOLDER_LINK_MESSAGE);
+        }
     }
 
     @Transactional(readOnly = true)

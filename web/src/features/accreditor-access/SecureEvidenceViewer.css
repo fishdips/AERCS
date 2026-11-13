@@ -3,12 +3,6 @@
   -webkit-user-select: none;
 }
 
-.sev-notice {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #6b7280;
-}
-
 .sev-status {
   padding: 24px 0;
   text-align: center;
@@ -93,9 +87,61 @@
   height: auto !important;
 }
 
+.sev-sheets {
+  width: 100%;
+}
+
+/* Worksheet tabs (one worksheet is shown at a time). The bar stays at the top while scrolling. */
+.sev-sheet-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 4px 0;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-bottom: 0;
+}
+
+.sev-sheet-tab {
+  flex: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  color: #4b5563;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sev-sheet-tab:hover {
+  background: #e5e7eb;
+}
+
+.sev-sheet-tab-active,
+.sev-sheet-tab-active:hover {
+  background: #fff;
+  border-color: #e5e7eb;
+  color: #111827;
+  font-weight: 600;
+}
+
 .sev-sheet {
   width: 100%;
   overflow: auto;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.sev-sheet[hidden] {
+  display: none;
 }
 
 .sev-sheet h4 {

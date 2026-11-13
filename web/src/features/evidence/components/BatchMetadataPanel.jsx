@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
-import { EVIDENCE_TYPES, RELATED_OFFICES } from '../constants';
+import { EVIDENCE_TYPES } from '../constants';
+import RelatedOfficesPicker from './RelatedOfficesPicker';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
 import { Check, TriangleAlert } from 'lucide-react';
@@ -260,18 +261,7 @@ export default function BatchMetadataPanel({
 
               <div className="am-form-field am-form-field-wide">
                 <span className="am-form-label">Related Offices</span>
-                <div className="am-office-options">
-                  {RELATED_OFFICES.map((office) => (
-                    <label key={office.value}>
-                      <input
-                        type="checkbox"
-                        checked={form.relatedOffices.includes(office.value)}
-                        onChange={() => toggleOffice(office.value)}
-                      />
-                      {office.label}
-                    </label>
-                  ))}
-                </div>
+                <RelatedOfficesPicker selected={form.relatedOffices} onToggle={toggleOffice} />
               </div>
 
               <label className="am-form-field am-form-field-wide">

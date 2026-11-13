@@ -20,37 +20,114 @@ function cellText(value) {
   return String(value);
 }
 
-// Spreadsheets are drawn as plain read-only tables (textContent only, so cell contents can't inject markup).
+// Fills one worksheet's panel with a plain read-only table (textContent only, so cell contents
+// can't inject markup).
+function buildSheetTable(section, data) {
+  if (!data.length) {
+    const empty = document.createElement('p');
+    empty.className = 'sev-sheet-note';
+    empty.textContent = 'This worksheet is empty.';
+    section.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement('table');
+  data.slice(0, MAX_SHEET_ROWS).forEach((row) => {
+    const tr = document.createElement('tr');
+    row.slice(0, MAX_SHEET_COLS).forEach((value) => {
+      const td = document.createElement('td');
+      td.textContent = cellText(value);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  section.appendChild(table);
+
+  if (data.length > MAX_SHEET_ROWS) {
+    const note = document.createElement('p');
+    note.className = 'sev-sheet-note';
+    note.textContent = `Showing the first ${MAX_SHEET_ROWS} of ${data.length} rows.`;
+    section.appendChild(note);
+  }
+}
+
+// Spreadsheets work like Excel: a tab bar of worksheet names, with one worksheet shown at a time
+// instead of every worksheet stacked in one long list. A worksheet's table is only built the
+// first time its tab is opened.
 export async function renderSpreadsheet(blob, container) {
   const sheets = await readExcelFile(blob);
-  sheets.forEach(({ sheet, data }) => {
-    const section = document.createElement('section');
-    section.className = 'sev-sheet';
 
-    const heading = document.createElement('h4');
-    heading.textContent = sheet;
-    section.appendChild(heading);
+  const holder = document.createElement('div');
+  holder.className = 'sev-sheets';
+  container.appendChild(holder);
 
-    const table = document.createElement('table');
-    data.slice(0, MAX_SHEET_ROWS).forEach((row) => {
-      const tr = document.createElement('tr');
-      row.slice(0, MAX_SHEET_COLS).forEach((value) => {
-        const td = document.createElement('td');
-        td.textContent = cellText(value);
-        tr.appendChild(td);
-      });
-      table.appendChild(tr);
+  if (sheets.length === 0) {
+    const none = document.createElement('p');
+    none.className = 'sev-sheet-note';
+    none.textContent = 'This workbook has no worksheets.';
+    holder.appendChild(none);
+    return;
+  }
+
+  const tabList = document.createElement('div');
+  tabList.className = 'sev-sheet-tabs';
+  tabList.setAttribute('role', 'tablist');
+  holder.appendChild(tabList);
+
+  const tabs = [];
+  const panels = [];
+
+  const activate = (index) => {
+    tabs.forEach((tab, i) => {
+      const active = i === index;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      tab.classList.toggle('sev-sheet-tab-active', active);
+      panels[i].hidden = !active;
     });
-    section.appendChild(table);
-
-    if (data.length > MAX_SHEET_ROWS) {
-      const note = document.createElement('p');
-      note.className = 'sev-sheet-note';
-      note.textContent = `Showing the first ${MAX_SHEET_ROWS} of ${data.length} rows.`;
-      section.appendChild(note);
+    const panel = panels[index];
+    if (!panel.dataset.built) {
+      buildSheetTable(panel, sheets[index].data);
+      panel.dataset.built = 'true';
     }
-    container.appendChild(section);
+  };
+
+  sheets.forEach(({ sheet }, index) => {
+    const name = sheet || `Sheet ${index + 1}`;
+
+    // type="button" so a tab can never submit a form this preview happens to sit inside.
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'sev-sheet-tab';
+    tab.setAttribute('role', 'tab');
+    tab.title = name;
+    tab.textContent = name;
+    tab.addEventListener('click', () => activate(index));
+    tab.addEventListener('keydown', (event) => {
+      const last = sheets.length - 1;
+      const next = {
+        ArrowRight: index === last ? 0 : index + 1,
+        ArrowLeft: index === 0 ? last : index - 1,
+        Home: 0,
+        End: last,
+      }[event.key];
+      if (next === undefined) return;
+      event.preventDefault();
+      activate(next);
+      tabs[next].focus();
+    });
+    tabList.appendChild(tab);
+    tabs.push(tab);
+
+    const panel = document.createElement('section');
+    panel.className = 'sev-sheet';
+    panel.setAttribute('role', 'tabpanel');
+    panel.hidden = true;
+    holder.appendChild(panel);
+    panels.push(panel);
   });
+
+  activate(0);
 }
 
 export async function renderWord(blob, container) {
@@ -109,6 +186,42 @@ export async function renderWord(blob, container) {
     if (el.style.textIndent && el.style.textIndent.startsWith('-')) {
       el.style.textIndent = '0';
     }
+  });
+}
+
+// Staff preview: draws the Word file as real pages (page size, margins, headers, page breaks) and
+// shrinks each page to fit the pane, the same way PDF pages are shown. Unlike renderWord above,
+// nothing is reflowed or restyled, so the page looks like it does in Word.
+export async function renderWordPages(blob, container) {
+  const holder = document.createElement('div');
+  holder.className = 'evp-docx';
+  container.appendChild(holder);
+  await renderDocx(blob, holder, null, {
+    inWrapper: true,
+    ignoreWidth: false,
+    ignoreHeight: false,
+    ignoreLastRenderedPageBreak: false,
+    breakPages: true,
+  });
+  fitWordPages(container);
+}
+
+// Scales every page down to the pane's width (never up). Call again when the pane is resized.
+// A page's natural width is measured once, before any scaling, and remembered on the element.
+export function fitWordPages(container) {
+  const holder = container?.querySelector('.evp-docx');
+  if (!holder) return;
+  const available = holder.clientWidth;
+  if (!available) return; // pane is hidden; it is fitted when it becomes visible again
+  holder.querySelectorAll('section.docx').forEach((section) => {
+    let natural = Number(section.dataset.pageWidth);
+    if (!natural) {
+      natural = section.offsetWidth;
+      if (!natural) return;
+      section.dataset.pageWidth = String(natural);
+    }
+    const scale = Math.min(1, available / natural);
+    section.style.zoom = scale < 1 ? String(scale) : '';
   });
 }
 

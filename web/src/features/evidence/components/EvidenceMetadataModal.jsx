@@ -3,7 +3,8 @@ import Modal from '../../../shared/components/Modal';
 import { formatAccreditationArea, isServiceOfficeValue } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { downloadEvidenceBlob, getEvidenceMetadata, updateEvidenceMetadata, viewEvidenceBlob } from '../api';
-import { EVIDENCE_TYPES, RELATED_OFFICES, formatEvidenceType, formatRelatedOffice } from '../constants';
+import { EVIDENCE_TYPES, formatEvidenceType, formatRelatedOffice } from '../constants';
+import RelatedOfficesPicker from './RelatedOfficesPicker';
 import { Globe, History } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
 import Alert from '../../../shared/components/Alert';
@@ -52,7 +53,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
+  const [openingPreview, setOpeningPreview] = useState(false);
   const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const canPreview = PREVIEW_TYPES.includes(evidence?.fileType);
 
@@ -81,34 +82,24 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
     loadMetadata();
   }, [evidence, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !evidence || !canPreview) {
-      setPreviewUrl('');
-      return undefined;
+  // Fetched only when "Open Preview" is clicked, not on every open of the modal.
+  const handleOpenPreview = async () => {
+    if (!evidence || openingPreview) return;
+    // Open the tab synchronously so popup blockers allow it, then point it at the file.
+    const tab = window.open('', '_blank');
+    setOpeningPreview(true);
+    try {
+      const { data } = await viewEvidenceBlob(evidence.id);
+      const objectUrl = URL.createObjectURL(data);
+      if (tab) tab.location.href = objectUrl;
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (err) {
+      if (tab) tab.close();
+      setError(err.response?.data?.error || 'Preview is not available.');
+    } finally {
+      setOpeningPreview(false);
     }
-
-    let objectUrl = '';
-    let cancelled = false;
-
-    const loadPreview = async () => {
-      setPreviewUrl('');
-      try {
-        const { data } = await viewEvidenceBlob(evidence.id);
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(data);
-        setPreviewUrl(objectUrl);
-      } catch {
-        // Preview handled inline by EvidencePreview
-      }
-    };
-
-    loadPreview();
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [canPreview, evidence, isOpen]);
+  };
 
   const toggleOffice = (office) => {
     setForm((current) => {
@@ -204,18 +195,14 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
               </dl>
               <div className="am-evidence-file-actions">
                 {canPreview && (
-                  <a
+                  <button
                     className="am-btn-secondary"
-                    href={previewUrl || undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-disabled={!previewUrl}
-                    onClick={(event) => {
-                      if (!previewUrl) event.preventDefault();
-                    }}
+                    type="button"
+                    onClick={handleOpenPreview}
+                    disabled={openingPreview}
                   >
-                    Open Preview
-                  </a>
+                    {openingPreview ? 'Opening...' : 'Open Preview'}
+                  </button>
                 )}
                 <button className="am-btn-secondary" type="button" onClick={handleDownload}>
                   Download
@@ -264,18 +251,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                     </p>
                   </div>
                 ) : (
-                  <div className="am-office-options">
-                    {RELATED_OFFICES.map((office) => (
-                      <label key={office.value}>
-                        <input
-                          type="checkbox"
-                          checked={form.relatedOffices.includes(office.value)}
-                          onChange={() => toggleOffice(office.value)}
-                        />
-                        {office.label}
-                      </label>
-                    ))}
-                  </div>
+                  <RelatedOfficesPicker selected={form.relatedOffices} onToggle={toggleOffice} />
                 )}
               </div>
 

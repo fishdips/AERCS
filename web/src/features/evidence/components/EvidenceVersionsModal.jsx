@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
 import Alert from '../../../shared/components/Alert';
 import EvidencePreview from '../../../shared/components/EvidencePreview';
@@ -57,6 +57,23 @@ export default function EvidenceVersionsModal({
   const [busyVersionId, setBusyVersionId] = useState('');
   const [previewVersion, setPreviewVersion] = useState(null);
   const [expandedPreview, setExpandedPreview] = useState(false);
+  // Versions already previewed stay mounted (hidden) so switching back needs no fetch or re-render.
+  const [visitedIds, setVisitedIds] = useState([]);
+  // Set when a restore/delete happened, so the parent list is refreshed once on close.
+  const changedRef = useRef(false);
+
+  useEffect(() => {
+    const id = previewVersion?.id;
+    if (!id) return;
+    setVisitedIds((current) => (current.includes(id) ? current : [...current, id]));
+  }, [previewVersion?.id]);
+
+  const handleClose = () => {
+    const changed = changedRef.current;
+    changedRef.current = false;
+    onClose();
+    if (changed && onRestored) onRestored();
+  };
 
   const loadVersions = useCallback(async () => {
     if (!evidence?.id) return;
@@ -86,6 +103,7 @@ export default function EvidenceVersionsModal({
     } else {
       setVersions([]);
       setPreviewVersion(null);
+      setVisitedIds([]);
       setExpandedPreview(false);
       setError('');
       setSuccessMessage('');
@@ -115,8 +133,8 @@ export default function EvidenceVersionsModal({
       await restoreEvidenceVersion(evidence.id, ver.id);
       setSuccessMessage(`Switched back to v${ver.versionNumber} as the current version.`);
       setPreviewVersion(ver);
-      await loadVersions();
-      if (onRestored) onRestored();
+      setVersions((list) => list.map((v) => ({ ...v, isCurrent: v.id === ver.id })));
+      changedRef.current = true;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to restore this version.');
     } finally {
@@ -132,8 +150,15 @@ export default function EvidenceVersionsModal({
     try {
       await deleteEvidenceVersion(evidence.id, ver.id);
       setSuccessMessage(`Removed v${ver.versionNumber}.`);
-      await loadVersions();
-      if (onRestored) onRestored();
+      const remaining = versions.filter((v) => v.id !== ver.id);
+      setVersions(remaining);
+      setVisitedIds((ids) => ids.filter((id) => id !== ver.id));
+      setPreviewVersion((current) => (
+        current && current.id !== ver.id
+          ? current
+          : remaining.find((v) => v.isCurrent) || remaining[0] || null
+      ));
+      changedRef.current = true;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to remove this version.');
     } finally {
@@ -144,7 +169,7 @@ export default function EvidenceVersionsModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`Version History — ${evidence?.originalFileName || 'Evidence'}`}
       size="wide"
     >
@@ -313,13 +338,26 @@ export default function EvidenceVersionsModal({
 
               <div className="am-versions-preview-box">
                 {previewVersion ? (
-                  <EvidencePreview
-                    key={`${evidence?.id}-${previewVersion.id}`}
-                    evidenceId={evidence?.id}
-                    versionId={previewVersion.id}
-                    fileType={previewVersion.fileType}
-                    fileName={previewVersion.originalFileName}
-                  />
+                  versions
+                    .filter((v) => v.id === previewVersion.id || visitedIds.includes(v.id))
+                    .map((v) => (
+                      <div
+                        key={`${evidence?.id}-${v.id}`}
+                        style={{
+                          display: v.id === previewVersion.id ? 'flex' : 'none',
+                          flexDirection: 'column',
+                          flex: 1,
+                          minHeight: 0,
+                        }}
+                      >
+                        <EvidencePreview
+                          evidenceId={evidence?.id}
+                          versionId={v.id}
+                          fileType={v.fileType}
+                          fileName={v.originalFileName}
+                        />
+                      </div>
+                    ))
                 ) : (
                   <div className="am-evidence-placeholder">
                     <span>Select a version to preview.</span>
@@ -331,7 +369,7 @@ export default function EvidenceVersionsModal({
         )}
 
         <div className="am-form-actions am-replace-actions">
-          <button className="am-btn-secondary" type="button" onClick={onClose}>
+          <button className="am-btn-secondary" type="button" onClick={handleClose}>
             Close
           </button>
         </div>

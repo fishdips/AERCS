@@ -1555,6 +1555,18 @@
   text-transform: uppercase;
 }
 
+/* Page-sized preview (A4 proportions): about one page tall at the pane's width, and the file
+   scrolls inside the box instead of making the modal taller. Capped so it fits short screens. */
+.am-evidence-preview-box {
+  aspect-ratio: 1 / 1.414;
+  max-height: 60vh;
+}
+
+.am-evidence-preview-box .evp-rendered {
+  max-height: none;
+  min-height: 0;
+}
+
 .am-evidence-preview-frame,
 .am-evidence-preview-image {
   width: 100%;
@@ -1677,6 +1689,37 @@
   display: flex;
   font-size: 0.72rem;
   gap: 0.35rem;
+}
+
+.am-office-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.am-office-search-row {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.am-office-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.am-office-count {
+  color: #6b7280;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.am-office-empty {
+  color: #9ca3af;
+  font-size: 0.72rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
 }
 
 /* Evidence Versioning */

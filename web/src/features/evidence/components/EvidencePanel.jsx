@@ -18,6 +18,7 @@ import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import EvidenceVersionsModal from './EvidenceVersionsModal';
 import { formatEvidenceType, formatRelatedOffice, isForeignUnit, isUserUnitTagged } from '../constants';
+import { DRIVE_FOLDER_MESSAGE, isGoogleDriveFolderUrl } from '../driveLinks';
 import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import ActionMenu from '../../../shared/components/ActionMenu';
@@ -391,6 +392,10 @@ export default function EvidencePanel({
       setError('Please enter a valid HTTP or HTTPS URL (e.g. https://drive.google.com/...)');
       return;
     }
+    if (isGoogleDriveFolderUrl(linkUrl)) {
+      setError(DRIVE_FOLDER_MESSAGE);
+      return;
+    }
     setIsUploading(true);
     setError('');
     try {
@@ -418,6 +423,10 @@ export default function EvidencePanel({
     }
     if (!isValidUrl(editLinkModal.linkUrl.trim())) {
       setError('Please enter a valid HTTP or HTTPS URL.');
+      return;
+    }
+    if (isGoogleDriveFolderUrl(editLinkModal.linkUrl)) {
+      setError(DRIVE_FOLDER_MESSAGE);
       return;
     }
     setBusyEvidenceId(editLinkModal.item.id);
@@ -640,7 +649,7 @@ export default function EvidencePanel({
                 <span className="am-form-label">Link Title / Description</span>
                 <input
                   className="am-input"
-                  placeholder="e.g. 2025 Department Accreditation Drive Folder"
+                  placeholder="e.g. Signed attendance sheet (Google Doc)"
                   value={linkTitle}
                   onChange={(e) => setLinkTitle(e.target.value)}
                   disabled={isUploading}
@@ -651,11 +660,12 @@ export default function EvidencePanel({
                 <input
                   className="am-input"
                   type="url"
-                  placeholder="https://drive.google.com/..."
+                  placeholder="https://drive.google.com/file/d/..."
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
                   disabled={isUploading}
                 />
+                <span className="am-helper-text">Link to a specific document or file. Google Drive folder links are not accepted.</span>
               </label>
               <div className="am-evidence-actions">
                 <button className="am-btn-primary" type="button" onClick={handleAddLink} disabled={isUploading || !linkUrl.trim()}>
@@ -967,6 +977,7 @@ export default function EvidencePanel({
               value={editLinkModal.linkUrl}
               onChange={(e) => setEditLinkModal((prev) => ({ ...prev, linkUrl: e.target.value }))}
             />
+            <span className="am-helper-text">Link to a specific document or file. Google Drive folder links are not accepted.</span>
           </label>
           <div className="am-form-actions am-replace-actions">
             <button

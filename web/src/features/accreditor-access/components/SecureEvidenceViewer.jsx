@@ -67,9 +67,6 @@ export default function SecureEvidenceViewer({ linkId, evidence, onClose }) {
   return (
     <Modal isOpen={Boolean(evidence)} onClose={onClose} title={modalTitle} size="wide">
       <div className="sev-root">
-        <p className="sev-notice">
-          View only.
-        </p>
         {status === 'loading' && <p className="sev-status">Loading document...</p>}
         {status === 'error' && <p className="sev-status">Unable to display this evidence file.</p>}
         <div ref={pagesRef} className="sev-pages" onDragStart={(event) => event.preventDefault()} />

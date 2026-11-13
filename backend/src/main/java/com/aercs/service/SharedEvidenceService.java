@@ -246,6 +246,8 @@ public class SharedEvidenceService {
             List<AccreditationArea> areas,
             String department,
             String academicYear,
+            String academicYearFrom,
+            String academicYearTo,
             List<ActivityType> activityTypes,
             List<String> fileTypes,
             List<EvidenceType> evidenceTypes,
@@ -269,7 +271,8 @@ public class SharedEvidenceService {
 
         Specification<Evidence> spec = buildRepositorySpec(
                 blankToNull(keyword), areas, effectiveDept,
-                blankToNull(academicYear), activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo,
+                blankToNull(academicYear), blankToNull(academicYearFrom), blankToNull(academicYearTo),
+                activityTypes, fileTypes, evidenceTypes, dateFrom, dateTo,
                 viewerDept, viewerOffice, viewerRelatedOffice
         );
         Pageable sorted = PageRequest.of(
@@ -287,6 +290,8 @@ public class SharedEvidenceService {
             List<AccreditationArea> areas,
             String department,
             String academicYear,
+            String academicYearFrom,
+            String academicYearTo,
             List<ActivityType> activityTypes,
             List<String> fileTypes,
             List<EvidenceType> evidenceTypes,
@@ -357,6 +362,13 @@ public class SharedEvidenceService {
             }
             if (academicYear != null) {
                 predicates.add(cb.equal(act.get("academicYear"), academicYear));
+            }
+            // "YYYY-YYYY" strings sort chronologically, so a plain text range works.
+            if (academicYearFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(act.<String>get("academicYear"), academicYearFrom));
+            }
+            if (academicYearTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(act.<String>get("academicYear"), academicYearTo));
             }
             if (activityTypes != null && !activityTypes.isEmpty()) {
                 predicates.add(act.get("activityType").in(activityTypes));

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileText, Link2 } from 'lucide-react';
 import Icon from './Icon';
 import { viewEvidenceBlob, viewEvidenceVersionBlob } from '../../features/evidence/api';
-import { renderPdf, renderSpreadsheet, renderWord } from '../utils/evidenceRenderers';
+import { fitWordPages, renderPdf, renderSpreadsheet, renderWordPages } from '../utils/evidenceRenderers';
 // Word / Excel / PDF page styles (sev-*) are shared with the accreditor viewer.
 import '../../features/accreditor-access/SecureEvidenceViewer.css';
 import './EvidencePreview.css';
@@ -26,6 +26,7 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, version
 
     let cancelled = false;
     let objectUrl = null;
+    let resizeObserver = null;
     const container = pagesRef.current;
     setStatus('loading');
 
@@ -38,7 +39,18 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, version
         if (fileType === 'PDF') {
           await renderPdf(data, container, () => cancelled);
         } else if (fileType === 'DOCX') {
-          await renderWord(data, container);
+          await renderWordPages(data, container);
+          if (cancelled) return;
+          // Re-fit the pages when the pane changes size (split / expanded view, window resize).
+          if (typeof ResizeObserver === 'function') {
+            let lastWidth = container.clientWidth;
+            resizeObserver = new ResizeObserver(() => {
+              if (container.clientWidth === lastWidth) return;
+              lastWidth = container.clientWidth;
+              fitWordPages(container);
+            });
+            resizeObserver.observe(container);
+          }
         } else if (fileType === 'XLSX') {
           await renderSpreadsheet(data, container);
         } else {
@@ -58,6 +70,7 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, version
 
     return () => {
       cancelled = true;
+      if (resizeObserver) resizeObserver.disconnect();
       container.replaceChildren();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
@@ -65,7 +78,7 @@ export default function EvidencePreview({ fileType, linkUrl, evidenceId, version
 
   if (canRender) {
     return (
-      <div className="evp-rendered">
+      <div className={fileType === 'DOCX' ? 'evp-rendered evp-rendered-docx' : 'evp-rendered'}>
         <div className="evp-pages" ref={pagesRef} />
         {status === 'loading' && <p className="evp-status">Loading preview...</p>}
         {status === 'error' && <p className="evp-status">Preview unavailable. Use Download to open the file.</p>}

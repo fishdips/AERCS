@@ -115,6 +115,8 @@ public class SharedEvidenceController {
             @RequestParam(required = false) String areas,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) String academicYear,
+            @RequestParam(required = false) String academicYearFrom,
+            @RequestParam(required = false) String academicYearTo,
             @RequestParam(required = false) String activityTypes,
             @RequestParam(required = false) String fileTypes,
             @RequestParam(required = false) String evidenceTypes,
@@ -125,6 +127,7 @@ public class SharedEvidenceController {
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
+        validateAcademicYearRange(academicYearFrom, academicYearTo);
         List<AccreditationArea> areaList = parseAreaList(areas);
         List<ActivityType> typeList = parseActivityTypeList(activityTypes);
         List<String> fileTypeList = parseStringList(fileTypes);
@@ -132,9 +135,25 @@ public class SharedEvidenceController {
         Pageable pageable = pageable(page, size);
         UUID currentUserId = resolveUserId(userDetails);
         return ResponseEntity.ok(sharedEvidenceService.searchRepository(
-                keyword, areaList, department, academicYear, typeList, fileTypeList, evidenceTypeList,
+                keyword, areaList, department, academicYear, academicYearFrom, academicYearTo,
+                typeList, fileTypeList, evidenceTypeList,
                 dateFrom, dateTo, currentUserId, pageable
         ));
+    }
+
+    // Academic years are stored as "YYYY-YYYY" (e.g. 2025-2026), which sorts correctly as text,
+    // so a range can be compared directly. Reject anything else instead of silently matching nothing.
+    private void validateAcademicYearRange(String from, String to) {
+        String start = from == null ? "" : from.trim();
+        String end = to == null ? "" : to.trim();
+        for (String value : new String[] {start, end}) {
+            if (!value.isEmpty() && !value.matches("\\d{4}-\\d{4}")) {
+                throw new BadRequestException("Academic year must look like 2025-2026");
+            }
+        }
+        if (!start.isEmpty() && !end.isEmpty() && start.compareTo(end) > 0) {
+            throw new BadRequestException("Academic year range is backwards: 'from' is after 'to'");
+        }
     }
 
     private List<AccreditationArea> parseAreaList(String areas) {

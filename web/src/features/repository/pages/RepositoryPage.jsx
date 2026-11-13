@@ -7,6 +7,7 @@ import {
   DEPARTMENTS,
   OFFICES,
   SERVICE_OFFICES,
+  academicYearOptions,
   formatAccreditationArea,
   formatDepartment,
   formatOffice,
@@ -36,7 +37,9 @@ import EvidencePreview from '../../../shared/components/EvidencePreview';
 import EvidenceVersionsModal from '../../evidence/components/EvidenceVersionsModal';
 import Alert from '../../../shared/components/Alert';
 
-const ACADEMIC_YEARS = ['2022-2023', '2023-2024', '2024-2025', '2025-2026', '2026-2027'];
+// Oldest first, built from today's date so the list keeps up as new academic years begin
+// (the next AY is included so evidence filed ahead of time can still be found).
+const ACADEMIC_YEARS = academicYearOptions({ past: 5, future: 1 }).reverse();
 
 function formatFileSize(size, fileType) {
   if (fileType === 'LINK') return 'Link';
@@ -73,7 +76,8 @@ export default function RepositoryPage() {
   const [keyword, setKeyword] = useState('');
   const [area, setArea] = useState('');
   const [office, setOffice] = useState('');
-  const [academicYear, setAcademicYear] = useState('');
+  const [yearFrom, setYearFrom] = useState('');
+  const [yearTo, setYearTo] = useState('');
   const [evidenceType, setEvidenceType] = useState('');
 
   const [results, setResults] = useState([]);
@@ -101,7 +105,8 @@ export default function RepositoryPage() {
       if (keyword.trim()) params.keyword = keyword.trim();
       if (area) params.areas = area;
       if (office) params.department = office;
-      if (academicYear) params.academicYear = academicYear;
+      if (yearFrom) params.academicYearFrom = yearFrom;
+      if (yearTo) params.academicYearTo = yearTo;
       if (evidenceType) params.evidenceTypes = evidenceType;
 
       const { data } = await searchRepository(params);
@@ -114,7 +119,7 @@ export default function RepositoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [keyword, area, office, academicYear, evidenceType]);
+  }, [keyword, area, office, yearFrom, yearTo, evidenceType]);
 
   useEffect(() => {
     doSearch(0);
@@ -136,8 +141,21 @@ export default function RepositoryPage() {
     setKeyword('');
     setArea('');
     setOffice('');
-    setAcademicYear('');
+    setYearFrom('');
+    setYearTo('');
     setEvidenceType('');
+  };
+
+  // Keep the range valid: moving one end past the other drags the other end along
+  // ("YYYY-YYYY" strings compare correctly as text).
+  const handleYearFromChange = (value) => {
+    setYearFrom(value);
+    if (value && yearTo && value > yearTo) setYearTo(value);
+  };
+
+  const handleYearToChange = (value) => {
+    setYearTo(value);
+    if (value && yearFrom && value < yearFrom) setYearFrom(value);
   };
 
   const openDetails = async (item) => {
@@ -259,12 +277,30 @@ export default function RepositoryPage() {
 
             <div className="repo-filter-section">
               <p className="repo-filter-label">Academic Year</p>
-              <select className="am-select" value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
-                <option value="">All years</option>
-                {ACADEMIC_YEARS.map((year) => (
-                  <option key={year} value={year}>AY {year}</option>
-                ))}
-              </select>
+              <div className="repo-year-range">
+                <select
+                  className="am-select"
+                  aria-label="From academic year"
+                  value={yearFrom}
+                  onChange={(e) => handleYearFromChange(e.target.value)}
+                >
+                  <option value="">From: earliest</option>
+                  {ACADEMIC_YEARS.map((year) => (
+                    <option key={year} value={year}>AY {year}</option>
+                  ))}
+                </select>
+                <select
+                  className="am-select"
+                  aria-label="To academic year"
+                  value={yearTo}
+                  onChange={(e) => handleYearToChange(e.target.value)}
+                >
+                  <option value="">To: latest</option>
+                  {ACADEMIC_YEARS.map((year) => (
+                    <option key={year} value={year}>AY {year}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="repo-filter-section">

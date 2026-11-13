@@ -34,6 +34,34 @@
   margin: 0 auto;
 }
 
+/* Word pages: real page size and layout, shrunk to fit by fitWordPages(). The scrollbar space is
+   always reserved so a scrollbar appearing can't change the width the pages are fitted to. */
+.evp-rendered-docx {
+  scrollbar-gutter: stable;
+}
+
+.evp-docx {
+  width: 100%;
+  text-transform: none;
+}
+
+.evp-docx .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  align-items: center;
+}
+
+.evp-docx .docx-wrapper > section.docx {
+  margin: 0 0 10px !important;
+  box-shadow: none !important;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.evp-docx .docx-wrapper > section.docx:last-child {
+  margin-bottom: 0 !important;
+}
+
 .evp-status {
   margin: 0;
   padding: 1rem;
