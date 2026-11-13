@@ -20,6 +20,7 @@ import ActionMenu from '../../../shared/components/ActionMenu';
 import InfoTooltip from '../../../shared/components/InfoTooltip';
 import ReferenceConfirmModal from '../../shared-evidence/components/ReferenceConfirmModal';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
+import { canShareFromUnit } from '../../accreditor-access/permissions';
 import {
   downloadEvidenceBlob,
   getEvidence,
@@ -28,6 +29,7 @@ import {
   EVIDENCE_TYPES,
   formatEvidenceType,
   formatRelatedOffice,
+  hasMultipleVersions,
 } from '../../evidence/constants';
 import { searchRepository } from '../api';
 import '../Repository.css';
@@ -357,9 +359,9 @@ export default function RepositoryPage() {
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
                       <span className="se-file-name">{item.originalFileName}</span>
-                      {item.fileType !== 'LINK' && (
-                        <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
-                          v{item.currentVersion || 1}
+                      {item.fileType !== 'LINK' && hasMultipleVersions(item) && (
+                        <span className="am-version-badge am-version-badge-multi">
+                          v{item.currentVersion}
                         </span>
                       )}
                     </div>
@@ -432,10 +434,12 @@ export default function RepositoryPage() {
                         onClick: () => handleDownload(detail),
                       },
                       detail.fileType !== 'LINK' && !detail.linkUrl && {
-                        label: `Version History (v${detail.currentVersion || 1})`,
+                        label: hasMultipleVersions(detail) ? `Version History (v${detail.currentVersion})` : 'Version History',
                         onClick: () => setVersionsModalOpen(true),
                       },
-                      canReference && {
+                      // A chairperson can only share her own department's evidence; `selectedEvidence`
+                      // is the repository row, which carries the owning department / office.
+                      canShareFromUnit(user, selectedEvidence) && {
                         label: 'Generate Accreditor Access',
                         onClick: () => setAccreditorAccessOpen(true),
                       },
@@ -455,7 +459,7 @@ export default function RepositoryPage() {
 
                 <h2 className="repo-details-title">{detail.originalFileName}</h2>
                 <p className="repo-details-sub">
-                  {detail.fileType === 'LINK' ? 'LINK' : `${detail.fileType} · v${detail.currentVersion || 1}`} - {formatFileSize(detail.fileSize, detail.fileType)}
+                  {detail.fileType === 'LINK' || !hasMultipleVersions(detail) ? detail.fileType : `${detail.fileType} · v${detail.currentVersion}`} - {formatFileSize(detail.fileSize, detail.fileType)}
                 </p>
 
                 {detail.fileType !== 'LINK' && !detail.linkUrl && (
@@ -465,7 +469,7 @@ export default function RepositoryPage() {
                       type="button"
                       onClick={() => setVersionsModalOpen(true)}
                     >
-                      <Icon as={History} /> Version History (v{detail.currentVersion || 1})
+                      <Icon as={History} /> Version History{hasMultipleVersions(detail) ? ` (v${detail.currentVersion})` : ''}
                     </button>
                   </div>
                 )}
@@ -584,7 +588,6 @@ export default function RepositoryPage() {
         evidence={detail}
         isOpen={versionsModalOpen}
         onClose={() => setVersionsModalOpen(false)}
-        canRestore={false}
       />
     </ActivityShell>
   );

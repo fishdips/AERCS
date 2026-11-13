@@ -55,7 +55,12 @@ public class AccreditorAccessService {
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
     private final EvidenceService evidenceService;
+    private final EvidenceAccessService accessService;
+    private final AccreditorNotificationService notificationService;
     private final InvitationEmailService invitationEmailService;
+
+    private static final String CANNOT_SHARE_MESSAGE =
+            "You can only share evidence from your own department or office with accreditors.";
 
     // ---------------------------------------------------------------------------------
     // Staff: create and manage links
@@ -67,12 +72,16 @@ public class AccreditorAccessService {
             UUID currentUserId,
             String frontendOrigin
     ) {
+        User createdBy = findCurrentUser(currentUserId);
+        assertCanManageLinks(createdBy);
+
         Set<UUID> selectedEvidenceIds = new LinkedHashSet<>();
         Activity activity = null;
 
         if (request.activityId() != null) {
             activity = activityRepository.findById(request.activityId())
                     .orElseThrow(() -> new ResourceNotFoundException("Activity not found"));
+            assertCanShareActivity(createdBy, activity);
             evidenceRepository.findByActivityIdOrderByUploadedAtDesc(request.activityId()).stream()
                     .map(Evidence::getId)
                     .forEach(selectedEvidenceIds::add);
@@ -94,6 +103,12 @@ public class AccreditorAccessService {
             throw new ResourceNotFoundException("One or more evidence files were not found");
         }
         Set<Evidence> selectedEvidence = new LinkedHashSet<>(evidence);
+        // Evidence picked one by one is checked against the sharer's own unit. Evidence that comes
+        // with an activity the sharer owns (including files referenced into it) is already covered.
+        Set<UUID> pickedIds = request.evidenceIds() == null ? Set.of() : new LinkedHashSet<>(request.evidenceIds());
+        evidence.stream()
+                .filter(e -> pickedIds.contains(e.getId()))
+                .forEach(e -> assertCanShareEvidence(createdBy, e));
         Set<User> accreditors = resolveAccreditors(request.accreditorIds());
         if (activity != null) {
             assertNotAlreadySharedWith(activity, accreditors);
@@ -106,9 +121,6 @@ public class AccreditorAccessService {
             throw new BadRequestException("Expiration date must be in the future");
         }
 
-        User createdBy = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
         AccreditorAccess access = new AccreditorAccess();
         access.setToken(generateUniqueToken());
         access.setName(request.name().trim());
@@ -120,6 +132,7 @@ public class AccreditorAccessService {
         access.setNotes(trimToNull(request.notes()));
 
         AccreditorAccess saved = accessRepository.save(access);
+        notificationService.notifyShared(saved, accreditors);
         List<String> emailFailures = notifyAccreditors(
                 groupByAccreditor(saved, accreditors), frontendOrigin);
 
@@ -216,6 +229,9 @@ public class AccreditorAccessService {
         }
 
         AccreditorAccess saved = accessRepository.save(access);
+        if (!newlyAssigned.isEmpty()) {
+            notificationService.notifyShared(saved, newlyAssigned);
+        }
         List<String> emailFailures = notifyAccreditors(groupByAccreditor(saved, newlyAssigned), frontendOrigin);
         return toGenerateResponse(saved, emailFailures);
     }
@@ -235,15 +251,19 @@ public class AccreditorAccessService {
         }
 
         Map<User, List<String>> newlyAssigned = new LinkedHashMap<>();
+        Map<AccreditorAccess, Set<User>> addedToLink = new LinkedHashMap<>();
         for (AccreditorAccess link : links) {
             assertCanModify(link, currentUserId);
             for (User accreditor : accreditors) {
                 if (link.getAccreditors().add(accreditor)) {
                     newlyAssigned.computeIfAbsent(accreditor, k -> new ArrayList<>()).add(link.getName());
+                    addedToLink.computeIfAbsent(link, k -> new LinkedHashSet<>()).add(accreditor);
                 }
             }
         }
         accessRepository.saveAll(links);
+        // Only accreditors who were not on a link already are told it was shared with them.
+        addedToLink.forEach(notificationService::notifyShared);
         return notifyAccreditors(newlyAssigned, frontendOrigin);
     }
 
@@ -334,7 +354,42 @@ public class AccreditorAccessService {
         return user.getRole() == UserRole.ADMIN;
     }
 
+    // Who may create and manage accreditor links: administrators, chairpersons and institutional
+    // staff. Department staff can see their department's links but not create or change them.
+    private static boolean canManageLinks(User user) {
+        return user.getRole() == UserRole.ADMIN
+                || user.getRole() == UserRole.ACCRED_COORDINATOR
+                || user.getRole() == UserRole.INSTITUTIONAL_OFFICE;
+    }
+
+    private static void assertCanManageLinks(User user) {
+        if (!canManageLinks(user)) {
+            throw new ForbiddenException("Only a chairperson, institutional staff or an administrator can manage accreditor access.");
+        }
+    }
+
+    // Administrators and institutional staff work across departments; a chairperson can only share
+    // what belongs to her own department or office.
+    private static boolean canShareAcrossUnits(User user) {
+        return user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.INSTITUTIONAL_OFFICE;
+    }
+
+    private void assertCanShareActivity(User user, Activity activity) {
+        if (canShareAcrossUnits(user)) return;
+        if (!accessService.isInOwnUnit(activity, user)) {
+            throw new ForbiddenException(CANNOT_SHARE_MESSAGE);
+        }
+    }
+
+    private void assertCanShareEvidence(User user, Evidence evidence) {
+        if (canShareAcrossUnits(user)) return;
+        if (!accessService.isOwnUnitEvidence(evidence, user)) {
+            throw new ForbiddenException(CANNOT_SHARE_MESSAGE);
+        }
+    }
+
     private boolean canEdit(User user, AccreditorAccess access) {
+        if (!canManageLinks(user)) return false;
         if (canModifyAll(user)) return true;
         if (user.getRole() == UserRole.ACCRED_COORDINATOR) {
             String userOffice = user.getOffice();

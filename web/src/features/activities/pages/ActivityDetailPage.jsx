@@ -18,6 +18,9 @@ import BatchMetadataPanel from '../../evidence/components/BatchMetadataPanel';
 import { isForeignUnit, isUserUnitTagged } from '../../evidence/constants';
 import ReferencedEvidencePanel from '../../evidence/components/ReferencedEvidencePanel';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
+import { canShareFromUnit } from '../../accreditor-access/permissions';
+import ActivityNoAccess from '../components/ActivityNoAccess';
+import { describeActivityLoadError } from '../loadError';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
@@ -67,6 +70,7 @@ export default function ActivityDetailPage() {
   const { user } = useAuth();
   const [activity, setActivity] = useState(null);
   const [error, setError] = useState('');
+  const [noAccess, setNoAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [accreditorAccessOpen, setAccreditorAccessOpen] = useState(false);
@@ -87,11 +91,14 @@ export default function ActivityDetailPage() {
   const loadActivity = useCallback(async () => {
     setLoading(true);
     setError('');
+    setNoAccess(false);
     try {
       const { data } = await getActivity(id);
       setActivity(data);
-    } catch {
-      setError('Activity not found.');
+    } catch (err) {
+      const failure = describeActivityLoadError(err);
+      if (failure.kind === 'noAccess') setNoAccess(true);
+      else setError(failure.message);
     } finally {
       setLoading(false);
     }
@@ -237,11 +244,14 @@ export default function ActivityDetailPage() {
                 ...(canCreateEvidence
                   ? [{ icon: Upload, label: 'Upload Evidence', to: `/activities/${activity.id}/evidence` }]
                   : []),
-                {
-                  icon: KeyRound,
-                  label: 'Generate Accreditor Access',
-                  onClick: () => setAccreditorAccessOpen(true),
-                },
+                // Only chairpersons (for their own department), institutional staff and admins.
+                ...(canShareFromUnit(user, activity)
+                  ? [{
+                      icon: KeyRound,
+                      label: 'Generate Accreditor Access',
+                      onClick: () => setAccreditorAccessOpen(true),
+                    }]
+                  : []),
                 ...(canEditRecord
                   ? [{ icon: Pencil, label: 'Edit Activity', onClick: handleStartEdit }]
                   : []),
@@ -264,6 +274,13 @@ export default function ActivityDetailPage() {
       {editSuccessNotice && <p className="am-alert am-alert-success">{editSuccessNotice}</p>}
       <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <p className="am-empty am-empty-plain">Loading activity...</p>}
+
+      {noAccess && (
+        <ActivityNoAccess
+          // Back to where they came from; if this page was opened directly, to the activities list.
+          onBack={() => (location.key !== 'default' ? navigate(-1) : navigate('/activities'))}
+        />
+      )}
 
       {activity && (
         <div className="am-detail-stack">

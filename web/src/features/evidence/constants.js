@@ -87,3 +87,32 @@ export function formatRelatedOffice(value) {
   const option = RELATED_OFFICES.find((office) => office.value === value);
   return option?.label || LEGACY_RELATED_OFFICE_LABELS[value] || value;
 }
+
+// "v1" on every freshly uploaded file is just noise, so version labels and badges only appear
+// once a file has been through a second version.
+export function hasMultipleVersions(item) {
+  return (item?.currentVersion || 1) > 1;
+}
+
+// The server saves a file whose name matches existing evidence in the same activity as a new version
+// of that evidence instead of a separate record. Returns the selected files that will do that, each
+// with the evidence it will be added to, so the user can be asked before it happens by accident.
+// Links are ignored (they have no file name to match) and the match is case-insensitive.
+export function findNewVersionTargets(files, evidence) {
+  const existingByName = new Map();
+  (evidence || []).forEach((item) => {
+    if (item.fileType === 'LINK' || item.linkUrl) return;
+    const key = (item.originalFileName || '').toLowerCase();
+    if (!existingByName.has(key)) existingByName.set(key, item);
+  });
+  return (files || [])
+    .map((file) => ({ file, existing: existingByName.get(file.name.toLowerCase()) }))
+    .filter((match) => match.existing);
+}
+
+// The server refuses a file whose content is identical to one already saved (in the activity, or to
+// the record's current / an earlier version). All of those messages say "identical content", and
+// they are shown in a dialog rather than the page banner because the person has to act on them.
+export function isIdenticalContentError(message) {
+  return typeof message === 'string' && /identical content/i.test(message);
+}

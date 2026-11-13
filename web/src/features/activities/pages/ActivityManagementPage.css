@@ -134,6 +134,25 @@
 }
 
 .am-nav-link:hover { background: #f3f4f6; }
+
+/* A nav link that can carry a count (e.g. unread notifications) on its right. */
+.am-nav-link-badge {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.am-nav-badge {
+  background: #2563eb;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 1.1rem;
+  padding: 0.18rem 0.4rem;
+  text-align: center;
+}
 .am-nav-active { background: #f3f4f6; border-left-color: var(--brand-600); color: var(--brand-700); font-weight: 600; }
 .am-nav-disabled { color: #9ca3af; cursor: default; }
 

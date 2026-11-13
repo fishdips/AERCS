@@ -68,6 +68,63 @@ public class EvidenceAccessService {
         }
     }
 
+    /**
+     * Who may change an evidence record (replace it, restore or delete versions, edit metadata):
+     * an admin, the uploader, or a chairperson within their own department / office.
+     */
+    public void assertCanModify(Evidence evidence, String identifier) {
+        User currentUser = requireUser(identifier);
+
+        if (currentUser.getRole() == UserRole.ADMIN) return;
+
+        User uploader = evidence.getUploadedBy();
+        if (uploader != null && uploader.getId().equals(currentUser.getId())) {
+            return;
+        }
+
+        if (currentUser.getRole() == UserRole.ACCRED_COORDINATOR) {
+            if (isSameDepartmentOrOffice(currentUser, evidence)) {
+                return;
+            }
+            throw new ForbiddenException("Chairperson can only modify evidence within their department");
+        }
+
+        throw new ForbiddenException("Only the uploader can modify this evidence");
+    }
+
+    /** True when the activity belongs to the user's own department or office. */
+    public boolean isInOwnUnit(Activity activity, User user) {
+        return user != null && inOwnUnit(activity, user);
+    }
+
+    /**
+     * True when the evidence belongs to the user's own department or office: its activity is theirs,
+     * or it was uploaded by someone in their office. This is the same test that lets a chairperson
+     * modify it, so "what she may edit" and "what she may share" are one definition.
+     */
+    public boolean isOwnUnitEvidence(Evidence evidence, User user) {
+        return isSameDepartmentOrOffice(user, evidence);
+    }
+
+    private boolean isSameDepartmentOrOffice(User user, Evidence evidence) {
+        if (user == null || evidence == null) return false;
+        Activity activity = evidence.getActivity();
+        if (activity != null) {
+            Department userDept = user.resolveDepartment();
+            if (userDept != null && activity.getDepartment() != null && userDept == activity.getDepartment()) {
+                return true;
+            }
+            String userOffice = user.getOffice();
+            if (userOffice != null && !userOffice.isBlank()
+                    && activity.getOffice() != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+                return true;
+            }
+        }
+        User uploader = evidence.getUploadedBy();
+        return uploader != null && user.getOffice() != null && !user.getOffice().isBlank()
+                && uploader.getOffice() != null && user.getOffice().equalsIgnoreCase(uploader.getOffice());
+    }
+
     public boolean canViewEvidence(Evidence evidence, User user) {
         if (evidence == null || user == null) return false;
         if (seesEverything(user)) return true;

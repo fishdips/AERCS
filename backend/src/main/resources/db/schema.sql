@@ -86,6 +86,9 @@ CREATE TABLE IF NOT EXISTS evidence (
     related_offices     TEXT,
     tags                TEXT,
     notes               TEXT,
+    -- Who last saved the metadata above, and when. NULL until it is first saved.
+    metadata_updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    metadata_updated_at TIMESTAMPTZ,
     uploaded_by         UUID REFERENCES users(id) ON DELETE SET NULL,
     uploaded_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -163,6 +166,25 @@ CREATE TABLE IF NOT EXISTS accreditor_access_users (
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (access_id, user_id)
 );
+
+-- In-app notifications for accreditors: a link was shared with them (SHARED) or one is about to
+-- expire (EXPIRING_24H / EXPIRING_4H). Expiry notices remember the expiry they warned about, so
+-- there is one per accreditor / link / expiry and a notice is ignored once the link is extended.
+CREATE TABLE IF NOT EXISTS accreditor_notifications (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    accreditor_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    access_id           UUID NOT NULL REFERENCES accreditor_access(id) ON DELETE CASCADE,
+    type                VARCHAR(20) NOT NULL,
+    expires_at_snapshot TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    read_at             TIMESTAMPTZ,
+    CONSTRAINT chk_accreditor_notification_type
+        CHECK (type IN ('SHARED', 'EXPIRING_24H', 'EXPIRING_4H')),
+    CONSTRAINT uq_accreditor_notification_expiry
+        UNIQUE (accreditor_id, access_id, type, expires_at_snapshot)
+);
+
+CREATE INDEX IF NOT EXISTS idx_accreditor_notifications_accreditor ON accreditor_notifications(accreditor_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_users_user_id ON accreditor_access_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_accreditor_access_token ON accreditor_access(token);

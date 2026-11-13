@@ -3,7 +3,7 @@ import Modal from '../../../shared/components/Modal';
 import { formatAccreditationArea, isServiceOfficeValue } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { downloadEvidenceBlob, getEvidenceMetadata, updateEvidenceMetadata, viewEvidenceBlob } from '../api';
-import { EVIDENCE_TYPES, formatEvidenceType, formatRelatedOffice } from '../constants';
+import { EVIDENCE_TYPES, formatEvidenceType, formatRelatedOffice, hasMultipleVersions } from '../constants';
 import RelatedOfficesPicker from './RelatedOfficesPicker';
 import { Globe, History } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -35,6 +35,19 @@ function formatDate(value) {
   });
 }
 
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function saveBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -46,7 +59,9 @@ function saveBlob(blob, fileName) {
   URL.revokeObjectURL(url);
 }
 
-export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSaved }) {
+// `readOnly` shows the details without letting anything be changed: for people who may see the
+// evidence (e.g. staff of the same department) but are not its uploader, an admin or a chairperson.
+export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSaved, readOnly = false }) {
   const { user: currentUser } = useAuth();
   const [metadata, setMetadata] = useState(null);
   const [form, setForm] = useState(initialForm);
@@ -116,7 +131,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
   const handleSave = async (event) => {
     event.preventDefault();
     setError('');
-    if (!evidence) return;
+    if (!evidence || readOnly) return;
     if (!form.evidenceType) {
       setError('Evidence type is required.');
       return;
@@ -157,6 +172,12 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
       {!loading && (
         <form className="am-metadata-form am-metadata-workspace" onSubmit={handleSave} noValidate>
           <Alert type="error" message={error} onDismiss={() => setError('')} />
+          {readOnly && (
+            <p className="am-helper-text">
+              View only. Only the person who uploaded this evidence, a department chairperson or an
+              administrator can change it.
+            </p>
+          )}
 
           <div className="am-evidence-detail-layout">
             <section className="am-evidence-file-panel">
@@ -178,10 +199,10 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                   <dt>Type</dt>
                   <dd>{evidence?.fileType || '-'}</dd>
                 </div>
-                {evidence?.fileType !== 'LINK' && (
+                {evidence?.fileType !== 'LINK' && hasMultipleVersions(evidence) && (
                   <div>
                     <dt>Version</dt>
-                    <dd>v{evidence?.currentVersion || 1}</dd>
+                    <dd>v{evidence.currentVersion}</dd>
                   </div>
                 )}
                 <div>
@@ -213,7 +234,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                     type="button"
                     onClick={() => setVersionsModalOpen(true)}
                   >
-                    <Icon as={History} /> Version History (v{evidence?.currentVersion || 1})
+                    <Icon as={History} /> Version History{hasMultipleVersions(evidence) ? ` (v${evidence.currentVersion})` : ''}
                   </button>
                 )}
               </div>
@@ -226,12 +247,19 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                   <span className="am-type-badge">{formatEvidenceType(metadata.evidenceType)}</span>
                 )}
               </div>
+              {metadata?.metadataUpdatedAt && (
+                <p className="am-helper-text">
+                  Last edited by <strong>{metadata.metadataUpdatedByName || 'a former user'}</strong>
+                  {' '}&middot; {formatDateTime(metadata.metadataUpdatedAt)}
+                </p>
+              )}
 
               <label className="am-form-field">
-                <span className="am-form-label">Evidence Type <span className="am-required">*</span></span>
+                <span className="am-form-label">Evidence Type {!readOnly && <span className="am-required">*</span>}</span>
                 <select
                   className="am-select"
                   value={form.evidenceType}
+                  disabled={readOnly}
                   onChange={(event) => setForm((current) => ({ ...current, evidenceType: event.target.value }))}
                 >
                   <option value="">Select type</option>
@@ -251,7 +279,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                     </p>
                   </div>
                 ) : (
-                  <RelatedOfficesPicker selected={form.relatedOffices} onToggle={toggleOffice} />
+                  <RelatedOfficesPicker selected={form.relatedOffices} onToggle={toggleOffice} disabled={readOnly} />
                 )}
               </div>
 
@@ -259,8 +287,9 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                 <span className="am-form-label">Tags</span>
                 <input
                   className="am-input"
-                  placeholder="research, attendance, faculty"
+                  placeholder={readOnly ? '' : 'research, attendance, faculty'}
                   value={form.tags}
+                  readOnly={readOnly}
                   onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
                 />
               </label>
@@ -271,6 +300,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
                   className="am-textarea"
                   rows={5}
                   value={form.notes}
+                  readOnly={readOnly}
                   onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
                 />
               </label>
@@ -307,12 +337,20 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
           </div>
 
           <div className="am-form-actions am-metadata-actions">
-            <button className="am-btn-secondary" type="button" onClick={onClose} disabled={saving}>
-              Cancel
-            </button>
-            <button className="am-btn-primary" type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
-            </button>
+            {readOnly ? (
+              <button className="am-btn-secondary" type="button" onClick={onClose}>
+                Close
+              </button>
+            ) : (
+              <>
+                <button className="am-btn-secondary" type="button" onClick={onClose} disabled={saving}>
+                  Cancel
+                </button>
+                <button className="am-btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       )}
@@ -320,7 +358,6 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
         evidence={evidence}
         isOpen={versionsModalOpen}
         onClose={() => setVersionsModalOpen(false)}
-        canRestore={false}
         onRestored={() => {
           if (onSaved) onSaved();
         }}

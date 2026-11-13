@@ -21,6 +21,8 @@ import ReferenceEvidencePage from './features/shared-evidence/pages/ReferenceEvi
 import EvidenceReferencesPage from './features/shared-evidence/pages/EvidenceReferencesPage';
 import AccreditorLinksPage from './features/accreditor-access/pages/AccreditorLinksPage';
 import AccreditorLinkDetailPage from './features/accreditor-access/pages/AccreditorLinkDetailPage';
+import AccreditorNotificationsPage from './features/accreditor-access/pages/AccreditorNotificationsPage';
+import { AccreditorNotificationsProvider } from './features/accreditor-access/context/AccreditorNotificationsContext';
 import HelpPage from './features/help/pages/HelpPage';
 import { ROLES } from './shared/constants/roles';
 import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES, HELP_ROLES } from './features/activities/constants';
@@ -29,6 +31,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <AccreditorNotificationsProvider>
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
@@ -45,6 +48,14 @@ function App() {
             element={
               <RoleProtectedRoute allowedRoles={[ROLES.ACCREDITOR_LINK]}>
                 <AccreditorLinksPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/accreditor/notifications"
+            element={
+              <RoleProtectedRoute allowedRoles={[ROLES.ACCREDITOR_LINK]}>
+                <AccreditorNotificationsPage />
               </RoleProtectedRoute>
             }
           />
@@ -182,6 +193,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </AccreditorNotificationsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

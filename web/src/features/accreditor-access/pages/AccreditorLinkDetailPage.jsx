@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getMyAccreditorLink } from '../api';
 import { formatAccreditationArea, formatDepartment, formatOffice } from '../../activities/constants';
-import { formatEvidenceType } from '../../evidence/constants';
+import { formatEvidenceType, hasMultipleVersions } from '../../evidence/constants';
 import '../AccreditorAccess.css';
 import { Eye, ExternalLink } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
@@ -185,9 +185,9 @@ export default function AccreditorLinkDetailPage() {
                     <td>
                       <div className="am-evidence-name-row">
                         <strong>{item.originalFileName}</strong>
-                        {item.fileType !== 'LINK' && !item.linkUrl && (
-                          <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
-                            v{item.currentVersion || 1}
+                        {item.fileType !== 'LINK' && !item.linkUrl && hasMultipleVersions(item) && (
+                          <span className="am-version-badge am-version-badge-multi">
+                            v{item.currentVersion}
                           </span>
                         )}
                       </div>

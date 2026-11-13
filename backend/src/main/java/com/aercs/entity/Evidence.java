@@ -67,6 +67,17 @@ public class Evidence {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    // Who last saved the metadata above (type, offices, tags, notes), and when. Kept apart from
+    // updated_at, which also moves when a file is replaced or a link is edited. Null until the
+    // metadata has been saved at least once, and the user is cleared if that account is deleted.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "metadata_updated_by")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private User metadataUpdatedBy;
+
+    @Column(name = "metadata_updated_at")
+    private OffsetDateTime metadataUpdatedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by")
     @OnDelete(action = OnDeleteAction.SET_NULL)

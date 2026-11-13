@@ -1,7 +1,8 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { HELP_ROLES } from '../constants';
+import { useAccreditorNotifications } from '../../accreditor-access/context/AccreditorNotificationsContext';
 import '../pages/ActivityManagementPage.css';
 
 export default function ActivityShell({ children }) {
@@ -12,6 +13,9 @@ export default function ActivityShell({ children }) {
   const canSeeHelp = HELP_ROLES.includes(user?.role);
   const navClass = ({ isActive }) => `am-nav-link ${isActive ? 'am-nav-active' : ''}`;
   const navigate = useNavigate();
+  const { unreadCount } = useAccreditorNotifications();
+  // /accreditor/notifications sits under /accreditor, so Evidence Links must not claim it as well.
+  const onNotifications = (useLocation()?.pathname || '').startsWith('/accreditor/notifications');
 
   const handleLogout = async () => {
     await logout();
@@ -44,7 +48,17 @@ export default function ActivityShell({ children }) {
             {isAccreditor ? (
               <>
                 <p className="am-nav-section">Accreditation Review</p>
-                <NavLink to="/accreditor" className={navClass}>Evidence Links</NavLink>
+                <NavLink to="/accreditor" className={({ isActive }) => navClass({ isActive: isActive && !onNotifications })}>
+                  Evidence Links
+                </NavLink>
+                <NavLink to="/accreditor/notifications" className={(state) => `${navClass(state)} am-nav-link-badge`}>
+                  Notifications
+                  {unreadCount > 0 && (
+                    <span className="am-nav-badge" aria-label={`${unreadCount} unread`}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </NavLink>
               </>
             ) : (
               <>

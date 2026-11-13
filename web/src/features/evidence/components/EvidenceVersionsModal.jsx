@@ -61,6 +61,8 @@ export default function EvidenceVersionsModal({
   const [visitedIds, setVisitedIds] = useState([]);
   // Set when a restore/delete happened, so the parent list is refreshed once on close.
   const changedRef = useRef(false);
+  // The version whose "Delete" is waiting for a second click. Deleting is permanent, so it asks first.
+  const [confirmDeleteId, setConfirmDeleteId] = useState('');
 
   useEffect(() => {
     const id = previewVersion?.id;
@@ -104,6 +106,7 @@ export default function EvidenceVersionsModal({
       setVersions([]);
       setPreviewVersion(null);
       setVisitedIds([]);
+      setConfirmDeleteId('');
       setExpandedPreview(false);
       setError('');
       setSuccessMessage('');
@@ -253,7 +256,33 @@ export default function EvidenceVersionsModal({
                             >
                               <Icon as={Download} size={12} /> {isBusy ? 'Working...' : 'Download'}
                             </button>
-                            {canManage && !ver.isCurrent && (
+                            {canManage && !ver.isCurrent && confirmDeleteId === ver.id && (
+                              <>
+                                <span style={{ color: '#b91c1c', fontSize: '0.72rem', fontWeight: 600 }}>
+                                  Delete v{ver.versionNumber} permanently?
+                                </span>
+                                <button
+                                  type="button"
+                                  className="am-btn-secondary am-btn-sm"
+                                  onClick={() => setConfirmDeleteId('')}
+                                  disabled={Boolean(busyVersionId)}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="am-btn-danger am-btn-sm"
+                                  onClick={() => {
+                                    setConfirmDeleteId('');
+                                    handleDeleteVersion(ver);
+                                  }}
+                                  disabled={Boolean(busyVersionId)}
+                                >
+                                  <Icon as={Trash2} size={12} /> Yes, delete
+                                </button>
+                              </>
+                            )}
+                            {canManage && !ver.isCurrent && confirmDeleteId !== ver.id && (
                               <>
                                 <button
                                   type="button"
@@ -268,7 +297,7 @@ export default function EvidenceVersionsModal({
                                   <button
                                     type="button"
                                     className="am-link-button am-link-danger am-btn-sm"
-                                    onClick={() => handleDeleteVersion(ver)}
+                                    onClick={() => setConfirmDeleteId(ver.id)}
                                     disabled={Boolean(busyVersionId)}
                                     title={`Delete v${ver.versionNumber}`}
                                   >

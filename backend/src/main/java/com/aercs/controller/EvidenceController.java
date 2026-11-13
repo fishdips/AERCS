@@ -9,6 +9,7 @@ import com.aercs.dto.response.EvidenceResponse;
 import com.aercs.dto.response.EvidenceVersionResponse;
 import jakarta.validation.Valid;
 import com.aercs.service.EvidenceService;
+import com.aercs.service.EvidenceVersionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -40,6 +41,7 @@ public class EvidenceController {
     private static final String CREATE_ROLES = "hasAnyRole('DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
 
     private final EvidenceService evidenceService;
+    private final EvidenceVersionService versionService;
     private final UserRepository userRepository;
 
     @PostMapping(value = "/api/activities/{activityId}/evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -144,7 +146,7 @@ public class EvidenceController {
     public ResponseEntity<List<EvidenceVersionResponse>> listVersions(
             @PathVariable UUID evidenceId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(evidenceService.listVersions(evidenceId, userDetails.getUsername()));
+        return ResponseEntity.ok(versionService.listVersions(evidenceId, userDetails.getUsername()));
     }
 
     @GetMapping("/api/evidence/{evidenceId}/versions/{versionId}/download")
@@ -152,7 +154,7 @@ public class EvidenceController {
             @PathVariable UUID evidenceId,
             @PathVariable UUID versionId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        EvidenceService.EvidenceDownload download = evidenceService.getVersionDownload(
+        EvidenceService.EvidenceDownload download = versionService.getVersionDownload(
                 evidenceId, versionId, userDetails.getUsername());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -169,7 +171,7 @@ public class EvidenceController {
             @PathVariable UUID evidenceId,
             @PathVariable UUID versionId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        EvidenceService.EvidenceDownload view = evidenceService.getVersionView(
+        EvidenceService.EvidenceDownload view = versionService.getVersionView(
                 evidenceId, versionId, userDetails.getUsername());
         return ResponseEntity.ok()
                 .contentType(view.mediaType())
@@ -196,7 +198,7 @@ public class EvidenceController {
             @PathVariable UUID evidenceId,
             @PathVariable UUID versionId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        evidenceService.deleteVersion(evidenceId, versionId, userDetails.getUsername());
+        versionService.deleteVersion(evidenceId, versionId, userDetails.getUsername());
         return ResponseEntity.ok(Map.of("message", "Version removed"));
     }
 

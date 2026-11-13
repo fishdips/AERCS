@@ -30,10 +30,16 @@ import java.util.UUID;
 @PreAuthorize("hasAnyRole('ADMIN', 'DEPT_STAFF', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')")
 public class AccreditorAccessController {
 
+    // Everyone on the staff side can see their department's links; only these roles can create or
+    // change them (department staff are read-only). The service also limits a chairperson to her
+    // own department's evidence.
+    private static final String MANAGE_ROLES = "hasAnyRole('ADMIN', 'ACCRED_COORDINATOR', 'INSTITUTIONAL_OFFICE')";
+
     private final AccreditorAccessService accreditorAccessService;
     private final UserRepository userRepository;
 
     @PostMapping("/generate")
+    @PreAuthorize(MANAGE_ROLES)
     public ResponseEntity<GenerateAccreditorAccessResponse> generateAccess(
             @Valid @RequestBody GenerateAccreditorAccessRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
@@ -51,11 +57,13 @@ public class AccreditorAccessController {
     }
 
     @GetMapping("/accreditors")
+    @PreAuthorize(MANAGE_ROLES)
     public ResponseEntity<List<AccreditorSummaryResponse>> listAccreditors() {
         return ResponseEntity.ok(accreditorAccessService.listAccreditors());
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize(MANAGE_ROLES)
     public ResponseEntity<GenerateAccreditorAccessResponse> updateAccess(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateAccreditorAccessRequest request,
@@ -67,6 +75,7 @@ public class AccreditorAccessController {
     }
 
     @PostMapping("/assign")
+    @PreAuthorize(MANAGE_ROLES)
     public ResponseEntity<Map<String, List<String>>> assignAccreditors(
             @Valid @RequestBody AssignAccreditorsRequest request,
             @AuthenticationPrincipal UserDetails userDetails,
@@ -78,6 +87,7 @@ public class AccreditorAccessController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize(MANAGE_ROLES)
     public ResponseEntity<Void> deleteAccess(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails

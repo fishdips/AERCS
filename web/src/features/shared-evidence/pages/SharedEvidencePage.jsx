@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { searchSharedEvidence } from '../api';
 import { ACCREDITATION_AREAS, formatAccreditationArea, formatDepartment, formatUserOffice, resolveUserDepartment } from '../../activities/constants';
+import { hasMultipleVersions } from '../../evidence/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import GenerateAccreditorAccessModal from '../../accreditor-access/components/GenerateAccreditorAccessModal';
+import { canGenerateAccreditorAccess } from '../../accreditor-access/permissions';
 import ActionMenu from '../../../shared/components/ActionMenu';
 import InfoTooltip from '../../../shared/components/InfoTooltip';
 import Alert from '../../../shared/components/Alert';
@@ -153,9 +155,9 @@ export default function SharedEvidencePage() {
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
                       <span className="se-file-name">{item.originalFileName}</span>
-                      {item.fileType !== 'LINK' && (
-                        <span className={`am-version-badge ${(item.currentVersion || 1) > 1 ? 'am-version-badge-multi' : ''}`}>
-                          v{item.currentVersion || 1}
+                      {item.fileType !== 'LINK' && hasMultipleVersions(item) && (
+                        <span className="am-version-badge am-version-badge-multi">
+                          v{item.currentVersion}
                         </span>
                       )}
                     </div>
@@ -175,7 +177,8 @@ export default function SharedEvidencePage() {
                       </Link>
                       <ActionMenu
                         items={[
-                          {
+                          // Department staff can't generate accreditor access (the menu then disappears).
+                          canGenerateAccreditorAccess(user) && {
                             label: 'Generate Accreditor Access',
                             onClick: () => setAccessEvidenceId(item.id),
                           },

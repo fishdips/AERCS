@@ -16,6 +16,7 @@ import com.aercs.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,7 @@ class AccreditorAccessIntegrationTest {
     @MockBean private InvitationEmailService invitationEmailService;
 
     private User staff;
+    private User chair;
     private User accreditorA;
     private User accreditorB;
     private Evidence evidence;
@@ -77,6 +79,10 @@ class AccreditorAccessIntegrationTest {
         staff = user("Staff Member", "staff@test.local", UserRole.DEPT_STAFF);
         staff.setOffice(Department.CCS.name());
         staff = userRepository.save(staff);
+        // Only chairpersons (and admins / institutional staff) can create accreditor links.
+        chair = user("CCS Chairperson", "chair@test.local", UserRole.ACCRED_COORDINATOR);
+        chair.setOffice(Department.CCS.name());
+        chair = userRepository.save(chair);
         accreditorA = userRepository.save(user("Accreditor A", "a@accreditor.local", UserRole.ACCREDITOR_LINK));
         accreditorB = userRepository.save(user("Accreditor B", "b@accreditor.local", UserRole.ACCREDITOR_LINK));
 
@@ -99,6 +105,13 @@ class AccreditorAccessIntegrationTest {
         evidence = evidenceRepository.save(e);
     }
 
+    // The test database is shared with the other test classes; leave no links behind that would
+    // block their own clean-up (links reference evidence and users).
+    @AfterEach
+    void cleanUp() {
+        accessRepository.deleteAll();
+    }
+
     @Test
     void assignedAccreditorSeesNamedLinkAndOthersDoNot() throws Exception {
         UUID linkId = createLink("Area VII – Research", List.of(accreditorA.getId()));
@@ -107,7 +120,7 @@ class AccreditorAccessIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Area VII – Research"))
-                .andExpect(jsonPath("$[0].sharedBy").value("Staff Member"))
+                .andExpect(jsonPath("$[0].sharedBy").value("CCS Chairperson"))
                 .andExpect(jsonPath("$[0].evidenceCount").value(1));
 
         mvc.perform(get("/api/accreditor/links/" + linkId).cookie(auth(accreditorA)))
@@ -140,7 +153,7 @@ class AccreditorAccessIntegrationTest {
 
     @Test
     void creatingLinkRequiresNameAndAccreditorAccounts() throws Exception {
-        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "evidenceIds", List.of(evidence.getId()),
@@ -148,7 +161,7 @@ class AccreditorAccessIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         // A staff account cannot be assigned as an accreditor.
-        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", "Bad link",
@@ -162,7 +175,7 @@ class AccreditorAccessIntegrationTest {
         UUID first = createLink("Area I", List.of(accreditorA.getId()));
         UUID second = createLink("Area II", List.of(accreditorA.getId()));
 
-        mvc.perform(post("/api/accreditor-access/assign").cookie(auth(staff))
+        mvc.perform(post("/api/accreditor-access/assign").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "accessIds", List.of(first, second),
@@ -188,7 +201,7 @@ class AccreditorAccessIntegrationTest {
     void editReplacesAccreditorsAndRemovedAccreditorLosesAccess() throws Exception {
         UUID linkId = createLink("Area III", List.of(accreditorA.getId()));
 
-        mvc.perform(patch("/api/accreditor-access/" + linkId).cookie(auth(staff))
+        mvc.perform(patch("/api/accreditor-access/" + linkId).cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", "Area III – Instruction",
@@ -213,13 +226,13 @@ class AccreditorAccessIntegrationTest {
         mvc.perform(delete("/api/admin/users/" + accreditorA.getId()).cookie(auth(admin)))
                 .andExpect(status().is2xxSuccessful());
 
-        mvc.perform(get("/api/accreditor-access").cookie(auth(staff)))
+        mvc.perform(get("/api/accreditor-access").cookie(auth(chair)))
                 .andExpect(jsonPath("$[0].accreditors.length()").value(1))
                 .andExpect(jsonPath("$[0].accreditors[0].name").value("Accreditor B"));
     }
 
     @Test
-    void sameOfficeColleaguesCanSeeALinkButOnlyTheCreatorCanChangeIt() throws Exception {
+    void sameDepartmentStaffCanSeeALinkButOnlyChairpersonsOfThatDepartmentCanChangeIt() throws Exception {
         UUID linkId = createLink("Area V", List.of(accreditorA.getId()));
 
         User colleague = user("Colleague", "colleague@test.local", UserRole.DEPT_STAFF);
@@ -228,23 +241,40 @@ class AccreditorAccessIntegrationTest {
         User outsider = user("Outsider", "outsider@test.local", UserRole.DEPT_STAFF);
         outsider.setOffice(Department.CEA.name());
         outsider = userRepository.save(outsider);
+        User otherChair = user("Other CCS Chair", "other-chair@test.local", UserRole.ACCRED_COORDINATOR);
+        otherChair.setOffice(Department.CCS.name());
+        otherChair = userRepository.save(otherChair);
+        User ceaChair = user("CEA Chair", "cea-chair@test.local", UserRole.ACCRED_COORDINATOR);
+        ceaChair.setOffice(Department.CEA.name());
+        ceaChair = userRepository.save(ceaChair);
 
+        // Department staff see their department's link, read-only.
         mvc.perform(get("/api/accreditor-access").cookie(auth(colleague)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Area V"))
                 .andExpect(jsonPath("$[0].canEdit").value(false));
-        mvc.perform(get("/api/accreditor-access").cookie(auth(staff)))
-                .andExpect(jsonPath("$[0].canEdit").value(true));
+        // Staff of another department see nothing.
         mvc.perform(get("/api/accreditor-access").cookie(auth(outsider)))
                 .andExpect(jsonPath("$.length()").value(0));
+        // The creating chairperson, and another chairperson of the same department, can change it.
+        mvc.perform(get("/api/accreditor-access").cookie(auth(chair)))
+                .andExpect(jsonPath("$[0].canEdit").value(true));
+        mvc.perform(get("/api/accreditor-access").cookie(auth(otherChair)))
+                .andExpect(jsonPath("$[0].canEdit").value(true));
+        // A chairperson of another department can neither see nor change it.
+        mvc.perform(get("/api/accreditor-access").cookie(auth(ceaChair)))
+                .andExpect(jsonPath("$.length()").value(0));
 
-        mvc.perform(patch("/api/accreditor-access/" + linkId).cookie(auth(colleague))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("name", "Hijacked"))))
-                .andExpect(status().isForbidden());
-        mvc.perform(delete("/api/accreditor-access/" + linkId).cookie(auth(colleague)))
-                .andExpect(status().isForbidden());
+        for (User cannotChange : List.of(colleague, outsider, ceaChair)) {
+            mvc.perform(patch("/api/accreditor-access/" + linkId).cookie(auth(cannotChange))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("name", "Hijacked"))))
+                    .andExpect(status().isForbidden());
+            mvc.perform(delete("/api/accreditor-access/" + linkId).cookie(auth(cannotChange)))
+                    .andExpect(status().isForbidden());
+        }
+        assertThat(accessRepository.findById(linkId)).isPresent();
     }
 
     @Test
@@ -276,7 +306,7 @@ class AccreditorAccessIntegrationTest {
     void activityCannotBeSharedAgainWithAnAccreditorWhoAlreadyHasItButCanWithAnother() throws Exception {
         createActivityLink("First share", List.of(accreditorA.getId()));
 
-        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+        mvc.perform(post("/api/accreditor-access/generate").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", "Second share",
@@ -288,7 +318,7 @@ class AccreditorAccessIntegrationTest {
     }
 
     private UUID createActivityLink(String name, List<UUID> accreditorIds) throws Exception {
-        String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+        String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", name,
@@ -300,7 +330,7 @@ class AccreditorAccessIntegrationTest {
     }
 
     private UUID createLink(String name, List<UUID> accreditorIds) throws Exception {
-        String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(staff))
+        String body = mvc.perform(post("/api/accreditor-access/generate").cookie(auth(chair))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", name,

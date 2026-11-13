@@ -4,7 +4,8 @@ import { RELATED_OFFICES } from '../constants';
 // Checkbox list of related offices with a quick search box. Every word typed must appear
 // somewhere in the office name, in any order ("nursing health", "qa office").
 // Offices that are ticked stay ticked while a search hides them; the count shows how many.
-export default function RelatedOfficesPicker({ selected = [], onToggle }) {
+// With `disabled` the selection is shown but can't be changed (the search still works).
+export default function RelatedOfficesPicker({ selected = [], onToggle, disabled = false }) {
   const [search, setSearch] = useState('');
 
   const visibleOffices = useMemo(() => {
@@ -44,6 +45,7 @@ export default function RelatedOfficesPicker({ selected = [], onToggle }) {
             <input
               type="checkbox"
               checked={selected.includes(office.value)}
+              disabled={disabled}
               onChange={() => onToggle(office.value)}
             />
             {office.label}

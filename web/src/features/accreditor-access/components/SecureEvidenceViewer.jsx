@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from '../../../shared/components/Modal';
 import { renderImage, renderPdf, renderSpreadsheet, renderWord } from '../../../shared/utils/evidenceRenderers';
+import { hasMultipleVersions } from '../../evidence/constants';
 import { viewAccreditorEvidenceBlob } from '../api';
 import '../SecureEvidenceViewer.css';
 
@@ -61,7 +62,7 @@ export default function SecureEvidenceViewer({ linkId, evidence, onClose }) {
   }, [evidence]);
 
   const modalTitle = evidence
-    ? `${evidence.originalFileName || 'Evidence'}${evidence.fileType !== 'LINK' ? ` (v${evidence.currentVersion || 1})` : ''}`
+    ? `${evidence.originalFileName || 'Evidence'}${evidence.fileType !== 'LINK' && hasMultipleVersions(evidence) ? ` (v${evidence.currentVersion})` : ''}`
     : 'Evidence';
 
   return (

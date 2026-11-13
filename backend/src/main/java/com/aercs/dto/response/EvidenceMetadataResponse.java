@@ -18,5 +18,9 @@ public record EvidenceMetadataResponse(
         List<RelatedOffice> relatedOffices,
         List<String> tags,
         String notes,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        // Who last saved the metadata and when; all null if it has never been saved.
+        UUID metadataUpdatedById,
+        String metadataUpdatedByName,
+        OffsetDateTime metadataUpdatedAt
 ) {}

@@ -156,9 +156,17 @@ export const HELP_SECTIONS = [
       {
         type: 'list',
         items: [
+          'The accreditor also gets a notification on their Evidence Links page when something is shared with them.',
+          'They are reminded again when a link has 24 hours left and when it has 4 hours left. Extending a link replaces the old reminder with new ones for the new expiry.',
+        ],
+      },
+      {
+        type: 'list',
+        items: [
+          'Only chairpersons, institutional staff, and administrators can share with an accreditor. A chairperson can share only their own department’s evidence.',
           'Access is view-only.',
           'After the expiry date, the accreditor can no longer open the link.',
-          'Only the person who made a link can edit, extend, or delete it.',
+          'Only the person who made a link, a chairperson of the same department, or an administrator can edit, extend, or delete it. Department staff can see their department’s links but not change them.',
         ],
       },
     ],

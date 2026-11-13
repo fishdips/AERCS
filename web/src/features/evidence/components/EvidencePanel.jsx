@@ -17,7 +17,15 @@ import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
 import EvidenceMetadataModal from './EvidenceMetadataModal';
 import EvidenceVersionsModal from './EvidenceVersionsModal';
-import { formatEvidenceType, formatRelatedOffice, isForeignUnit, isUserUnitTagged } from '../constants';
+import {
+  findNewVersionTargets,
+  formatEvidenceType,
+  formatRelatedOffice,
+  hasMultipleVersions,
+  isForeignUnit,
+  isIdenticalContentError,
+  isUserUnitTagged,
+} from '../constants';
 import { DRIVE_FOLDER_MESSAGE, isGoogleDriveFolderUrl } from '../driveLinks';
 import { formatUserOffice } from '../../activities/constants';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -209,6 +217,10 @@ export default function EvidencePanel({
   const [versionsEvidence, setVersionsEvidence] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [duplicateWarnings, setDuplicateWarnings] = useState([]);
+  // Server message when a file was refused because identical content is already saved.
+  const [identicalContentMessage, setIdenticalContentMessage] = useState('');
+  // Selected files that share a name with existing evidence and so would become new versions.
+  const [versionConfirm, setVersionConfirm] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [pendingUnsupported, setPendingUnsupported] = useState(null); // { valid: File[], invalid: {name, reason}[] }
   const dragCounterRef = useRef(0);
@@ -367,6 +379,21 @@ export default function EvidencePanel({
     const validationError = validateFiles(selectedFiles);
     if (validationError) { setError(validationError); return; }
     if (selectedFiles.length === 0) { setError('Select at least one evidence file.'); return; }
+    // A same-name file becomes a new version of existing evidence, which is easy to do by accident.
+    const newVersionTargets = findNewVersionTargets(selectedFiles, evidence);
+    if (newVersionTargets.length > 0) {
+      setVersionConfirm(newVersionTargets);
+      return;
+    }
+    await performUpload();
+  };
+
+  const handleConfirmNewVersions = async () => {
+    setVersionConfirm(null);
+    await performUpload();
+  };
+
+  const performUpload = async () => {
     setIsUploading(true);
     setError('');
     try {
@@ -379,7 +406,9 @@ export default function EvidencePanel({
       if (duplicates.length > 0) setDuplicateWarnings(duplicates);
       if (onUploaded) onUploaded(data || []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to upload evidence.');
+      const message = err.response?.data?.error;
+      if (isIdenticalContentError(message)) setIdenticalContentMessage(message);
+      else setError(message || 'Failed to upload evidence.');
     } finally {
       setIsUploading(false);
     }
@@ -491,7 +520,9 @@ export default function EvidencePanel({
       setReplacement({ evidenceId: '', file: null, item: null, versionNote: '' });
       await loadEvidence();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to replace evidence.');
+      const message = err.response?.data?.error;
+      if (isIdenticalContentError(message)) setIdenticalContentMessage(message);
+      else setError(message || 'Failed to replace evidence.');
     } finally {
       setBusyEvidenceId('');
     }
@@ -725,21 +756,17 @@ export default function EvidencePanel({
                       <div>
                         <div className="am-evidence-name-row">
                           <span className="am-evidence-name">{item.originalFileName}</span>
-                          {item.fileType !== 'LINK' && !item.linkUrl && (
+                          {item.fileType !== 'LINK' && !item.linkUrl && hasMultipleVersions(item) && (
                             <button
                               type="button"
-                              className={
-                                (item.currentVersion || 1) > 1
-                                  ? 'am-version-badge am-version-badge-multi'
-                                  : 'am-version-badge'
-                              }
+                              className="am-version-badge am-version-badge-multi"
                               title="View version history"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setVersionsEvidence(item);
                               }}
                             >
-                              <Icon as={History} size={11} /> v{item.currentVersion || 1}
+                              <Icon as={History} size={11} /> v{item.currentVersion}
                             </button>
                           )}
                         </div>
@@ -763,7 +790,9 @@ export default function EvidencePanel({
                   <td className="am-ev-toggle-cell">
                     <ActionMenu
                       items={[
-                        canManageItem(item) && !hideMetadataActions && canSeeMetadata(item) && {
+                        // Anyone who can see the evidence can open its details; only people who can
+                        // manage it get the editable form (the rest get a view-only one).
+                        !hideMetadataActions && canSeeMetadata(item) && {
                           icon: Eye,
                           label: 'View Details',
                           disabled: managementLocked,
@@ -788,7 +817,7 @@ export default function EvidencePanel({
                         },
                         item.fileType !== 'LINK' && !item.linkUrl && {
                           icon: History,
-                          label: `Version History (v${item.currentVersion || 1})`,
+                          label: hasMultipleVersions(item) ? `Version History (v${item.currentVersion})` : 'Version History',
                           disabled: managementLocked,
                           onClick: () => setVersionsEvidence(item),
                         },
@@ -909,6 +938,32 @@ export default function EvidencePanel({
         </div>
       </Modal>
 
+      {/* Identical Content Modal: shown when the server refuses a file that is already saved */}
+      <Modal
+        isOpen={Boolean(identicalContentMessage)}
+        onClose={() => setIdenticalContentMessage('')}
+        title="Duplicate File"
+      >
+        <div className="am-replace-modal">
+          <ul className="am-duplicate-list">
+            <li className="am-duplicate-item">
+              <Icon as={TriangleAlert} size={16} />
+              <div>
+                <p className="am-duplicate-detail">{identicalContentMessage}</p>
+              </div>
+            </li>
+          </ul>
+          <p className="am-replace-copy">
+            Nothing was saved. Remove the duplicate from the list or choose a modified file, then try again.
+          </p>
+          <div className="am-form-actions am-replace-actions">
+            <button className="am-btn-primary" type="button" onClick={() => setIdenticalContentMessage('')}>
+              OK
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Replace File Modal */}
       <Modal
         isOpen={Boolean(replacement.evidenceId && replacement.file)}
@@ -1007,6 +1062,7 @@ export default function EvidencePanel({
         isOpen={Boolean(metadataEvidence)}
         onClose={() => setMetadataEvidence(null)}
         onSaved={loadEvidence}
+        readOnly={metadataEvidence ? !canManageItem(metadataEvidence) : false}
       />
 
       <EvidenceVersionsModal
@@ -1015,6 +1071,31 @@ export default function EvidencePanel({
         onClose={() => setVersionsEvidence(null)}
         canManage={versionsEvidence ? canManageItem(versionsEvidence) && !managementLocked : false}
         onRestored={loadEvidence}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(versionConfirm)}
+        onClose={() => setVersionConfirm(null)}
+        onConfirm={handleConfirmNewVersions}
+        title="Save as a new version?"
+        confirmLabel="Save as new version"
+        message={(
+          <div>
+            <p className="confirm-modal-message">
+              {versionConfirm?.length === 1
+                ? 'This file has the same name as evidence already in this activity, so it will be saved as a new version of it instead of a separate file.'
+                : 'These files have the same names as evidence already in this activity, so they will be saved as new versions of it instead of separate files.'}
+              {' '}The earlier versions stay in Version History.
+            </p>
+            <ul style={{ margin: '0.6rem 0 0', paddingLeft: '1.1rem', fontSize: '0.8rem', lineHeight: 1.5 }}>
+              {versionConfirm?.map(({ file, existing }) => (
+                <li key={fileKey(file)}>
+                  <strong>{file.name}</strong> &rarr; v{(existing.currentVersion || 1) + 1} of &ldquo;{existing.originalFileName}&rdquo;
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       />
 
       <ConfirmModal

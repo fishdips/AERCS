@@ -72,8 +72,11 @@ public class ActivityService {
         User user = userRepository.findByIdentifier(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        // An activity that exists but belongs to someone else's unit is a "no access" (403), not a
+        // "not found": people reach these pages from links on lists (e.g. who references a shared
+        // file), and "not found" there reads as if the link were broken. A missing one still 404s.
         if (!canViewAll(user.getRole()) && !isVisibleToUser(activity, user)) {
-            throw new ResourceNotFoundException("Activity not found");
+            throw new ForbiddenException("You don't have access to this activity.");
         }
 
         return toResponse(activity);

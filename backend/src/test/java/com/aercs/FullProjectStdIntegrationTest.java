@@ -307,8 +307,8 @@ class FullProjectStdIntegrationTest {
                         .cookie(auth(sta))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
-                                "title", "CCS Accreditation Drive Folder",
-                                "linkUrl", "https://drive.google.com/drive/folders/123456"
+                                "title", "CCS Accreditation Document",
+                                "linkUrl", "https://drive.google.com/file/d/123456/view"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fileType").value("LINK"));
@@ -358,7 +358,7 @@ class FullProjectStdIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "title", "CEA Link",
-                                "linkUrl", "https://drive.google.com/drive/folders/cea"
+                                "linkUrl", "https://drive.google.com/file/d/cea/view"
                         ))))
                 .andExpect(status().isForbidden());
 
@@ -746,8 +746,19 @@ class FullProjectStdIntegrationTest {
         UUID evId = uploadSamplePdfBytes(ccsAct, sta, "brochure-v1.pdf", v1Bytes);
 
         // TC-M4-UC2-01: Generate accreditor access link
-        String genBody = mvc.perform(post("/api/accreditor-access/generate")
+        // Department staff cannot generate links; the department's chairperson does.
+        mvc.perform(post("/api/accreditor-access/generate")
                         .cookie(auth(sta))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "name", "Staff attempt",
+                                "activityId", ccsAct.getId().toString(),
+                                "accreditorIds", List.of(acc1.getId().toString())
+                        ))))
+                .andExpect(status().isForbidden());
+
+        String genBody = mvc.perform(post("/api/accreditor-access/generate")
+                        .cookie(auth(cha))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", "CCS Exhibit Review Link",
@@ -763,7 +774,7 @@ class FullProjectStdIntegrationTest {
 
         // TC-M4-UC2-05: Sharing same activity with same accreditor while active link exists -> 409 Conflict
         mvc.perform(post("/api/accreditor-access/generate")
-                        .cookie(auth(sta))
+                        .cookie(auth(cha))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
                                 "name", "Duplicate Share",

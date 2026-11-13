@@ -38,3 +38,15 @@ export const viewAccreditorEvidenceBlob = (linkId, evidenceId, version) =>
     params: { v: version || 1, _t: Date.now() },
     responseType: 'blob',
   });
+
+// ---- Accreditor: notifications (a link was shared with me / is about to expire) ----
+
+// Never cached: the list is how the page learns about new notices as time passes.
+export const getMyNotifications = () =>
+  api.get('/api/accreditor/notifications', { cache: false });
+
+export const markNotificationRead = (id) =>
+  api.post(`/api/accreditor/notifications/${id}/read`);
+
+export const markAllNotificationsRead = () =>
+  api.post('/api/accreditor/notifications/read-all');

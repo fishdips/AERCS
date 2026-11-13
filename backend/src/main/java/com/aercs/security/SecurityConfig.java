@@ -48,7 +48,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").authenticated()
                 // Accreditor accounts can only reach the links assigned to them - nothing else.
                 .requestMatchers(HttpMethod.GET, "/api/accreditor/**").hasRole("ACCREDITOR_LINK")
-                // Accreditor sessions are read-only: POST/PUT/PATCH/DELETE are refused (403).
+                // The one thing an accreditor may write: marking their own notifications as read.
+                // These two exact endpoints only change the caller's own read marks, never any data.
+                .requestMatchers(HttpMethod.POST,
+                        "/api/accreditor/notifications/read-all",
+                        "/api/accreditor/notifications/*/read").hasRole("ACCREDITOR_LINK")
+                // Accreditor sessions are otherwise read-only: POST/PUT/PATCH/DELETE are refused (403).
                 .requestMatchers("/api/accreditor/**").denyAll()
                 .anyRequest().hasAnyRole("ADMIN", "DEPT_STAFF", "ACCRED_COORDINATOR", "INSTITUTIONAL_OFFICE")
             )
