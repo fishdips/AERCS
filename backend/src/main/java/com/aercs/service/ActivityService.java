@@ -151,7 +151,8 @@ public class ActivityService {
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
             boolean isAdmin = user.getRole() == UserRole.ADMIN;
-            if (!isCreator && !isAdmin) {
+            boolean isSameUnitChair = user.getRole() == UserRole.ACCRED_COORDINATOR && isSameUnit(activity, user);
+            if (!isCreator && !isAdmin && !isSameUnitChair) {
                 throw new ForbiddenException("You are not authorized to edit this activity");
             }
         }
@@ -176,7 +177,8 @@ public class ActivityService {
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             boolean isCreator = activity.getCreatedBy() != null && activity.getCreatedBy().getId().equals(user.getId());
             boolean isAdmin = user.getRole() == UserRole.ADMIN;
-            if (!isCreator && !isAdmin) {
+            boolean isSameUnitChair = user.getRole() == UserRole.ACCRED_COORDINATOR && isSameUnit(activity, user);
+            if (!isCreator && !isAdmin && !isSameUnitChair) {
                 throw new ForbiddenException("You are not authorized to delete this activity");
             }
         }
@@ -184,6 +186,20 @@ public class ActivityService {
             throw new BadRequestException("Activity has attached evidence and cannot be deleted");
         }
         activityRepository.delete(activity);
+    }
+
+    private boolean isSameUnit(Activity activity, User user) {
+        if (activity == null || user == null) return false;
+        Department userDept = user.resolveDepartment();
+        if (userDept != null && activity.getDepartment() != null && userDept == activity.getDepartment()) {
+            return true;
+        }
+        String userOffice = user.getOffice();
+        if (userOffice != null && !userOffice.isBlank()
+                && activity.getOffice() != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+            return true;
+        }
+        return false;
     }
 
     @Transactional

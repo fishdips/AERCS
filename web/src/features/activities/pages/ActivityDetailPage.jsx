@@ -105,10 +105,14 @@ export default function ActivityDetailPage() {
   const canCreateEvidence = user && ACTIVITY_CREATE_ROLES.includes(user.role);
 
   const isCreator = Boolean(isUserActivity(activity, user));
+  const isSameUnitChair = Boolean(
+    user?.role === ROLES.ACCRED_COORDINATOR && activity && !isForeignUnit(user, activity)
+  );
 
   const canEditRecord = Boolean(
     isCreator ||
-    user?.role === ROLES.ADMIN
+    user?.role === ROLES.ADMIN ||
+    isSameUnitChair
   );
 
   const [batchSelectedIds, setBatchSelectedIds] = useState([]);

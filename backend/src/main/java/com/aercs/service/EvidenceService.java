@@ -1023,9 +1023,40 @@ public class EvidenceService {
         if (currentUser.getRole() == com.aercs.entity.UserRole.ADMIN) return;
 
         User uploader = evidence.getUploadedBy();
-        if (uploader == null || !uploader.getId().equals(currentUser.getId())) {
-            throw new ForbiddenException("Only the uploader can modify this evidence");
+        if (uploader != null && uploader.getId().equals(currentUser.getId())) {
+            return;
         }
+
+        if (currentUser.getRole() == com.aercs.entity.UserRole.ACCRED_COORDINATOR) {
+            if (isSameDepartmentOrOffice(currentUser, evidence)) {
+                return;
+            }
+            throw new ForbiddenException("Chairperson can only modify evidence within their department");
+        }
+
+        throw new ForbiddenException("Only the uploader can modify this evidence");
+    }
+
+    private boolean isSameDepartmentOrOffice(User user, Evidence evidence) {
+        if (user == null || evidence == null) return false;
+        Activity activity = evidence.getActivity();
+        if (activity != null) {
+            var userDept = user.resolveDepartment();
+            if (userDept != null && activity.getDepartment() != null && userDept == activity.getDepartment()) {
+                return true;
+            }
+            String userOffice = user.getOffice();
+            if (userOffice != null && !userOffice.isBlank()
+                    && activity.getOffice() != null && userOffice.equalsIgnoreCase(activity.getOffice())) {
+                return true;
+            }
+        }
+        User uploader = evidence.getUploadedBy();
+        if (uploader != null && user.getOffice() != null && !user.getOffice().isBlank()
+                && uploader.getOffice() != null && user.getOffice().equalsIgnoreCase(uploader.getOffice())) {
+            return true;
+        }
+        return false;
     }
 
     private void assertCanModify(Evidence evidence, UUID currentUserId) {
