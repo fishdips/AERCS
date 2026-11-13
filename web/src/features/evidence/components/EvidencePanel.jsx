@@ -257,7 +257,9 @@ export default function EvidencePanel({
   const canManageItem = (item) => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
-    return item.uploadedById != null && String(item.uploadedById) === String(user.id);
+    if (item.uploadedById != null && String(item.uploadedById) === String(user.id)) return true;
+    if (user.role === 'ACCRED_COORDINATOR' && !isForeignUnitActivity) return true;
+    return false;
   };
   const managementLocked = lockManagementActions || isUploading;
   const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
