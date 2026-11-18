@@ -70,7 +70,7 @@ graph TB
     subgraph Cloud ["Cloud & Infrastructure Services"]
         DB[(Supabase PostgreSQL Database)]
         Bucket[(Supabase Storage: evidence-files)]
-        Email[SendGrid HTTP REST API]
+        Email[Brevo HTTP REST API]
     end
 
     UI --> State
@@ -86,7 +86,7 @@ graph TB
 ### Architectural Highlights
 - **Stateless Authentication with HttpOnly Cookies**: Uses cryptographically signed JWT tokens stored in strict `HttpOnly`, `SameSite` cookies with token versioning for instant server-side revocation.
 - **Transaction-Safe Connection Pooling**: Configured with HikariCP in transaction mode over port `6543` to operate safely within cloud database connection constraints.
-- **HTTP-Based Email Delivery**: Integrates SendGrid's REST API directly over HTTPS, bypassing blocked outbound SMTP ports on cloud container environments (such as Render).
+- **HTTP-Based Email Delivery**: Integrates Brevo's REST API directly over HTTPS, bypassing blocked outbound SMTP ports on cloud container environments (such as Render).
 
 ---
 
@@ -236,7 +236,7 @@ The core repository of departmental milestones:
 | :--- | :--- | :--- |
 | Relational DB | **Supabase PostgreSQL** | Transaction-mode pooler on port 6543 |
 | Object Storage | **Supabase Storage** | `evidence-files` bucket for binary evidence |
-| Transactional Mail | **SendGrid REST API** | Single Sender Verification email dispatch |
+| Transactional Mail | **Brevo REST API** | Verified-sender email dispatch |
 
 ---
 
@@ -460,8 +460,8 @@ cd AERCS
 | `DB_PASSWORD` | **Yes** | — | PostgreSQL database user password |
 | `JWT_SECRET` | **Yes** | — | Secret key for signing HS256 JWT tokens |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Yes** | — | Supabase admin key for storage bucket upload/download |
-| `SENDGRID_API_KEY` | No | — | SendGrid API key for invitation and reset emails |
-| `MAIL_FROM` | No | `olodinkrizza@gmail.com` | Verified SendGrid sender email address |
+| `BREVO_API_KEY` | No | — | Brevo API key for invitation and reset emails |
+| `MAIL_FROM` | No | `olodinkrizza@gmail.com` | Brevo-verified sender email address |
 | `CORS_ALLOWED_ORIGINS` | No | `http://localhost:3000` | Comma-separated list of permitted frontend URLs |
 | `COOKIE_SECURE` | No | `true` (prod) / `false` (dev) | Set to `false` for local HTTP dev; `true` for HTTPS |
 | `COOKIE_SAME_SITE` | No | `None` (prod) / `Lax` (dev) | Cookie cross-site policy |
@@ -509,7 +509,7 @@ docker run -d -p 8080:8080 \
 ### Cloud Production Notes (e.g., Render)
 1. **Database Connections**: Always use Supabase transaction pooler port `6543`. Direct connection pool limits can cause `EMAXCONNSESSION` errors under load.
 2. **CORS & Cookies**: In cross-origin deployments (e.g., frontend on Vercel/Netlify and backend on Render), set `COOKIE_SECURE=true` and `COOKIE_SAME_SITE=None`.
-3. **Outbound Mail**: Do not use standard SMTP port 587/465 on container platforms that block SMTP. AERCS uses direct SendGrid HTTP REST API calls to ensure guaranteed email delivery.
+3. **Outbound Mail**: Do not use standard SMTP port 587/465 on container platforms that block SMTP. AERCS uses direct Brevo HTTP REST API calls to ensure guaranteed email delivery.
 
 ---
 

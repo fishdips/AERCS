@@ -9,17 +9,17 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-// Sends via the SendGrid HTTP API (port 443) instead of raw SMTP - Render's outbound
+// Sends via the Brevo HTTP API (port 443) instead of raw SMTP - Render's outbound
 // network does not allow SMTP traffic (confirmed: both Office365 and Gmail SMTP time
 // out from the deployed backend), so JavaMailSender never worked in production.
-// The sender address is a Single Sender Verification in SendGrid (not a verified
-// domain), which is enough to deliver to any recipient.
+// The sender address is a single verified sender in Brevo (not a verified domain).
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,8 +30,8 @@ public class InvitationEmailService {
     @Value("${app.mail.from}")
     private String fromAddress;
 
-    @Value("${app.sendgrid.api-key}")
-    private String sendGridApiKey;
+    @Value("${app.brevo.api-key}")
+    private String brevoApiKey;
 
     public void sendInvitation(User user, String temporaryPassword) {
         String text = """
@@ -108,22 +108,22 @@ public class InvitationEmailService {
         try {
             restClientBuilder.build()
                     .post()
-                    .uri("https://api.sendgrid.com/v3/mail/send")
-                    .header("Authorization", "Bearer " + sendGridApiKey)
+                    .uri("https://api.brevo.com/v3/smtp/email")
+                    .header("api-key", brevoApiKey)
+                    .accept(MediaType.APPLICATION_JSON)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of(
-                            "personalizations", List.of(Map.of(
-                                    "to", List.of(Map.of("email", to))
-                            )),
-                            "from", Map.of("email", fromAddress),
+                            "sender", Map.of("email", fromAddress, "name", "AERCS"),
+                            "to", List.of(Map.of("email", to)),
                             "subject", subject,
-                            "content", List.of(Map.of(
-                                    "type", "text/plain",
-                                    "value", text
-                            ))
+                            "textContent", text
                     ))
                     .retrieve()
                     .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            // Brevo explains rejections (unverified sender, bad key, quota) in the response body.
+            log.error("Brevo rejected email to {}: HTTP {} {}", to, e.getStatusCode().value(), e.getResponseBodyAsString(), e);
+            throw new InvitationEmailException(failureMessage, e);
         } catch (RestClientException e) {
             log.error("Failed to send email to {}", to, e);
             throw new InvitationEmailException(failureMessage, e);
