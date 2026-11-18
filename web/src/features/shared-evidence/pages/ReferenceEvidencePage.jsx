@@ -278,7 +278,7 @@ export default function ReferenceEvidencePage() {
               {results.map((item) => (
                 <tr
                   key={item.id}
-                  style={{ cursor: 'pointer', background: selected?.id === item.id ? '#f0fdf4' : undefined }}
+                  style={{ cursor: 'pointer', background: selected?.id === item.id ? 'var(--color-callout)' : undefined }}
                   onClick={() => handleRowClick(item)}
                 >
                   <td className="se-td" style={{ textAlign: 'center' }}>
@@ -319,7 +319,7 @@ export default function ReferenceEvidencePage() {
               >
                 Prev
               </button>
-              <span style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', color: '#6b7280' }}>
+              <span style={{ padding: '0.4rem 0.6rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>
                 {currentPage + 1} / {totalPages}
               </span>
               <button
@@ -347,7 +347,7 @@ export default function ReferenceEvidencePage() {
                     iconSize={22}
                   />
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.4rem' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginTop: '0.4rem' }}>
                   {preview.originalFileName} · {formatFileSize(preview.fileSize)}
                 </div>
                 <div className="se-preview-actions">

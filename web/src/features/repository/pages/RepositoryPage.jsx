@@ -343,7 +343,7 @@ export default function RepositoryPage() {
                 <th className="se-th">Accreditation Area</th>
                 <th className="se-th">Evidence Type</th>
                 <th className="se-th">Reference Count</th>
-                <th className="se-th">Actions</th>
+                <th className="se-th"><span className="ui-sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

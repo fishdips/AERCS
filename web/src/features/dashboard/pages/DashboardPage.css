@@ -7,33 +7,33 @@
 
 .dash-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
 
 .dash-stat-card {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.4rem;
+  border-radius: var(--radius-lg);
 }
 
 .dash-stat-num {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-brand);
   line-height: 1;
 }
 
 .dash-stat-lbl {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #9ca3af;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted);
 }
 
 .dash-grid-2 {
@@ -59,7 +59,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-rule);
   padding: 0.45rem 0;
 }
 .dash-access-row:last-child {
@@ -73,18 +73,18 @@
   min-width: 0;
 }
 .dash-access-info span {
-  font-size: 0.74rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #111;
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 .dash-access-info small {
-  color: #6b7280;
-  font-size: 0.64rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
 }
 
 .dash-access-error {
-  color: #b91c1c !important;
+  color: var(--color-alert) !important;
 }
 
 .dash-access-edit {
@@ -96,41 +96,39 @@
 .dash-access-edit .am-input {
   width: auto;
   padding: 0.3rem 0.5rem;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
 }
 
 .dash-badge-warning {
-  border: 1px solid #fde68a;
-  background: #fffbeb;
-  color: #92400e;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-rule);
+  background: var(--color-callout);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
   padding: 0.15rem 0.45rem;
   white-space: nowrap;
 }
 
 .dash-badge-ok,
 .dash-badge-muted {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 600;
   padding: 0.15rem 0.45rem;
   white-space: nowrap;
 }
 
 .dash-badge-ok {
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border: 1px solid var(--color-rule);
+  background: var(--color-card);
+  color: var(--color-brand);
 }
 
 .dash-badge-muted {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #6b7280;
+  border: 1px solid var(--color-rule);
+  background: var(--color-card);
+  color: var(--color-muted);
 }
 
 /* Every shared link is listed, so the section scrolls instead of growing the page. */

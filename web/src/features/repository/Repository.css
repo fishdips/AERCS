@@ -8,8 +8,10 @@
 
 /* ── Left filter panel ────────────────────────────────────────────── */
 .repo-filter-panel {
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: var(--rule-soft) solid var(--color-rule);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -17,7 +19,7 @@
 
 .repo-page-context {
   margin: 0.25rem 0 0;
-  color: #6b7280;
+  color: var(--color-muted);
   font-size: 0.76rem;
 }
 
@@ -27,30 +29,26 @@
 }
 
 .repo-filter-heading {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #374151;
-  padding: 0.65rem 0.85rem 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  padding: 0.75rem 0.85rem 0.6rem;
+  border-bottom: var(--rule-soft) solid var(--color-rule);
   margin: 0;
 }
 
 .repo-filter-section {
   padding: 0.65rem 0.85rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-rule);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
 .repo-filter-label {
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #9ca3af;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-muted);
   margin: 0 0 0.2rem;
 }
 
@@ -64,8 +62,8 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.74rem;
-  color: #374151;
+  font-size: 0.8125rem;
+  color: var(--color-ink);
   cursor: pointer;
   padding: 0.1rem 0;
 }
@@ -73,7 +71,7 @@
 .repo-checkbox-label input[type="checkbox"] {
   width: 13px;
   height: 13px;
-  accent-color: var(--brand-600);
+  accent-color: var(--color-brand);
   flex-shrink: 0;
 }
 
@@ -86,13 +84,13 @@
 .repo-date-input {
   flex: 1;
   min-width: 0;
-  font-size: 0.7rem !important;
+  font-size: 0.8125rem !important;
   padding: 0.3rem 0.4rem !important;
 }
 
 .repo-date-sep {
-  color: #9ca3af;
-  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
   flex-shrink: 0;
 }
 
@@ -119,16 +117,19 @@
 }
 
 .repo-search-input {
+  border-radius: var(--radius);
   flex: 1;
-  border: 1px solid #d1d5db;
+  border: var(--rule-outline) solid var(--color-line);
+  border-radius: 0;
+  background: var(--color-surface);
   padding: 0.45rem 0.75rem;
-  font-size: 0.78rem;
-  color: #111;
-  outline: none;
+  font-size: 0.875rem;
+  color: var(--color-ink);
 }
 
-.repo-search-input:focus {
-  border-color: var(--brand-600);
+.repo-search-input:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }
 
 /* ── Active filter chips ──────────────────────────────────────────── */
@@ -139,32 +140,31 @@
 }
 
 .repo-chip {
+  border-radius: var(--radius);
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px solid #d1d5db;
-  background: #f9fafb;
+  border: var(--rule-outline) solid var(--color-line);
+  background: var(--color-card);
   padding: 0.18rem 0.55rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
 }
 
 .repo-chip-remove {
   background: none;
   border: none;
   cursor: pointer;
-  color: #9ca3af;
-  font-size: 0.75rem;
+  color: var(--color-ink);
+  font-size: 0.875rem;
   padding: 0;
   line-height: 1;
   display: flex;
   align-items: center;
 }
 
-.repo-chip-remove:hover { color: #111; }
+.repo-chip-remove:hover { color: var(--color-brand); }
 
 /* ── Results header ───────────────────────────────────────────────── */
 .repo-results-header {
@@ -174,8 +174,8 @@
 }
 
 .repo-results-count {
-  font-size: 0.68rem;
-  color: #9ca3af;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
   font-weight: 400;
 }
 
@@ -188,8 +188,8 @@
 }
 
 .repo-page-info {
-  font-size: 0.68rem;
-  color: #6b7280;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
 }
 
 .repo-page-buttons {
@@ -199,33 +199,36 @@
 }
 
 .repo-page-buttons button {
+  border-radius: var(--radius);
   min-width: 28px;
   height: 28px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  font-size: 0.7rem;
+  border: var(--rule-outline) solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 600;
+  font-size: 0.8125rem;
   cursor: pointer;
   padding: 0 0.4rem;
 }
 
-.repo-page-buttons button:hover:not(:disabled) { background: #f3f4f6; }
-.repo-page-buttons button:disabled { color: #d1d5db; cursor: default; }
+.repo-page-buttons button:hover:not(:disabled) { background: var(--color-fill); }
+.repo-page-buttons button:disabled { color: var(--color-muted); border-color: var(--color-rule); cursor: default; }
 .repo-page-buttons button.repo-page-active {
-  background: var(--brand-600);
-  border-color: var(--brand-600);
-  color: #fff;
-  font-weight: 700;
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-on-brand);
+  font-weight: 600;
 }
 
 .repo-page-dots {
-  font-size: 0.7rem;
-  color: #9ca3af;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
   padding: 0 0.2rem;
 }
 
 .repo-row-actions {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 0.35rem;
 }
@@ -248,16 +251,18 @@
 }
 
 .repo-details-title {
-  color: #111;
-  font-size: 1rem;
+  color: var(--color-ink);
+  font-size: 1.375rem;
+  font-weight: 600;
   line-height: 1.3;
   margin: 0.4rem 0 0.25rem;
   overflow-wrap: anywhere;
 }
 
 .repo-details-sub {
-  color: #6b7280;
-  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-style: italic;
   margin: 0;
 }
 
@@ -283,13 +288,14 @@
 /* Page-sized preview (A4 proportions): about one page tall at the pane's width, and the file
    scrolls inside the box instead of making the modal taller. Capped so it fits short screens. */
 .repo-preview-body {
+  border-radius: var(--radius);
   width: 100%;
   flex: none;
   aspect-ratio: 1 / 1.414;
   max-height: 60vh;
   min-height: 200px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: var(--rule-outline) solid var(--color-line);
+  background: var(--color-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,14 +309,17 @@
 }
 
 .repo-details-list {
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: var(--rule-soft) solid var(--color-rule);
+  background: var(--color-surface);
   margin: 0;
 }
 
 .repo-details-list div {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-rule);
 }
 
 .repo-details-list div:last-child {
@@ -320,25 +329,23 @@
 .repo-details-list dt,
 .repo-details-list dd {
   margin: 0;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.72rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8125rem;
 }
 
 .repo-details-list dt {
-  background: #f9fafb;
-  color: #6b7280;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  background: var(--color-card);
+  color: var(--color-muted);
+  font-weight: 600;
 }
 
 .repo-details-list dd {
-  color: #111;
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 
 .repo-details-reference {
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--color-rule);
   padding-top: 0.85rem;
 }
 
@@ -351,23 +358,22 @@
 }
 
 .repo-reference-file {
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: #111;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 
 .repo-referenced-badge {
+  border-radius: var(--radius);
   display: inline-block;
   margin-left: 0.4rem;
   padding: 0.1rem 0.4rem;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--color-callout);
+  color: var(--color-brand);
+  border: 1px solid var(--color-brand);
   vertical-align: middle;
 }
 

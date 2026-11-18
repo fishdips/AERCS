@@ -278,7 +278,7 @@ export default function BatchMetadataPanel({
 
           <div className="am-form-actions am-workflow-actions">
             {selectedIds.length === 0 && selectableEvidence.length > 0 && (
-              <span className="am-field-hint" style={{ color: '#d97706', alignSelf: 'center', marginRight: 'auto', fontWeight: 500 }}>
+              <span className="am-field-hint" style={{ color: 'var(--color-ink)', alignSelf: 'center', marginRight: 'auto', fontWeight: 500 }}>
                 <Icon as={TriangleAlert} /> Check at least one evidence file in the table above to assign metadata.
               </span>
             )}

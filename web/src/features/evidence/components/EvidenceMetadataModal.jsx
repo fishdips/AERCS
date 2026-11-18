@@ -272,7 +272,7 @@ export default function EvidenceMetadataModal({ evidence, isOpen, onClose, onSav
               <div className="am-form-field">
                 <span className="am-form-label">Referencing Offices / Visibility</span>
                 {isServiceOfficeValue(currentUser?.office) || isServiceOfficeValue(evidence?.uploadedByOffice) ? (
-                  <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0.75rem 1rem', borderRadius: '8px', color: '#60a5fa', fontSize: '0.85rem' }}>
+                  <div style={{ background: 'var(--color-callout)', border: '1px solid var(--color-rule)', borderLeft: '4px solid var(--color-brand)', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', color: 'var(--color-ink)', fontSize: '0.875rem' }}>
                     <Icon as={Globe} /> <strong>Service Office Common Post</strong>
                     <p style={{ margin: '0.25rem 0 0 0', opacity: 0.85, fontSize: '0.78rem' }}>
                       As content created under a Service Office, this evidence is automatically visible to academic departments and users within your office.

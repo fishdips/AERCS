@@ -328,7 +328,7 @@ export default function EvidenceReferencesPage() {
                 >
                   Prev
                 </button>
-                <span style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', color: '#6b7280' }}>
+                <span style={{ padding: '0.4rem 0.6rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>
                   {currentPage + 1} / {totalPages}
                 </span>
                 <button

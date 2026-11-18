@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import ActivityShell from '../../activities/components/ActivityShell';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import {
   createUser, createUsersBatch, deleteUser, listUsers, resetUserPassword,
@@ -89,15 +89,9 @@ function formatDate(iso) {
 }
 
 export default function UserManagementPage() {
-  const { user: currentUser, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const isChairperson = currentUser?.role === ROLES.ACCRED_COORDINATOR;
   const chairOffice = currentUser?.office || '';
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-  };
 
   const [users, setUsers]               = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -419,52 +413,9 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="ump-shell">
-
-      {/* ════════════ HEADER ════════════ */}
-      <header className="ump-header">
-        <div className="ump-header-left">
-          <div className="ump-logo-box">A</div>
-          <div className="ump-logo-text">
-            <span className="ump-logo-name">AERCS</span>
-            <span className="ump-logo-sub">EVIDENCE REPOSITORY</span>
-          </div>
-        </div>
-        <div className="ump-header-right">
-          <span className="ump-badge">AY 2026–2027</span>
-          <div className="ump-avatar">{currentUser?.name?.charAt(0) ?? 'A'}</div>
-          <div className="ump-user-info">
-            <span className="ump-user-name">{currentUser?.name}</span>
-            <span className="ump-user-role">{ROLE_LABELS[currentUser?.role] ?? currentUser?.role}</span>
-          </div>
-        </div>
-      </header>
-
-      <div className="ump-body">
-
-        {/* ════════════ SIDEBAR ════════════ */}
-        <aside className="ump-sidebar">
-          <nav className="ump-nav">
-            <p className="ump-nav-section">Workspace</p>
-            <NavLink to="/dashboard" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Dashboard</NavLink>
-            <NavLink to="/activities" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Documentation</NavLink>
-            <NavLink to="/repository" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Repository</NavLink>
-            <NavLink to="/shared-evidence" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Shared Evidence</NavLink>
-            <p className="ump-nav-section">Administration</p>
-            <NavLink to="/admin/users" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Access Management</NavLink>
-            <p className="ump-nav-section">Support</p>
-            <NavLink to="/help" className={({ isActive }) => `ump-nav-link${isActive ? ' ump-nav-active' : ''}`}>Help</NavLink>
-          </nav>
-          <div className="ump-sidebar-footer">
-            <div className="ump-signed-as">
-              <span className="ump-signed-label">Signed in as</span>
-              <span className="ump-signed-name">{currentUser?.name}</span>
-            </div>
-            <button className="ump-logout-btn" onClick={handleLogout}>Logout</button>
-          </div>
-        </aside>
-
-        {/* ════════════ MAIN ════════════ */}
+    <>
+      <ActivityShell>
+      <div className="ump-layout">
         <main className="ump-main">
           <div className="ump-main-inner">
             <p className="ump-breadcrumb">Access Management › Users{isChairperson && chairOffice ? ` (${formatUserOffice(chairOffice) || chairOffice})` : ''}</p>
@@ -751,6 +702,7 @@ export default function UserManagementPage() {
           </aside>
         )}
       </div>
+      </ActivityShell>
 
       <Modal isOpen={showCreateModal} onClose={() => { setShowCreateModal(false); setCreateError(''); setCreateFieldErrors({}); }} title="Invite User">
         <form onSubmit={handleCreateUser} noValidate>
@@ -933,6 +885,6 @@ export default function UserManagementPage() {
         danger
         busy={isForcingLogout}
       />
-    </div>
+    </>
   );
 }

@@ -135,7 +135,7 @@ export default function SharedEvidencePage() {
                 <th className="se-th">Owner Office</th>
                 <th className="se-th">Accreditation Area</th>
                 <th className="se-th">Reference Count</th>
-                <th className="se-th">Actions</th>
+                <th className="se-th"><span className="ui-sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

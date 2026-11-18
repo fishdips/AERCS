@@ -17,7 +17,7 @@
   overflow: auto;
   text-transform: none;
   font-size: 0.85rem;
-  color: #111827;
+  color: var(--color-ink);
 }
 
 .evp-pages {
@@ -54,8 +54,9 @@
 .evp-docx .docx-wrapper > section.docx {
   margin: 0 0 10px !important;
   box-shadow: none !important;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  border-radius: var(--radius);
 }
 
 .evp-docx .docx-wrapper > section.docx:last-child {
@@ -65,8 +66,8 @@
 .evp-status {
   margin: 0;
   padding: 1rem;
-  color: #9ca3af;
-  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
   text-align: center;
 }
 
@@ -76,7 +77,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  color: #9ca3af;
+  color: var(--color-muted);
   text-align: center;
   padding: 0 1rem;
   text-transform: none;
@@ -84,5 +85,5 @@
 
 .evp-placeholder p {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
 }

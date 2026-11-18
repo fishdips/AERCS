@@ -237,10 +237,7 @@ export default function DashboardPage() {
 
   return (
     <ActivityShell>
-      <p className="am-breadcrumb">Workspace / Dashboard</p>
-      <div className="am-page-header">
-        <h1 className="am-page-title">Dashboard</h1>
-      </div>
+      <p className="am-breadcrumb" style={{ marginBottom: '1.25rem' }}>Workspace / Dashboard</p>
 
       <Alert type="error" message={error} onDismiss={() => setError('')} />
       {loading && <EmptyRow text="Loading dashboard..." />}

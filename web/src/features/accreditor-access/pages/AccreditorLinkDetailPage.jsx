@@ -170,7 +170,7 @@ export default function AccreditorLinkDetailPage() {
                   <th>Accreditation Area</th>
                   <th>Academic Year</th>
                   <th>Evidence Type</th>
-                  <th>Actions</th>
+                  <th><span className="ui-sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>

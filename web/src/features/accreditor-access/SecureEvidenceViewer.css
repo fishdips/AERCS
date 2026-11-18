@@ -6,7 +6,7 @@
 .sev-status {
   padding: 24px 0;
   text-align: center;
-  color: #6b7280;
+  color: var(--color-muted);
 }
 
 .sev-pages {
@@ -22,16 +22,17 @@
   width: 100%;
   max-width: 900px;
   height: auto;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
   -webkit-user-drag: none;
+  border-radius: var(--radius);
 }
 
 /* Word documents render responsively inside the preview container without clipping or overlapping. */
 .sev-docx {
   width: 100%;
   overflow-x: auto;
-  color: #111827;
+  color: var(--color-ink);
   text-transform: none;
   font-size: 0.875rem;
   line-height: 1.55;
@@ -51,12 +52,13 @@
   min-height: auto !important;
   padding: 24px 28px !important;
   margin: 0 0 12px 0 !important;
-  background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-rule) !important;
+  box-shadow: none!important;
   box-sizing: border-box !important;
   overflow-wrap: break-word;
   word-break: break-word;
+  border-radius: var(--radius);
 }
 
 .sev-docx .docx-wrapper > section.docx:last-child {
@@ -100,9 +102,10 @@
   top: 0;
   z-index: 1;
   padding: 4px 4px 0;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--color-fill);
+  border: 1px solid var(--color-rule);
   border-bottom: 0;
+  border-radius: var(--radius);
 }
 
 .sev-sheet-tab {
@@ -115,29 +118,31 @@
   border: 1px solid transparent;
   border-bottom: 0;
   background: transparent;
-  color: #4b5563;
+  color: var(--color-text-2);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+  border-radius: var(--radius);
 }
 
 .sev-sheet-tab:hover {
-  background: #e5e7eb;
+  background: var(--color-rule);
 }
 
 .sev-sheet-tab-active,
 .sev-sheet-tab-active:hover {
-  background: #fff;
-  border-color: #e5e7eb;
-  color: #111827;
+  background: var(--color-surface);
+  border-color: var(--color-rule);
+  color: var(--color-ink);
   font-weight: 600;
 }
 
 .sev-sheet {
   width: 100%;
   overflow: auto;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  border-radius: var(--radius);
 }
 
 .sev-sheet[hidden] {
@@ -152,11 +157,11 @@
 .sev-sheet table {
   border-collapse: collapse;
   font-size: 13px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .sev-sheet td {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-rule);
   padding: 4px 8px;
   white-space: nowrap;
 }
@@ -164,12 +169,12 @@
 .sev-sheet-note {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-muted);
 }
 
 /* Nothing from the viewer reaches the printer. */
 @media print {
   .modal-overlay {
     display: none !important;
-  }
+ }
 }

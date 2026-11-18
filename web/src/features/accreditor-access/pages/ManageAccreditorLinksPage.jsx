@@ -152,7 +152,7 @@ export default function ManageAccreditorLinksPage() {
                 <th className="am-th">Evidence</th>
                 <th className="am-th">Expires</th>
                 <th className="am-th">Created By</th>
-                <th className="am-th am-th-action">Action</th>
+                <th className="am-th am-th-action"><span className="ui-sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

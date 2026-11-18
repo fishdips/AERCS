@@ -396,7 +396,7 @@ export default function ActivityDetailPage() {
                   gap: '0.5rem',
                   marginTop: '1rem',
                   paddingTop: '1rem',
-                  borderTop: '1px solid #f3f4f6',
+                  borderTop: '1px solid var(--color-rule)',
                 }}
               >
                 <button

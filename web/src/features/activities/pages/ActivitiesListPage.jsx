@@ -254,7 +254,7 @@ export default function ActivitiesListPage() {
               <th className="am-th">Department / Office</th>
               <th className="am-th">Academic Year</th>
               <th className="am-th">Date</th>
-              <th className="am-th am-th-action">Action</th>
+              <th className="am-th am-th-action"><span className="ui-sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>

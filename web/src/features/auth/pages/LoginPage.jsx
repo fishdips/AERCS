@@ -50,7 +50,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-left">
         <div className="login-logo">
-          <div className="login-logo-box">A</div>
+          <img className="login-logo-img" src="/aercs_logo.png" alt="" />
           <div className="login-logo-text">
             <span className="login-logo-name">AERCS</span>
             <span className="login-logo-sub">EVIDENCE REPOSITORY</span>

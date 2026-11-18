@@ -44,7 +44,7 @@ export default function ChangePasswordPage() {
     <div className="cp-page">
       <div className="cp-left">
         <div className="cp-logo">
-          <div className="cp-logo-box">A</div>
+          <img className="cp-logo-img" src="/aercs_logo.png" alt="" />
           <div className="cp-logo-text">
             <span className="cp-logo-name">AERCS</span>
             <span className="cp-logo-sub">EVIDENCE REPOSITORY</span>

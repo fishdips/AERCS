@@ -258,7 +258,7 @@ export default function EvidenceVersionsModal({
                             </button>
                             {canManage && !ver.isCurrent && confirmDeleteId === ver.id && (
                               <>
-                                <span style={{ color: '#b91c1c', fontSize: '0.72rem', fontWeight: 600 }}>
+                                <span style={{ color: 'var(--color-alert)', fontSize: '0.8125rem', fontWeight: 600 }}>
                                   Delete v{ver.versionNumber} permanently?
                                 </span>
                                 <button

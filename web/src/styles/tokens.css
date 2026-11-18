@@ -1,0 +1,54 @@
+/* AERCS design tokens (match the TekCon 2026 poster).
+   Components must reference these variables, never raw hex values. */
+:root {
+  /* surfaces */
+  --color-bg:          #ede8e1; /* app chrome: header + sidebar (cream) */
+  --color-body:        #f7f4ef; /* main content area: lighter than the chrome */
+  --color-surface:     #fcfaf7; /* tables, forms, panels on the body: softest cream, not stark white */
+  --color-panel-dark:  #1e1e1e; /* dark feature panels */
+  --color-card:        #f3efe8; /* subtle tinted block inside a surface (headers, preview boxes) */
+  --color-callout:     #e3dccf; /* note / callout box */
+  --color-fill:        #ddd6cb; /* large soft block, hover rows */
+
+  /* text */
+  --color-ink:         #1a1a1a;
+  --color-text-2:      #45413c; /* secondary text: table cells, nav links (8.9:1 on body) */
+  --color-muted:       #65605a; /* 5.1:1 on cream, 6.2:1 on white */
+
+  /* brand (the only accent) */
+  --color-brand:       #004aad;
+  --color-on-brand:    #ffffff;
+  --color-brand-light: #8fb4ff; /* blue label on a dark panel */
+
+  /* alert: errors, destructive actions, duplicate-file warning, expiring access */
+  --color-alert:       #b3340a;
+  --color-on-alert:    #ffffff;
+
+  /* decoration only, never for text or as an input's only border */
+  --color-rule:        #cfc8bd;
+  --color-line:        #8c857a; /* borders of inputs/buttons: 3.1:1 on cream, soft but still visible */
+  --color-tab:         #bdbab4;
+
+  /* type */
+  --font-sans: "Inter", "Arimo", Arial, Helvetica, sans-serif;
+
+  /* shape */
+  --rule-thick: 1px;
+  --rule-outline: 1px;
+  --rule-soft: 1px;
+  --radius: 4px;
+  --radius-lg: 8px;
+
+  /* Legacy brand ramp: older screens still reference these. They all resolve
+     to the single brand blue so nothing drifts while screens are migrated. */
+  --brand-50:  var(--color-card);
+  --brand-100: var(--color-callout);
+  --brand-200: var(--color-callout);
+  --brand-300: var(--color-brand);
+  --brand-400: var(--color-brand);
+  --brand-500: var(--color-brand);
+  --brand-600: var(--color-brand);
+  --brand-700: var(--color-brand);
+  --brand-800: var(--color-brand);
+  --brand-900: var(--color-brand);
+}

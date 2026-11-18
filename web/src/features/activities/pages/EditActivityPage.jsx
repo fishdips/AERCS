@@ -165,7 +165,7 @@ export default function EditActivityPage() {
         <div>
           <h1 className="am-page-title">Edit Activity</h1>
           {lastEdited && (
-            <p className="am-breadcrumb" style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.72rem' }}>
+            <p className="am-breadcrumb" style={{ margin: '0.25rem 0 0', color: 'var(--color-muted)', fontSize: '0.8125rem' }}>
               Last Edited: {formatDateTime(lastEdited)}
             </p>
           )}

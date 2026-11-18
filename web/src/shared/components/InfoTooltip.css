@@ -12,12 +12,12 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid #9ca3af;
-  background: #fff;
-  color: #6b7280;
-  font-size: 0.62rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
   font-style: italic;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   padding: 0;
   cursor: pointer;
@@ -25,8 +25,8 @@
 
 .info-tooltip-trigger:hover,
 .info-tooltip-trigger[aria-expanded="true"] {
-  border-color: #6b7280;
-  color: #111;
+  border-color: var(--color-line);
+  color: var(--color-ink);
 }
 
 .info-tooltip-bubble {
@@ -36,12 +36,12 @@
   z-index: 20;
   width: max-content;
   max-width: 260px;
-  background: #111827;
-  color: #f9fafb;
-  font-size: 0.68rem;
+  background: var(--color-ink);
+  color: var(--color-card);
+  font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.4;
   padding: 0.5rem 0.65rem;
   border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ActivityShell from '../../activities/components/ActivityShell';
 import { getMyAccreditorLinks } from '../api';
+import { Clock } from 'lucide-react';
 import Alert from '../../../shared/components/Alert';
+import Icon from '../../../shared/components/Icon';
+import InfoTooltip from '../../../shared/components/InfoTooltip';
 import '../AccreditorAccess.css';
 
 function formatDateTime(value) {
@@ -44,7 +47,7 @@ export default function AccreditorLinksPage() {
       <div className="am-page-header">
         <div className="am-page-header-left">
           <h1 className="am-page-title">Evidence Links</h1>
-          <p className="am-description">Accreditation evidence shared with you for review. Expired links stay listed but can no longer be opened.</p>
+          <InfoTooltip text="Accreditation evidence shared with you for review. Expired links stay listed but can no longer be opened." />
         </div>
       </div>
 
@@ -80,9 +83,10 @@ export default function AccreditorLinksPage() {
               <div className="aa-link-card-head">
                 <strong>{link.name}</strong>
                 {expired ? (
-                  <span className="aa-link-expiry aa-link-expiry-soon">Expired {formatDateTime(link.expiresAt)}</span>
+                  <span className="aa-link-expiry">Expired {formatDateTime(link.expiresAt)}</span>
                 ) : (
                   <span className={`aa-link-expiry ${expiresSoon(link.expiresAt) ? 'aa-link-expiry-soon' : ''}`}>
+                    {expiresSoon(link.expiresAt) && <Icon as={Clock} size={13} />}
                     Expires {formatDateTime(link.expiresAt)}
                   </span>
                 )}
@@ -96,7 +100,7 @@ export default function AccreditorLinksPage() {
             </>
           );
           return expired ? (
-            <div key={link.id} className="aa-link-card" style={{ opacity: 0.6, cursor: 'not-allowed' }} aria-disabled="true">
+            <div key={link.id} className="aa-link-card aa-link-card-expired" aria-disabled="true">
               {body}
             </div>
           ) : (
