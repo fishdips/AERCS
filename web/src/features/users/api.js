@@ -9,8 +9,10 @@ export const createUsersBatch = (data) =>
 export const listUsers = () =>
   api.get('/api/admin/users');
 
-export const updateUserRole = (userId, role) =>
-  api.patch(`/api/admin/users/${userId}/role`, { role });
+// Pass `office` to change the department/office together with the role so the pair is
+// validated as a whole ('' clears it, undefined keeps the current one).
+export const updateUserRole = (userId, role, office) =>
+  api.patch(`/api/admin/users/${userId}/role`, office === undefined ? { role } : { role, office });
 
 export const updateUserStatus = (userId, active) =>
   api.patch(`/api/admin/users/${userId}/status`, { active });

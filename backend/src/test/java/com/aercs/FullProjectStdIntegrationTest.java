@@ -714,13 +714,27 @@ class FullProjectStdIntegrationTest {
                         ))))
                 .andExpect(status().isForbidden());
 
-        // TC-M4-UC1-14: Chairperson (CHA, CCS) cannot manage CEA user (STB) -> 403
+        // TC-M4-UC1-14: Chairperson (CHA, CCS) cannot suspend/reactivate accounts -> 403
         mvc.perform(patch("/api/admin/users/" + stb.getId() + "/status")
                         .cookie(auth(cha))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("active", false))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error").value("Chairpersons can only manage users within their own department"));
+                .andExpect(jsonPath("$.error").value("Chairpersons cannot suspend or reactivate accounts"));
+
+        // Chairpersons can invite Department Staff but cannot change roles, reset passwords,
+        // force a logout or delete users (admin-only account actions) -> 403
+        mvc.perform(patch("/api/admin/users/" + newUserId + "/role")
+                        .cookie(auth(cha))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("role", "DEPT_STAFF"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/users/" + newUserId + "/reset-password").cookie(auth(cha)))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/users/" + newUserId + "/revoke-sessions").cookie(auth(cha)))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/admin/users/" + newUserId).cookie(auth(cha)))
+                .andExpect(status().isForbidden());
 
         // TC-M4-UC1-08: Force logout (revoke-sessions) increments tokenVersion and invalidates existing JWT
         Cookie oldCookie = auth( userRepository.findById(newUserId).orElseThrow() );

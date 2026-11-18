@@ -254,7 +254,6 @@ export default function ActivitiesListPage() {
               <th className="am-th">Department / Office</th>
               <th className="am-th">Academic Year</th>
               <th className="am-th">Date</th>
-              <th className="am-th am-th-action"><span className="ui-sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -263,24 +262,21 @@ export default function ActivitiesListPage() {
               return (
                 <tr key={activity.id}>
                   <td className="am-td am-td-title">
-                    <span>{activity.activityName}</span>
+                    <Link className="am-title-link" to={`/activities/${activity.id}`}>{activity.activityName}</Link>
                     {isMine && <span className="am-badge-you">You</span>}
                   </td>
                   <td className="am-td"><span className="am-type-badge">{formatActivityType(activity.activityType, activity.customActivityType)}</span></td>
                   <td className="am-td">{formatDeptOrOffice(activity.department, activity.office)}</td>
                   <td className="am-td">{activity.academicYear}</td>
                   <td className="am-td">{formatDate(activity.activityDate)}</td>
-                  <td className="am-td am-td-action">
-                    <Link className="am-link-button" to={`/activities/${activity.id}`}>View Details</Link>
-                  </td>
                 </tr>
               );
             })}
             {!loading && filteredActivities.length === 0 && (
-              <tr><td className="am-empty" colSpan={6}>No activities found</td></tr>
+              <tr><td className="am-empty" colSpan={5}>No activities found</td></tr>
             )}
             {loading && (
-              <tr><td className="am-empty" colSpan={6}>Loading activities...</td></tr>
+              <tr><td className="am-empty" colSpan={5}>Loading activities...</td></tr>
             )}
           </tbody>
         </table>

@@ -3,7 +3,7 @@ import ActivityShell from '../../activities/components/ActivityShell';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import {
   createUser, createUsersBatch, deleteUser, listUsers, resetUserPassword,
-  revokeUserSessions, updateUserOffice, updateUserProfile, updateUserRole, updateUserStatus,
+  revokeUserSessions, updateUserProfile, updateUserRole, updateUserStatus,
 } from '../api';
 import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { DEPARTMENTS, OFFICES, SERVICE_OFFICES, formatUserOffice } from '../../activities/constants';
@@ -14,6 +14,8 @@ import Alert from '../../../shared/components/Alert';
 import './UserManagementPage.css';
 import { Ban, Check as CheckIcon, LogOut, Mail, Trash2, X } from 'lucide-react';
 import Icon from '../../../shared/components/Icon';
+import RoleOfficeFields from '../components/RoleOfficeFields';
+import { roleOfficeError } from '../accessRules';
 
 const STATUS_FILTER_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const CHAIRPERSON_ASSIGNABLE_ROLES = [
@@ -38,33 +40,6 @@ const ORG_UNIT_FILTER_OPTIONS = [
   ...SERVICE_OFFICES.filter((office) => office.value !== 'OTHER')
     .map((office) => ({ value: office.value, label: office.label })),
 ];
-const USER_OFFICES = OFFICES.filter((office) => office.value !== 'OTHER');
-const USER_SERVICE_OFFICES = SERVICE_OFFICES.filter((office) => office.value !== 'OTHER');
-
-function DeptOfficeOptions({ value }) {
-  const isKnown = !value
-    || DEPARTMENTS.some((d) => d.value === value)
-    || USER_OFFICES.some((o) => o.value === value)
-    || USER_SERVICE_OFFICES.some((so) => so.value === value);
-  return (
-    <>
-      <option value="">None</option>
-      {/* Value doesn't match any known department/office (e.g. legacy data) —
-          show it as-is instead of silently falling back to "None". */}
-      {!isKnown && <option value={value}>{value}</option>}
-      <optgroup label="Department">
-        {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-      </optgroup>
-      <optgroup label="Institutional Office">
-        {USER_OFFICES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </optgroup>
-      <optgroup label="Service Office">
-        {USER_SERVICE_OFFICES.map((so) => <option key={so.value} value={so.value}>{so.label}</option>)}
-      </optgroup>
-    </>
-  );
-}
-
 // Static permissions reference table (display-only in MVP)
 // Visibility reflects ActivityService/DashboardService#canViewAll: ADMIN and
 // INSTITUTIONAL_OFFICE see every activity institution-wide; DEPT_STAFF and
@@ -258,12 +233,17 @@ export default function UserManagementPage() {
     e.preventDefault();
     setCreateError('');
     setCreateFieldErrors({});
+    const ruleError = roleOfficeError(createForm);
+    if (ruleError) {
+      setCreateError(ruleError);
+      return;
+    }
     setIsCreating(true);
     try {
       const request = {
         name: createForm.name,
         email: createForm.email,
-        office: (isChairperson ? chairOffice : createForm.office) || null,
+        office: createForm.office || null,
         role: createForm.role,
       };
       const { data } = await createUser(request);
@@ -314,11 +294,17 @@ export default function UserManagementPage() {
       return;
     }
 
+    const ruleError = roleOfficeError(bulkShared);
+    if (ruleError) {
+      setBulkError(ruleError);
+      return;
+    }
+
     setIsBulkCreating(true);
     try {
       const request = {
         users: rows.map((r) => ({ name: r.name.trim(), email: r.email.trim() })),
-        office: (isChairperson ? chairOffice : bulkShared.office) || null,
+        office: bulkShared.office || null,
         role: bulkShared.role,
       };
       const { data } = await createUsersBatch(request);
@@ -346,11 +332,11 @@ export default function UserManagementPage() {
       if (editForm.name !== selectedUser.name || editForm.email !== selectedUser.email) {
         await updateUserProfile(selectedUser.id, editForm.name.trim(), editForm.email.trim());
       }
-      if (editForm.role !== selectedUser.role) {
-        await updateUserRole(selectedUser.id, editForm.role);
-      }
-      if (!isChairperson && editForm.office !== (selectedUser.office || '')) {
-        await updateUserOffice(selectedUser.id, editForm.office);
+      if (!isChairperson && (editForm.role !== selectedUser.role || editForm.office !== (selectedUser.office || ''))) {
+        const ruleError = roleOfficeError(editForm);
+        if (ruleError) throw new Error(ruleError);
+        // One request: the role and department/office are validated as a pair.
+        await updateUserRole(selectedUser.id, editForm.role, editForm.office);
       }
       if (editForm.active !== selectedUser.active) {
         await updateUserStatus(selectedUser.id, editForm.active);
@@ -358,7 +344,7 @@ export default function UserManagementPage() {
       await loadUsers();
       setSelectedUser({ ...selectedUser, ...editForm, ...(isChairperson ? { office: selectedUser.office } : {}) });
     } catch (err) {
-      setActionError(err.response?.data?.error || 'Failed to save changes. Please try again.');
+      setActionError(err.response?.data?.error || err.message || 'Failed to save changes. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -581,7 +567,17 @@ export default function UserManagementPage() {
         {/* ════════════ RIGHT PANEL ════════════ */}
         {selectedUser && (
           <aside className="ump-detail">
-            <p className="ump-detail-section-label">User</p>
+            <div className="ump-detail-head">
+              <p className="ump-detail-section-label">User</p>
+              <button
+                type="button"
+                className="ump-detail-close"
+                onClick={() => handleSelectUser(selectedUser)}
+                aria-label="Close user details"
+              >
+                <Icon as={X} size={16} />
+              </button>
+            </div>
             <div className="ump-detail-user-card">
               <div className="ump-detail-avatar">{selectedUser.name.charAt(0)}</div>
               <div>
@@ -606,52 +602,46 @@ export default function UserManagementPage() {
                 onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
               />
             </div>
-            <div className="ump-detail-field">
-              <label className="ump-detail-label">Department / Office</label>
-              {isChairperson ? (
-                <input
-                  className="ump-detail-input"
-                  value={formatUserOffice(chairOffice) || chairOffice}
-                  disabled
-                  readOnly
-                />
-              ) : (
-                <select
-                  className="ump-detail-select"
-                  value={editForm.office}
-                  onChange={(e) => setEditForm((f) => ({ ...f, office: e.target.value }))}
-                >
-                  <DeptOfficeOptions value={editForm.office} />
-                </select>
-              )}
-            </div>
-            <div className="ump-detail-field">
-              <label className="ump-detail-label">Role</label>
-              <select
-                className="ump-detail-select"
-                value={editForm.role}
-                onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
-                disabled={isChairperson && selectedUser?.role === ROLES.ADMIN}
-              >
-                {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
-                  <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
-                ))}
-              </select>
-            </div>
-            <div className="ump-detail-field">
-              <label className="ump-detail-label">Scoped Offices</label>
-              <div className="ump-detail-tag-placeholder">All offices</div>
-            </div>
+            {isChairperson ? (
+              <>
+                {/* Chairpersons can invite staff but cannot change anyone's role or department. */}
+                <div className="ump-detail-field">
+                  <label className="ump-detail-label">Department / Office</label>
+                  <input
+                    className="ump-detail-input"
+                    value={selectedUser.office ? (formatUserOffice(selectedUser.office) || selectedUser.office) : 'None'}
+                    disabled
+                    readOnly
+                  />
+                </div>
+                <div className="ump-detail-field">
+                  <label className="ump-detail-label">Role</label>
+                  <input
+                    className="ump-detail-input"
+                    value={ROLE_LABELS[selectedUser.role] ?? selectedUser.role}
+                    disabled
+                    readOnly
+                  />
+                </div>
+              </>
+            ) : (
+              <RoleOfficeFields
+                variant="detail"
+                value={{ office: editForm.office, role: editForm.role }}
+                onChange={(next) => setEditForm((f) => ({ ...f, ...next }))}
+                roleOptions={ALL_ASSIGNABLE_ROLES}
+              />
+            )}
             <div className="ump-detail-field">
               <label className="ump-detail-label">Status</label>
               <div className="ump-detail-radio-group">
                 <label className="ump-detail-radio">
-                  <input type="radio" name="status" checked={editForm.active === true}
+                  <input type="radio" name="status" checked={editForm.active === true} disabled={isChairperson}
                     onChange={() => setEditForm((f) => ({ ...f, active: true }))} />
                   Active
                 </label>
                 <label className="ump-detail-radio">
-                  <input type="radio" name="status" checked={editForm.active === false}
+                  <input type="radio" name="status" checked={editForm.active === false} disabled={isChairperson}
                     onChange={() => setEditForm((f) => ({ ...f, active: false }))} />
                   Suspended
                 </label>
@@ -663,6 +653,8 @@ export default function UserManagementPage() {
               <button className="ump-detail-btn-primary" onClick={handleUpdate} disabled={isSaving || !isEditFormDirty}>
                 {isSaving ? '…' : <><Icon as={CheckIcon} /> Update</>}
               </button>
+              {/* Resend invite / reset password, force logout, revoke access and delete are admin-only. */}
+              {!isChairperson && (
               <ActionMenu
                 items={[
                   {
@@ -693,6 +685,7 @@ export default function UserManagementPage() {
                   },
                 ]}
               />
+              )}
             </div>
             <div className="ump-activity">
               <p className="ump-detail-section-label">Activity</p>
@@ -719,31 +712,12 @@ export default function UserManagementPage() {
               onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} required placeholder="firstname.lastname@inst.edu" />
             {createFieldErrors.email && <span className="ump-field-error">{createFieldErrors.email}</span>}
           </div>
-          <div className="ump-modal-field">
-            <label className="ump-modal-label">Department / Office</label>
-            {isChairperson ? (
-              <input
-                className="ump-modal-input"
-                value={formatUserOffice(chairOffice) || chairOffice}
-                disabled
-                readOnly
-              />
-            ) : (
-              <select className="ump-modal-select" value={createForm.office}
-                onChange={(e) => setCreateForm((f) => ({ ...f, office: e.target.value }))}>
-                <DeptOfficeOptions />
-              </select>
-            )}
-          </div>
-          <div className="ump-modal-field">
-            <label className="ump-modal-label">Role</label>
-            <select className="ump-modal-select" value={createForm.role}
-              onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}>
-              {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
-                <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
-              ))}
-            </select>
-          </div>
+          <RoleOfficeFields
+            value={{ office: createForm.office, role: createForm.role }}
+            onChange={(next) => setCreateForm((f) => ({ ...f, ...next }))}
+            roleOptions={isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES}
+            lockedOffice={isChairperson ? chairOffice : ''}
+          />
           <button type="submit" className="ump-modal-submit" disabled={isCreating}>
             {isCreating ? 'Creating…' : 'Create Account'}
           </button>
@@ -774,31 +748,12 @@ export default function UserManagementPage() {
           {bulkError && <p className="ump-modal-error">{bulkError}</p>}
 
           <div className="ump-bulk-shared">
-            <div className="ump-modal-field">
-              <label className="ump-modal-label">Department / Office</label>
-              {isChairperson ? (
-                <input
-                  className="ump-modal-input"
-                  value={formatUserOffice(chairOffice) || chairOffice}
-                  disabled
-                  readOnly
-                />
-              ) : (
-                <select className="ump-modal-select" value={bulkShared.office}
-                  onChange={(e) => setBulkShared((f) => ({ ...f, office: e.target.value }))}>
-                  <DeptOfficeOptions />
-                </select>
-              )}
-            </div>
-            <div className="ump-modal-field">
-              <label className="ump-modal-label">Role</label>
-              <select className="ump-modal-select" value={bulkShared.role}
-                onChange={(e) => setBulkShared((f) => ({ ...f, role: e.target.value }))}>
-                {(isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES).map((r) => (
-                  <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
-                ))}
-              </select>
-            </div>
+            <RoleOfficeFields
+              value={{ office: bulkShared.office, role: bulkShared.role }}
+              onChange={(next) => setBulkShared((f) => ({ ...f, ...next }))}
+              roleOptions={isChairperson ? CHAIRPERSON_ASSIGNABLE_ROLES : ALL_ASSIGNABLE_ROLES}
+              lockedOffice={isChairperson ? chairOffice : ''}
+            />
             <p className="ump-bulk-shared-note">Applied to every user added below.</p>
           </div>
 

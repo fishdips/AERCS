@@ -67,10 +67,13 @@ public class UserService {
             if (caller.getOffice() == null || caller.getOffice().isBlank()) {
                 throw new BadRequestException("Chairperson must have an assigned department");
             }
-            targetOffice = caller.getOffice();
+            // Accreditors never belong to a department, even when a chairperson invites them.
+            targetOffice = role == UserRole.ACCREDITOR_LINK ? null : caller.getOffice();
         }
 
+        targetOffice = normalizeOffice(targetOffice);
         validateOffice(targetOffice);
+        validateRoleOffice(role, targetOffice);
 
         String tempPassword = generateTempPassword();
 
@@ -155,8 +158,15 @@ public class UserService {
 
     @Transactional
     public UserResponse updateRole(UUID userId, String newRole, String callerId) {
+        return updateRole(userId, newRole, null, callerId);
+    }
+
+    // `office` is optional: null keeps the user's current department/office, "" clears it.
+    @Transactional
+    public UserResponse updateRole(UUID userId, String newRole, String office, String callerId) {
         User caller = callerId != null ? userRepository.findByIdentifier(callerId).orElse(null) : null;
         User user = findUserById(userId);
+        denyChairperson(caller, "change user roles");
 
         if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
             assertChairpersonCanManageUser(caller, user);
@@ -175,11 +185,24 @@ public class UserService {
             }
         }
 
+        // Administrators and Accreditors have no department/office, so it is cleared for them.
+        String effectiveOffice;
+        if (role == UserRole.ADMIN || role == UserRole.ACCREDITOR_LINK) {
+            effectiveOffice = null;
+        } else if (office != null) {
+            effectiveOffice = normalizeOffice(office);
+        } else {
+            effectiveOffice = normalizeOffice(user.getOffice());
+        }
+        validateOffice(effectiveOffice);
+        validateRoleOffice(role, effectiveOffice);
+
         // An account that stops being an accreditor loses every link assigned to it.
         if (user.getRole() == UserRole.ACCREDITOR_LINK && role != UserRole.ACCREDITOR_LINK) {
             accreditorAccessRepository.removeAccreditorFromAllLinks(user.getId());
         }
         user.setRole(role);
+        user.setOffice(effectiveOffice);
         return toUserResponse(userRepository.save(user));
     }
 
@@ -191,6 +214,7 @@ public class UserService {
     public UserResponse updateStatus(UUID userId, boolean active, String callerId) {
         User caller = callerId != null ? userRepository.findByIdentifier(callerId).orElse(null) : null;
         User user = findUserById(userId);
+        denyChairperson(caller, "suspend or reactivate accounts");
         if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
             assertChairpersonCanManageUser(caller, user);
         }
@@ -212,8 +236,10 @@ public class UserService {
                 throw new ForbiddenException("Chairpersons can only assign users to their own department");
             }
         }
-        validateOffice(office);
-        user.setOffice(office);
+        String normalized = normalizeOffice(office);
+        validateOffice(normalized);
+        validateRoleOffice(user.getRole(), normalized);
+        user.setOffice(normalized);
         return toUserResponse(userRepository.save(user));
     }
 
@@ -250,6 +276,7 @@ public class UserService {
     public UserResponse resetUserPassword(UUID userId, String callerId) {
         User caller = callerId != null ? userRepository.findByIdentifier(callerId).orElse(null) : null;
         User user = findUserById(userId);
+        denyChairperson(caller, "resend invites or reset passwords");
         if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
             assertChairpersonCanManageUser(caller, user);
         }
@@ -277,6 +304,7 @@ public class UserService {
             throw new BadRequestException("You cannot force logout your own account");
         }
         User user = findUserById(userId);
+        denyChairperson(caller, "force a user to log out");
         if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
             assertChairpersonCanManageUser(caller, user);
         }
@@ -291,11 +319,21 @@ public class UserService {
             throw new BadRequestException("You cannot delete your own account");
         }
         User user = findUserById(userId);
+        denyChairperson(caller, "delete users");
         if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
             assertChairpersonCanManageUser(caller, user);
         }
         accreditorAccessRepository.removeAccreditorFromAllLinks(user.getId());
         userRepository.delete(user);
+    }
+
+    // Chairpersons may invite Department Staff and edit basic details, but account-level
+    // actions (role changes, suspension, password resets, forced logout, deletion) are
+    // reserved for Administrators.
+    private void denyChairperson(User caller, String action) {
+        if (caller != null && caller.getRole() == UserRole.ACCRED_COORDINATOR) {
+            throw new ForbiddenException("Chairpersons cannot " + action);
+        }
     }
 
     private void assertChairpersonCanManageUser(User chairperson, User targetUser) {
@@ -318,6 +356,40 @@ public class UserService {
     private User findUserById(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    private String normalizeOffice(String office) {
+        return office == null || office.isBlank() ? null : office.trim();
+    }
+
+    // Which role may belong to which kind of unit:
+    //   Department            -> Department Staff or Chairperson
+    //   Institutional/Service office -> Institutional Staff
+    //   System Administrator / Accreditor -> no department or office at all
+    private void validateRoleOffice(UserRole role, String office) {
+        boolean hasOffice = office != null && !office.isBlank();
+        boolean isDepartment = hasOffice
+                && Arrays.stream(Department.values()).anyMatch(d -> d.name().equals(office));
+        boolean isOffice = hasOffice
+                && Arrays.stream(Office.values()).anyMatch(o -> o.name().equals(office));
+        switch (role) {
+            case ADMIN, ACCREDITOR_LINK -> {
+                if (hasOffice) {
+                    throw new BadRequestException("System Administrators and Accreditors cannot have a department or office");
+                }
+            }
+            case DEPT_STAFF, ACCRED_COORDINATOR -> {
+                if (!isDepartment) {
+                    throw new BadRequestException("Department Staff and Chairpersons must belong to a department");
+                }
+            }
+            case INSTITUTIONAL_OFFICE -> {
+                if (!isOffice) {
+                    throw new BadRequestException("Institutional Staff must belong to an institutional or service office");
+                }
+            }
+            default -> { }
+        }
     }
 
     private void validateOffice(String office) {

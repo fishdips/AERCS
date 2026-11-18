@@ -200,6 +200,15 @@
   overflow-wrap: anywhere;
 }
 
+/* The file name opens the details page. */
+.se-file-link { text-decoration: none; }
+button.se-file-link {
+  padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+  text-align: left; cursor: pointer;
+}
+.se-file-link:hover { color: var(--color-brand); text-decoration: underline; }
+.se-file-link:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: var(--radius); }
+
 .se-refs-count {
   border-radius: var(--radius);
   display: inline-flex;

@@ -69,6 +69,7 @@
   width: 240px;
   height: 240px;
   object-fit: contain;
+  mix-blend-mode: multiply;
   display: block;
   margin: 0 auto;
 }

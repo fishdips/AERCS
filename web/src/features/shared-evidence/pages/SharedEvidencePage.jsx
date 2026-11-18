@@ -154,7 +154,9 @@ export default function SharedEvidencePage() {
                   <td className="se-td">
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
-                      <span className="se-file-name">{item.originalFileName}</span>
+                      <Link className="se-file-name se-file-link" to={`/shared-evidence/${item.id}/references`}>
+                        {item.originalFileName}
+                      </Link>
                       {item.fileType !== 'LINK' && hasMultipleVersions(item) && (
                         <span className="am-version-badge am-version-badge-multi">
                           v{item.currentVersion}
@@ -172,11 +174,9 @@ export default function SharedEvidencePage() {
                   </td>
                   <td className="se-td">
                     <div className="repo-row-actions">
-                      <Link className="am-link-button" to={`/shared-evidence/${item.id}/references`}>
-                        View Details
-                      </Link>
                       <ActionMenu
                         items={[
+                          { label: 'View Details', to: `/shared-evidence/${item.id}/references` },
                           // Department staff can't generate accreditor access (the menu then disappears).
                           canGenerateAccreditorAccess(user) && {
                             label: 'Generate Accreditor Access',

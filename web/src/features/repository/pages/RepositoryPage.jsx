@@ -343,22 +343,23 @@ export default function RepositoryPage() {
                 <th className="se-th">Accreditation Area</th>
                 <th className="se-th">Evidence Type</th>
                 <th className="se-th">Reference Count</th>
-                <th className="se-th"><span className="ui-sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td className="am-empty" colSpan={7}>Searching repository...</td></tr>
+                <tr><td className="am-empty" colSpan={6}>Searching repository...</td></tr>
               )}
               {!loading && results.length === 0 && (
-                <tr><td className="am-empty" colSpan={7}>No evidence found.</td></tr>
+                <tr><td className="am-empty" colSpan={6}>No evidence found.</td></tr>
               )}
               {!loading && results.map((item) => (
                 <tr key={item.id}>
                   <td className="se-td">
                     <div className="se-td-file">
                       <span className="se-file-icon">{item.fileType}</span>
-                      <span className="se-file-name">{item.originalFileName}</span>
+                      <button className="se-file-name se-file-link" type="button" onClick={() => openDetails(item)}>
+                        {item.originalFileName}
+                      </button>
                       {item.fileType !== 'LINK' && hasMultipleVersions(item) && (
                         <span className="am-version-badge am-version-badge-multi">
                           v{item.currentVersion}
@@ -379,13 +380,6 @@ export default function RepositoryPage() {
                   <td className="se-td">{formatEvidenceType(item.evidenceType)}</td>
                   <td className="se-td">
                     <span className="se-refs-count">{item.referenceCount}</span>
-                  </td>
-                  <td className="se-td">
-                    <div className="repo-row-actions">
-                      <button className="am-link-button" type="button" onClick={() => openDetails(item)}>
-                        View Details
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}

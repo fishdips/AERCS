@@ -53,7 +53,7 @@ public class AdminUserController {
     public ResponseEntity<UserResponse> updateRole(@PathVariable UUID id,
                                                     @Valid @RequestBody UpdateRoleRequest request,
                                                     @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(userService.updateRole(id, request.role(), userDetails != null ? userDetails.getUsername() : null));
+        return ResponseEntity.ok(userService.updateRole(id, request.role(), request.office(), userDetails != null ? userDetails.getUsername() : null));
     }
 
     @PatchMapping("/{id}/status")

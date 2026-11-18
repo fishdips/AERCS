@@ -44,15 +44,11 @@ export default function ChangePasswordPage() {
     <div className="cp-page">
       <div className="cp-left">
         <div className="cp-logo">
-          <img className="cp-logo-img" src="/aercs_logo.png" alt="" />
-          <div className="cp-logo-text">
-            <span className="cp-logo-name">AERCS</span>
-            <span className="cp-logo-sub">EVIDENCE REPOSITORY</span>
-          </div>
+          <img className="cp-logo-img" src="/cit_logo.png" alt="CIT-U logo" />
         </div>
 
         <div className="cp-brand-center">
-          <img src="/cit_logo.png" alt="CIT-U Logo" className="cp-crest-img" />
+          <img src="/aercs_logo.png" alt="AERCS logo" className="cp-crest-img" />
           <p className="cp-system-name">
             Accreditation Evidence Repository &amp; Coordination System
           </p>

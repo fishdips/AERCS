@@ -31,15 +31,11 @@ export default function ForgotPasswordPage() {
     <div className="login-page">
       <div className="login-left">
         <div className="login-logo">
-          <img className="login-logo-img" src="/aercs_logo.png" alt="" />
-          <div className="login-logo-text">
-            <span className="login-logo-name">AERCS</span>
-            <span className="login-logo-sub">EVIDENCE REPOSITORY</span>
-          </div>
+          <img className="login-logo-img" src="/cit_logo.png" alt="CIT-U logo" />
         </div>
 
         <div className="login-brand-center">
-          <img src="/cit_logo.png" alt="CIT-U Logo" className="login-crest-img" />
+          <img src="/aercs_logo.png" alt="AERCS logo" className="login-crest-img" />
           <p className="login-system-name">
             Accreditation Evidence Repository &amp; Coordination System
           </p>
