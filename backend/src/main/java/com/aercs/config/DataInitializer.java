@@ -59,6 +59,14 @@ public class DataInitializer {
         } catch (Exception e) {
             log.warn("Could not update database constraints: {}", e.getMessage());
         }
+
+        // Hibernate adds a check listing the notification types it knew when the table was created,
+        // which would reject types added later. The application only ever writes valid ones.
+        try {
+            jdbcTemplate.execute("ALTER TABLE user_notifications DROP CONSTRAINT IF EXISTS user_notifications_type_check;");
+        } catch (Exception e) {
+            log.warn("Could not relax the user_notifications type check: {}", e.getMessage());
+        }
     }
 
     public void seedAdmin() {

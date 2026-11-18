@@ -144,9 +144,10 @@ export default function ActivityDetailPage() {
 
   const handleSelectAllBatchEligible = useCallback((items) => {
     setBatchSelectedIds((current) => {
-      const eligibleIds = items.filter((item) => !hasMetadata(item)).map((item) => item.id);
-      const allSelected = eligibleIds.length > 0 && eligibleIds.every((idValue) => current.includes(idValue));
-      return allSelected ? [] : eligibleIds;
+      // Every file, with or without metadata; saving over existing metadata asks for confirmation.
+      const allIds = items.map((item) => item.id);
+      const allSelected = allIds.length > 0 && allIds.every((idValue) => current.includes(idValue));
+      return allSelected ? [] : allIds;
     });
   }, []);
 

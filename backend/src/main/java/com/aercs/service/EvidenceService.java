@@ -53,6 +53,7 @@ public class EvidenceService {
     private final TransactionalStorage storage;
     private final EvidenceAccessService accessService;
     private final EvidenceVersionService versionService;
+    private final UserNotificationService notificationService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -69,9 +70,14 @@ public class EvidenceService {
         entityManager.refresh(activity, LockModeType.PESSIMISTIC_WRITE);
 
         User uploadedBy = userRepository.findByIdentifier(userId).orElse(null);
-        return files.stream()
-                .map(file -> saveEvidenceFileWithDuplicateCheck(activity, file, uploadedBy))
+        // Records created by this request (a same-name file becomes a new version instead, which
+        // notifies on its own), so a bulk upload is reported once.
+        List<Evidence> created = new ArrayList<>();
+        List<EvidenceResponse> responses = files.stream()
+                .map(file -> saveEvidenceFileWithDuplicateCheck(activity, file, uploadedBy, created))
                 .toList();
+        notificationService.notifyUploaded(activity, uploadedBy, created);
+        return responses;
     }
 
     // Looks for an existing file with identical content or same filename before saving:
@@ -79,7 +85,8 @@ public class EvidenceService {
     // 2. If a file with the same filename already exists in the same activity with modified content,
     //    automatically create a new version (v2, v3, ...) of that evidence record.
     // 3. If the same content exists in another activity/office, save and attach a DuplicateWarning.
-    private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy) {
+    private EvidenceResponse saveEvidenceFileWithDuplicateCheck(Activity activity, MultipartFile file, User uploadedBy,
+                                                                List<Evidence> created) {
         validateFile(file);
         String fileHash = computeFileHash(file);
         String cleanName = EvidenceFiles.cleanFileName(file.getOriginalFilename());
@@ -121,6 +128,7 @@ public class EvidenceService {
             );
         } else {
             saved = saveEvidenceFile(activity, file, uploadedBy, fileHash);
+            created.add(saved);
         }
 
         EvidenceResponse.DuplicateWarning duplicateWarning = existingDuplicate == null ? null
@@ -164,7 +172,9 @@ public class EvidenceService {
         evidence.setFileSize(0);
         evidence.setUploadedBy(uploadedBy);
 
-        return toResponse(evidenceRepository.save(evidence));
+        Evidence saved = evidenceRepository.save(evidence);
+        notificationService.notifyUploaded(activity, uploadedBy, List.of(saved));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -214,8 +224,17 @@ public class EvidenceService {
         Evidence evidence = findEvidence(evidenceId);
         assertCanModify(evidence, currentUserId);
         User editor = findUser(currentUserId);
+        List<RelatedOffice> taggedBefore = parseRelatedOffices(evidence.getRelatedOffices());
         applyMetadata(evidence, request.evidenceType(), request.relatedOffices(), request.tags(), request.notes(), editor);
-        return toMetadataResponse(evidenceRepository.save(evidence));
+        Evidence saved = evidenceRepository.save(evidence);
+        notificationService.notifyTagged(saved, newlyTagged(taggedBefore, request.relatedOffices()), editor);
+        return toMetadataResponse(saved);
+    }
+
+    // Offices tagged by this save that were not tagged before (saving unchanged tags tells nobody).
+    private List<RelatedOffice> newlyTagged(List<RelatedOffice> before, List<RelatedOffice> after) {
+        if (after == null) return List.of();
+        return after.stream().filter(t -> t != null && !before.contains(t)).distinct().toList();
     }
 
     @Transactional
@@ -234,8 +253,11 @@ public class EvidenceService {
 
         return selectedEvidence.stream()
                 .map(evidence -> {
+                    List<RelatedOffice> taggedBefore = parseRelatedOffices(evidence.getRelatedOffices());
                     applyMetadata(evidence, request.evidenceType(), request.relatedOffices(), request.tags(), request.notes(), editor);
-                    return evidenceRepository.save(evidence);
+                    Evidence saved = evidenceRepository.save(evidence);
+                    notificationService.notifyTagged(saved, newlyTagged(taggedBefore, request.relatedOffices()), editor);
+                    return saved;
                 })
                 .map(this::toMetadataResponse)
                 .toList();

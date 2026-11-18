@@ -36,6 +36,7 @@ export default function UploadEvidencePage() {
   const { user } = useAuth();
   const [activity, setActivity] = useState(null);
   const [evidenceCount, setEvidenceCount] = useState(0);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [uploadInProgress, setUploadInProgress] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -62,7 +63,26 @@ export default function UploadEvidencePage() {
   const canProceedToMetadata = hasUploadedEvidence && !uploadInProgress;
   const handleEvidenceChange = useCallback((items) => {
     setEvidenceCount(items.length);
+    // Forget selected files that no longer exist (e.g. deleted).
+    setSelectedIds((current) => {
+      const next = current.filter((idValue) => items.some((item) => item.id === idValue));
+      return next.length === current.length ? current : next;
+    });
   }, []);
+  const handleToggleSelection = useCallback((item) => {
+    setSelectedIds((current) => (
+      current.includes(item.id) ? current.filter((idValue) => idValue !== item.id) : [...current, item.id]
+    ));
+  }, []);
+  // Selects every uploaded file, or clears the selection when they are all selected already.
+  const handleSelectAll = useCallback((items) => {
+    const allIds = items.map((item) => item.id);
+    setSelectedIds((current) => (
+      allIds.length > 0 && allIds.every((idValue) => current.includes(idValue)) ? [] : allIds
+    ));
+  }, []);
+  // The chosen files are preselected on the Assign Metadata page.
+  const metadataLinkState = selectedIds.length > 0 ? { selectedIds } : undefined;
   const handleUploadStateChange = useCallback((uploading) => {
     setUploadInProgress(uploading);
   }, []);
@@ -81,7 +101,7 @@ export default function UploadEvidencePage() {
         </div>
         <div className="am-page-actions">
           {canProceedToMetadata ? (
-            <Link className="am-btn-primary" to={`/activities/${id}/metadata`}>Assign Metadata</Link>
+            <Link className="am-btn-primary" to={`/activities/${id}/metadata`} state={metadataLinkState}>Assign Metadata</Link>
           ) : (
             <button className="am-btn-primary" type="button" disabled>Assign Metadata</button>
           )}
@@ -100,6 +120,10 @@ export default function UploadEvidencePage() {
               activityId={activity.id}
               canManageEvidence={canManageEvidence}
               lockManagementActions
+              batchSelectionEnabled={canManageEvidence}
+              batchSelectedIds={selectedIds}
+              onSelectAllBatchEligible={handleSelectAll}
+              onToggleBatchSelection={handleToggleSelection}
               onEvidenceChange={handleEvidenceChange}
               onUploadStateChange={handleUploadStateChange}
               title="Upload Evidence"
@@ -111,7 +135,7 @@ export default function UploadEvidencePage() {
                 <Link className="am-btn-secondary" to="/activities/new"><Icon as={ArrowLeft} /> Back</Link>
               )}
               {canProceedToMetadata ? (
-                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`}>Next Step <Icon as={ArrowRight} /></Link>
+                <Link className="am-btn-primary" to={`/activities/${activity.id}/metadata`} state={metadataLinkState}>Next Step <Icon as={ArrowRight} /></Link>
               ) : (
                 <button className="am-btn-primary" type="button" disabled>Next Step <Icon as={ArrowRight} /></button>
               )}

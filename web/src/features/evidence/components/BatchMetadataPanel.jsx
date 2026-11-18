@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, updateEvidenceMetadataBatch } from '../api';
-import { EVIDENCE_TYPES } from '../constants';
+import { EVIDENCE_TYPES, summarizeMetadata } from '../constants';
 import RelatedOfficesPicker from './RelatedOfficesPicker';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import Alert from '../../../shared/components/Alert';
@@ -22,6 +22,7 @@ export default function BatchMetadataPanel({
   activityId,
   evidence: externalEvidence = null,
   hideEvidenceSelection = false,
+  initialSelectedIds = null,
   selectedIds: controlledSelectedIds = null,
   onSelectedIdsChange,
   onSaved,
@@ -74,13 +75,17 @@ export default function BatchMetadataPanel({
       const { data } = await listEvidence(activityId);
       const files = data || [];
       setEvidence(files);
-      setInternalSelectedIds(files.filter((item) => !hasMetadata(item)).map((item) => item.id));
+      // Start with the files chosen on the previous page; otherwise the ones still without metadata.
+      const chosen = initialSelectedIds?.length
+        ? files.filter((item) => initialSelectedIds.includes(item.id))
+        : [];
+      setInternalSelectedIds((chosen.length > 0 ? chosen : files.filter((item) => !hasMetadata(item))).map((item) => item.id));
     } catch {
       setError('Evidence could not be loaded.');
     } finally {
       setLoading(false);
     }
-  }, [activityId, externalEvidence]);
+  }, [activityId, externalEvidence, initialSelectedIds]);
 
   useEffect(() => {
     if (activityId) loadEvidence();
@@ -88,9 +93,11 @@ export default function BatchMetadataPanel({
 
   const selectableEvidence = useMemo(() => effectiveEvidence.filter((item) => !hasMetadata(item)), [effectiveEvidence]);
   const selectedCount = selectedIds.length;
+  // "Select All" covers every file, including ones that already have metadata (saving over those
+  // asks for confirmation), so people can choose exactly which evidence gets the metadata.
   const allSelected = useMemo(
-    () => selectableEvidence.length > 0 && selectableEvidence.every((item) => selectedIds.includes(item.id)),
-    [selectableEvidence, selectedIds]
+    () => effectiveEvidence.length > 0 && effectiveEvidence.every((item) => selectedIds.includes(item.id)),
+    [effectiveEvidence, selectedIds]
   );
 
   const toggleOffice = (office) => {
@@ -187,10 +194,10 @@ export default function BatchMetadataPanel({
                 <button
                   className="am-btn-secondary am-btn-sm"
                   type="button"
-                  onClick={() => setSelectedIds(allSelected ? [] : selectableEvidence.map((item) => item.id))}
-                  disabled={selectableEvidence.length === 0}
+                  onClick={() => setSelectedIds(allSelected ? [] : effectiveEvidence.map((item) => item.id))}
+                  disabled={effectiveEvidence.length === 0}
                 >
-                  Select All Selectable
+                  {allSelected ? 'Deselect All' : 'Select All'}
                 </button>
               </div>
 
@@ -207,15 +214,16 @@ export default function BatchMetadataPanel({
                           checked={selectedIds.includes(item.id)}
                           onChange={() => toggleEvidence(item.id)}
                         />
-                        <span>{item.originalFileName}</span>
-                        <small className={assigned ? 'am-evidence-meta-assigned' : ''}>
-                          {assigned ? (
-                            <>
-                              <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
-                              Assigned — select to edit
-                            </>
-                          ) : item.fileType}
-                        </small>
+                        <span className="am-batch-file-main">
+                          <span className="am-batch-file-name">{item.originalFileName}</span>
+                          {assigned && (
+                            <small className="am-batch-file-meta" title="Already has metadata — select to edit">
+                              <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={10} /></span>
+                              {summarizeMetadata(item)}
+                            </small>
+                          )}
+                        </span>
+                        <small className="am-batch-file-type">{item.fileType}</small>
                       </label>
                     );
                   })}

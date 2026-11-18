@@ -37,6 +37,7 @@ public class SharedEvidenceService {
     private final UserRepository userRepository;
     private final EvidenceAccessService accessService;
     private final EvidenceService evidenceService;
+    private final UserNotificationService notificationService;
 
     private static final EnumMap<Department, RelatedOffice> DEPARTMENT_TO_RELATED = new EnumMap<>(Department.class);
     private static final EnumMap<Office, RelatedOffice> OFFICE_TO_RELATED = new EnumMap<>(Office.class);
@@ -158,7 +159,9 @@ public class SharedEvidenceService {
         ref.setAccreditationArea(area);
         ref.setNote(trimToNull(request.note()));
 
-        return toReferenceResponse(referenceRepository.save(ref));
+        EvidenceReference saved = referenceRepository.save(ref);
+        notificationService.notifyReferenced(saved, referencedBy);
+        return toReferenceResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -226,6 +229,8 @@ public class SharedEvidenceService {
             throw new ForbiddenException("Only the referencing user, department colleague, or administrator can delete it");
         }
 
+        // Written before the delete so the notice can still read the reference's evidence and activity.
+        notificationService.notifyReferenceRemoved(ref, currentUser);
         referenceRepository.delete(ref);
     }
 

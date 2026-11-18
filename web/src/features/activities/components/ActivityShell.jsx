@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Archive, Bell, FileText, HelpCircle, LayoutDashboard, Link2, LogOut, Share2, Users, ChevronDown } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
+import { NOTIFICATION_ROLES, ROLE_LABELS, ROLES } from '../../../shared/constants/roles';
 import { HELP_ROLES } from '../constants';
 import { useAccreditorNotifications } from '../../accreditor-access/context/AccreditorNotificationsContext';
+import { useStaffNotifications } from '../../notifications/context/StaffNotificationsContext';
 import Icon from '../../../shared/components/Icon';
 import '../pages/ActivityManagementPage.css';
 
@@ -24,6 +25,9 @@ export default function ActivityShell({ children }) {
   );
   const navigate = useNavigate();
   const { unreadCount } = useAccreditorNotifications();
+  // Staff with a department or office get their own Notifications tab (administrators have none).
+  const hasStaffNotifications = NOTIFICATION_ROLES.includes(user?.role);
+  const { unreadCount: staffUnreadCount } = useStaffNotifications();
   // /accreditor/notifications sits under /accreditor, so Evidence Links must not claim it as well.
   const onNotifications = (useLocation()?.pathname || '').startsWith('/accreditor/notifications');
 
@@ -107,6 +111,16 @@ export default function ActivityShell({ children }) {
             ) : (
               <>
                 <p className="am-nav-section">Workspace</p>
+                {hasStaffNotifications && (
+                  <NavLink to="/notifications" title="Notifications" className={(state) => `${navClass(state)} am-nav-link-badge`}>
+                    {item(Bell, 'Notifications')}
+                    {staffUnreadCount > 0 && (
+                      <span className="am-nav-badge" aria-label={`${staffUnreadCount} unread`}>
+                        {staffUnreadCount > 99 ? '99+' : staffUnreadCount}
+                      </span>
+                    )}
+                  </NavLink>
+                )}
                 <NavLink to="/dashboard" title="Dashboard" className={navClass}>{item(LayoutDashboard, 'Dashboard')}</NavLink>
                 <NavLink to="/activities" title="Documentation" className={navClass}>{item(FileText, 'Documentation')}</NavLink>
                 <NavLink to="/repository" title="Repository" className={navClass}>{item(Archive, 'Repository')}</NavLink>

@@ -88,6 +88,19 @@ export function formatRelatedOffice(value) {
   return option?.label || LEGACY_RELATED_OFFICE_LABELS[value] || value;
 }
 
+// One short line describing assigned metadata, shown under a file's title:
+// "Report · research, faculty · College of Nursing, Library". Empty when nothing is assigned.
+export function summarizeMetadata(item) {
+  if (!item || !(item.evidenceType || item.relatedOffices?.length || item.tags?.length || item.notes)) return '';
+  const parts = [item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata assigned'];
+  if (item.tags?.length) parts.push(item.tags.join(', '));
+  if (item.relatedOffices?.length) {
+    const offices = item.relatedOffices.map(formatRelatedOffice);
+    parts.push(offices.length > 2 ? `${offices.slice(0, 2).join(', ')} +${offices.length - 2}` : offices.join(', '));
+  }
+  return parts.join(' · ');
+}
+
 // "v1" on every freshly uploaded file is just noise, so version labels and badges only appear
 // once a file has been through a second version.
 export function hasMultipleVersions(item) {

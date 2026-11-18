@@ -875,6 +875,33 @@
   font-size: 0.8125rem;
 }
 
+/* File name on top, its assigned metadata underneath in smaller text. */
+.am-batch-file .am-batch-file-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.am-batch-file .am-batch-file-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.am-batch-file small.am-batch-file-meta {
+  align-items: center;
+  color: var(--color-brand);
+  display: inline-flex;
+  font-size: 0.7rem;
+  gap: 0.3rem;
+  line-height: 1.35;
+}
+
+.am-batch-file .am-batch-file-meta .am-evidence-meta-check {
+  height: 12px;
+  width: 12px;
+}
+
 .am-batch-file-disabled {
   background: var(--color-card);
   color: var(--color-muted);
@@ -1231,6 +1258,19 @@
   margin-bottom: 1rem;
 }
 
+/* Select All sits right above the evidence table, with how many files are picked. */
+.am-evidence-select-bar {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.am-evidence-select-count {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
 .am-evidence-placeholder {
   border: 1px dashed var(--color-line);
   background: var(--color-card);
@@ -1535,12 +1575,15 @@
 .am-evidence-meta {
   display: block;
   color: var(--color-muted);
-  font-size: 0.8125rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
   margin-top: 0.15rem;
 }
 
+/* Block-level flex (not inline-flex) so the metadata always starts on its own line under the title,
+   even when the title row (name + version badge) is inline. */
 .am-evidence-meta-assigned {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.3rem;
   color: var(--color-brand);

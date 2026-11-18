@@ -144,11 +144,12 @@ export default function CreateActivityPage() {
   }, []);
 
   const handleSelectAllBatchEligible = (items) => {
-    const eligibleIds = items.filter((item) => !hasMetadata(item)).map((item) => item.id);
+    // Every file, with or without metadata; saving over existing metadata asks for confirmation.
+    const allIds = items.map((item) => item.id);
     setBatchSelectedIds((current) => (
-      eligibleIds.length > 0 && eligibleIds.every((id) => current.includes(id)) ? [] : eligibleIds
+      allIds.length > 0 && allIds.every((id) => current.includes(id)) ? [] : allIds
     ));
-    if (eligibleIds.length > 0) setActiveSection('metadata');
+    if (allIds.length > 0) setActiveSection('metadata');
   };
 
   const handleToggleBatchSelection = (item) => {

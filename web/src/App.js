@@ -23,8 +23,10 @@ import AccreditorLinksPage from './features/accreditor-access/pages/AccreditorLi
 import AccreditorLinkDetailPage from './features/accreditor-access/pages/AccreditorLinkDetailPage';
 import AccreditorNotificationsPage from './features/accreditor-access/pages/AccreditorNotificationsPage';
 import { AccreditorNotificationsProvider } from './features/accreditor-access/context/AccreditorNotificationsContext';
+import NotificationsPage from './features/notifications/pages/NotificationsPage';
+import { StaffNotificationsProvider } from './features/notifications/context/StaffNotificationsContext';
 import HelpPage from './features/help/pages/HelpPage';
-import { ROLES } from './shared/constants/roles';
+import { NOTIFICATION_ROLES, ROLES } from './shared/constants/roles';
 import { ACTIVITY_CREATE_ROLES, ACTIVITY_WRITE_ROLES, HELP_ROLES } from './features/activities/constants';
 
 function App() {
@@ -32,6 +34,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <AccreditorNotificationsProvider>
+        <StaffNotificationsProvider>
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
@@ -84,6 +87,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
+            }
+          />
+
+          {/* Staff with a department or office: what happened to their unit's evidence */}
+          <Route
+            path="/notifications"
+            element={
+              <RoleProtectedRoute allowedRoles={NOTIFICATION_ROLES}>
+                <NotificationsPage />
+              </RoleProtectedRoute>
             }
           />
 
@@ -193,6 +206,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </StaffNotificationsProvider>
         </AccreditorNotificationsProvider>
       </AuthProvider>
     </BrowserRouter>

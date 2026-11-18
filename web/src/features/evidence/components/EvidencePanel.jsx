@@ -19,12 +19,11 @@ import EvidenceMetadataModal from './EvidenceMetadataModal';
 import EvidenceVersionsModal from './EvidenceVersionsModal';
 import {
   findNewVersionTargets,
-  formatEvidenceType,
-  formatRelatedOffice,
   hasMultipleVersions,
   isForeignUnit,
   isIdenticalContentError,
   isUserUnitTagged,
+  summarizeMetadata,
 } from '../constants';
 import { DRIVE_FOLDER_MESSAGE, isGoogleDriveFolderUrl } from '../driveLinks';
 import { formatUserOffice } from '../../activities/constants';
@@ -274,7 +273,9 @@ export default function EvidencePanel({
     return false;
   };
   const managementLocked = lockManagementActions || isUploading;
-  const selectableBatchEvidence = evidence.filter((item) => !hasMetadata(item));
+  // "Select All" covers every file, including ones that already have metadata (saving over those
+  // asks for confirmation), so people can choose exactly which evidence gets the metadata.
+  const allBatchSelected = evidence.length > 0 && evidence.every((item) => batchSelectedIds.includes(item.id));
 
   // Adds incoming files (from the file picker, folder picker, or a drag-and-drop
   // drop of files/folders) to the staging list. Files that fail validation are
@@ -550,16 +551,6 @@ export default function EvidencePanel({
     <aside className="am-panel">
       <div className="am-evidence-header">
         <p className="am-section-label">{title}</p>
-        {batchSelectionEnabled && (
-          <button
-            className="am-btn-secondary am-btn-sm"
-            type="button"
-            onClick={() => onSelectAllBatchEligible(selectableBatchEvidence)}
-            disabled={selectableBatchEvidence.length === 0}
-          >
-            Select All Selectable
-          </button>
-        )}
       </div>
 
       <Alert type="error" message={error} onDismiss={() => setError('')} />
@@ -726,6 +717,21 @@ export default function EvidencePanel({
         </div>
       )}
 
+      {!loading && evidence.length > 0 && batchSelectionEnabled && (
+        <div className="am-evidence-select-bar">
+          <button
+            className="am-btn-secondary am-btn-sm"
+            type="button"
+            onClick={() => onSelectAllBatchEligible(evidence)}
+          >
+            {allBatchSelected ? 'Deselect All' : 'Select All'}
+          </button>
+          <span className="am-evidence-select-count">
+            {batchSelectedIds.length} of {evidence.length} selected
+          </span>
+        </div>
+      )}
+
       {!loading && evidence.length > 0 && (
         <table className="am-evidence-table">
           <thead>
@@ -773,11 +779,7 @@ export default function EvidencePanel({
                         {hasMetadata(item) && (
                           <span className="am-evidence-meta am-evidence-meta-assigned">
                             <span className="am-evidence-meta-check" aria-hidden="true"><Icon as={Check} size={12} /></span>
-                            {item.evidenceType ? formatEvidenceType(item.evidenceType) : 'Metadata assigned'}
-                            {item.tags?.length ? ` · ${item.tags.join(', ')}` : ''}
-                            {item.relatedOffices?.length
-                              ? ` · ${item.relatedOffices.map(formatRelatedOffice).slice(0, 2).join(', ')}`
-                              : ''}
+                            {summarizeMetadata(item)}
                           </span>
                         )}
                       </div>

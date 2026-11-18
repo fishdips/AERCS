@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import ActivityShell from '../components/ActivityShell';
 import ActivityWorkflowSidebar from '../components/ActivityWorkflowSidebar';
 import { getActivity } from '../api';
@@ -30,6 +30,8 @@ function ActivitySummary({ activity }) {
 
 export default function AssignMetadataPage() {
   const { id } = useParams();
+  // Files picked on the Upload Evidence page, if any, start out selected here.
+  const preselectedIds = useLocation().state?.selectedIds || null;
   const [activity, setActivity] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function AssignMetadataPage() {
         <div className="am-workflow-layout">
           <div className="am-workflow-main">
             <ActivitySummary activity={activity} />
-            <BatchMetadataPanel activityId={activity.id} />
+            <BatchMetadataPanel activityId={activity.id} initialSelectedIds={preselectedIds} />
           </div>
 
           <ActivityWorkflowSidebar

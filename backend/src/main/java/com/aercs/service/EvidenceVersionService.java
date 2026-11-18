@@ -55,6 +55,7 @@ public class EvidenceVersionService {
     private final SupabaseStorageService storageReader;
     private final TransactionalStorage storage;
     private final EvidenceAccessService accessService;
+    private final UserNotificationService notificationService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -197,6 +198,7 @@ public class EvidenceVersionService {
         versionRepository.save(version);
 
         log.info("Evidence {} got a new version v{} from user {}", saved.getId(), nextVersion, describe(uploadedBy));
+        notificationService.notifyNewVersion(saved, uploadedBy, nextVersion);
         return saved;
     }
 
@@ -232,6 +234,7 @@ public class EvidenceVersionService {
 
         log.info("Evidence {} restored from v{} back to v{} by user {}",
                 evidenceId, previous, target.getVersionNumber(), userId);
+        notificationService.notifyNewVersion(saved, accessService.requireUser(userId), target.getVersionNumber());
         return saved;
     }
 

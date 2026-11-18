@@ -10,6 +10,9 @@ export const ROLES = {
   ACCREDITOR_LINK: 'ACCREDITOR_LINK',
 };
 
+// Roles that belong to a department or office and so get a Notifications tab about it.
+export const NOTIFICATION_ROLES = [ROLES.DEPT_STAFF, ROLES.ACCRED_COORDINATOR, ROLES.INSTITUTIONAL_OFFICE];
+
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'System Administrator',
   [ROLES.DEPT_STAFF]: 'Department Staff',

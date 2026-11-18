@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 // Sends via the Brevo HTTP API (port 443) instead of raw SMTP - Render's outbound
@@ -152,6 +153,52 @@ public class InvitationEmailService {
 
         send(accreditor.getEmail(), "New AERCS accreditor access link", text, html,
                 "The accreditor notification email could not be sent. Check the mail configuration and try again.");
+    }
+
+    // Tells a unit's staff that another unit cited their evidence. Sent on a best-effort basis by
+    // UserNotificationService, which logs and ignores a failure.
+    public void sendEvidenceReferenced(User recipient, String evidenceName, UUID evidenceId,
+                                       String citingActivity, String actorName, String actorUnit) {
+        String who = actorName == null || actorName.isBlank() ? "Someone" : actorName;
+        String unit = unitLabel(actorUnit);
+        String byLine = unit == null ? who : who + " (" + unit + ")";
+        String base = baseUrl();
+        String link = base.isEmpty() ? null : base + "/shared-evidence/" + evidenceId + "/references";
+
+        String text = """
+                Hello %s,
+
+                %s referenced your evidence "%s" in the activity "%s".
+
+                %s
+                """.formatted(recipient.getName(), byLine, evidenceName, citingActivity,
+                link == null ? "Sign in to AERCS and open Shared Evidence to see who references it."
+                        : "See who references it: " + link);
+
+        String html = EmailTemplate.render(logoUrl(),
+                who + " referenced your evidence \"" + evidenceName + "\".",
+                "Your evidence was referenced",
+                List.of("Hello " + recipient.getName() + ", " + byLine + " referenced one of your evidence files in their activity."),
+                List.of(EmailTemplate.Detail.of("Evidence", evidenceName),
+                        EmailTemplate.Detail.of("Referenced in activity", citingActivity)),
+                null, null,
+                "View references", link,
+                "You get this email because your department or office owns this evidence. "
+                        + "Other updates appear in the Notifications tab.");
+
+        send(recipient.getEmail(), "Your evidence was referenced in AERCS", text, html,
+                "The evidence reference email could not be sent.");
+    }
+
+    // "REGISTRARS_OFFICE" -> "Registrars Office"; department codes such as "CCS" stay as they are.
+    private static String unitLabel(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String value = raw.trim();
+        if (!value.contains("_")) return value;
+        return java.util.Arrays.stream(value.toLowerCase().split("_"))
+                .filter(w -> !w.isEmpty())
+                .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1))
+                .collect(Collectors.joining(" "));
     }
 
     // Base address of the web app: FRONTEND_URL when set, otherwise the first allowed CORS origin.
